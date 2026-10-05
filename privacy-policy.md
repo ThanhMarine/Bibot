@@ -95,13 +95,13 @@ Cache / temp TTL 24h / max 150-200MB WorkManager hàng ngày
 
 Thay đổi chính sách
 Chúng tôi có thể cập nhật chính sách này. Phiên bản mới sẽ được đăng tại:
-🔗 https://[your-domain]/privacy-policy.html (hoặc GitHub Pages)
+🔗 https://github.com/ThanhMarine/Bibot/privacy-policy.md
 và cập nhật trong app (Settings → Announcements). Việc tiếp tục sử dụng app sau khi cập nhật tức là bạn đồng ý.
 
 Liên hệ
 Data Controller / Nhà phát triển: Bibot Team
-Email: [your-email@domain.com][
-GitHub: https://github.com/privacy-policy.md #1
+Email: ngn.ngocthanh@gmail.com
+
 
 Bibot — Privacy Policy (English Version)
 Last updated: October 4, 2026
@@ -200,10 +200,10 @@ Cache/temp TTL 24h / max 150-200MB Daily WorkManager
 
 Policy Changes
 We may update this policy. New version posted at:
-🔗 https://[your-domain]/privacy-policy.html (or GitHub Pages)
+🔗 https://github.com/ThanhMarine/Bibot/privacy-policy.md
 and in-app (Settings → Announcements). Continued use = acceptance.
 
 Contact
 Data Controller / Developer: Bibot Team
 Email: ngn.ngocthanh@gmail.com
-GitHub: privacy-policy.md #1
+
