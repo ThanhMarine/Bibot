@@ -95,7 +95,7 @@ Cache / temp TTL 24h / max 150-200MB WorkManager hàng ngày
 
 Thay đổi chính sách
 Chúng tôi có thể cập nhật chính sách này. Phiên bản mới sẽ được đăng tại:
-🔗 https://github.com/ThanhMarine/Bibot/privacy-policy.md
+🔗 https://github.com/ThanhMarine/Bibot/blob/main/privacy-policy.md
 và cập nhật trong app (Settings → Announcements). Việc tiếp tục sử dụng app sau khi cập nhật tức là bạn đồng ý.
 
 Liên hệ
@@ -200,7 +200,7 @@ Cache/temp TTL 24h / max 150-200MB Daily WorkManager
 
 Policy Changes
 We may update this policy. New version posted at:
-🔗 https://github.com/ThanhMarine/Bibot/privacy-policy.md
+🔗 https://github.com/ThanhMarine/Bibot/blob/main/privacy-policy.md
 and in-app (Settings → Announcements). Continued use = acceptance.
 
 Contact
