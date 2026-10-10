@@ -1,7 +1,7 @@
 Bibot — Chính sách Quyền riêng tư (Privacy Policy)
 Cập nhật lần cuối: 04/10/2026
 Phiên bản ứng dụng: 1.0.0
-Liên hệ: ngn.ngocthanh@gmail.com
+Liên hệ: bibotvadmin@gmail.com
 
 Tổng quan
 Bibot ("ứng dụng", "chúng tôi", "của chúng tôi") là ứng dụng đọc sách, kể chuyện, trò chuyện AI bằng giọng nói được phát triển bởi Bibot Team. Chúng tôi cam kết bảo vệ quyền riêng tư của bạn. Chính sách này giải thích loại dữ liệu nào được thu thập, cách sử dụng, và quyền của bạn.
@@ -100,13 +100,13 @@ và cập nhật trong app (Settings → Announcements). Việc tiếp tục s�
 
 Liên hệ
 Data Controller / Nhà phát triển: Bibot Team
-Email: ngn.ngocthanh@gmail.com
+Email: bibotvadmin@gmail.com
 
 
 Bibot — Privacy Policy (English Version)
 Last updated: October 4, 2026
 App version: 1.0.0
-Contact: ngn.ngocthanh@gmail.com
+Contact: bibotvadmin@gmail.com
 
 Overview
 Bibot ("the App", "we", "us") is a Vietnamese text-to-speech, audiobook, storytelling, and AI voice chat application developed by Bibot Team. We are committed to protecting your privacy. This policy explains what data we process, how it is used, and your rights.
@@ -205,5 +205,5 @@ and in-app (Settings → Announcements). Continued use = acceptance.
 
 Contact
 Data Controller / Developer: Bibot Team
-Email: ngn.ngocthanh@gmail.com
+Email: bibotvadmin@gmail.com
 
