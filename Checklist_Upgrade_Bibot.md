@@ -633,6 +633,10 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   vặn đồng hồ + quota 10/ngày/máy + anti-share (`VIP_MAX_DEVICES=3`) + thu hồi batch
   (`VIP_REVOKED_BATCHES`). Toàn stdlib, `go vet` + `go test` 3/3 PASS (vector mã thật
   batch 9) + curl E2E qua HTTP thật (`valid:true`, entitlement có `sig`).
+  E2E hết-hạn 2026-10-11 (máy ảo không có VIP local nên không trigger UX tại chỗ —
+  verify ở relay thay): mã hết hạn → `valid:false "ma het han"`; batch 7 + env revoke
+  → `valid:false "ma bi thu hoi"`; mã batch 9 → `valid:true tier=1`. App nhận invalid
+  cho mã đang lưu thì clearVip + hiện `vip_expired_back` (I2.1 đã code).
 - [x] I1.2 Cấu hình: `BIBOT_VIP_SECRET` (+`GEMINI_API_KEY` sẵn có) qua Secret Manager,
   KHÔNG commit git — kể cả repo `meme` private (repo đó chỉ chứa file non-secret:
   Dockerfile, script deploy). Lệnh deploy + curl mẫu đã cập nhật `relay/README.md`.
