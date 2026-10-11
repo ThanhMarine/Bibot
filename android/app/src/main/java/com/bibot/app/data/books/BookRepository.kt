@@ -154,6 +154,7 @@ class BookRepository(private val context: Context) {
                 when (it) {
                     EnBooksCatalog.FOLDER_ID -> "EN"
                     CotichBooksCatalog.FOLDER_ID -> "Cổ tích"
+                    ThamkhaoBooksCatalog.FOLDER_ID -> "Tham khảo"
                     else -> "VI"
                 }
             }

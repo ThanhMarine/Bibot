@@ -1,4 +1,11 @@
-package com.bibot.app.feature.story
+package com.bibot.app.feature.reader
+
+/**
+ * R0 - Man doc duy nhat cho moi kho sach (F0.1).
+ * Tong quat hoa tu BookScreen (giu nguyen luong producer Channel(2) +
+ * PrepSession + phase ads), khac biet theo ReaderCollection (filter kho,
+ * lang/voice, co ads, chuoi UI). Tham khao / PDF local dung chung.
+ */
 
 import android.util.Log
 import androidx.compose.foundation.clickable
@@ -7,12 +14,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
@@ -20,16 +28,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.R
-import com.bibot.app.ui.menu.label
 import com.bibot.app.core.text.BlockTextReader
 import com.bibot.app.core.text.BookPrepStore
 import com.bibot.app.core.tts.CloudTtsBridge
@@ -57,43 +64,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private const val STORY_SAVE_EVERY = 8
-private const val STORY_PAUSE_BETWEEN_MS = 450L
+private const val READER_SAVE_EVERY = 8
+private const val READER_PAUSE_BETWEEN_MS = 450L
 // Rev/Next nhay doan ngan (± cau) thay vi doi chuong; chuyen chuong bang cham tab Hero bar
-private const val STORY_SHORT_JUMP_SENTENCES = 10
+private const val READER_SHORT_JUMP_SENTENCES = 10
 
-// Heading pattern dùng chung cho Kể chuyện (VI) + Sách tiếng Anh (EN):
-// `##` markdown, từ chương VI ("Chương/Phần/Hồi…"), và từ chương EN ("Chapter/Part/Section/Book").
-private val headingSearchRegex = Regex(
-    """(?m)^(?:##\s+|Chương\s|Chuong\s|Phần\s|Phan\s|Hồi\s|Hoi\s|Quyển\s|Quyen\s|Tập\s|Tap\s|Mục\s|Muc\s|Truyện\s|Truyen\s|Chuyện\s|Chuyen\s|Sự tích\s|Su tich\s|Chapter\s|Part\s|Section\s|Book\s)""",
-    RegexOption.IGNORE_CASE
-)
-
-// Search for next/previous heading (#) within content
-fun findNextHeading(text: String, currentPos: Int): Int? {
-    val matches = headingSearchRegex.findAll(text).toList()
-    for (m in matches) {
-        if (m.range.first > currentPos) return m.range.first
-    }
-    return null
-}
-
-fun findPrevHeading(text: String, currentPos: Int): Int? {
-    val matches = headingSearchRegex.findAll(text).toList()
-    for (i in matches.lastIndex downTo 0) {
-        if (matches[i].range.first < currentPos) return matches[i].range.first
-    }
-    return null
-}
-
-// 8.3 PCM flip-flop — producer synthesize trên IO, consumer kể trên Main (tối đa 2 chunk đệm)
-private sealed interface StoryTtsItem {
+// 8.3 PCM flip-flop — producer synthesize trên IO, consumer đọc trên Main (tối đa 2 chunk đệm).
+// Luong doc PCM flip-flop (producer IO / consumer Main, dem 2 chunk) - da ngu theo collection.
+private sealed interface ReaderTtsItem {
     val chapIdx: Int
     val sentIdx: Int
     val sentTotal: Int
     val title: String
     val pauseAfterMs: Long
-    // jumpSeq: số hiệu "lượt nhảy chương" lúc synth — consumer bỏ item cũ khi nó lệch với jumpSeq hiện tại
     val jumpSeq: Int
     data class Pcm(
         override val chapIdx: Int,
@@ -105,7 +88,7 @@ private sealed interface StoryTtsItem {
         override val pauseAfterMs: Long = 0L,
         val mime: String = "audio/mp3",
         override val jumpSeq: Int = 0
-    ) : StoryTtsItem
+    ) : ReaderTtsItem
     data class Direct(
         override val chapIdx: Int,
         override val sentIdx: Int,
@@ -114,21 +97,18 @@ private sealed interface StoryTtsItem {
         val text: String,
         override val pauseAfterMs: Long = 0L,
         override val jumpSeq: Int = 0
-    ) : StoryTtsItem
+    ) : ReaderTtsItem
 }
 
 // P1: chương chỉ giữ TITLE — content đọc per-chương từ `.prep` (seek) qua PrepSession
-data class StoryChapter(val title: String)
+data class Chapter(val title: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoryScreen(
+fun ReaderScreen(
     playerVm: PlayerViewModel = viewModel(),
-    // Bộ sưu tập kho: "story" (Kể chuyện — folder VI) | "cotich" (Cổ tích — folder Cổ tích)
-    collection: String = "story",
+    collection: ReaderCollection = ReaderCollection.EN,
 ) {
-    val isCotich = collection == "cotich"
-    val listEmoji = if (isCotich) "🧚" else "📖"
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repo = remember { BookRepository(context) }
@@ -136,28 +116,26 @@ fun StoryScreen(
     val prefsState by prefs.prefsFlow.collectAsState(initial = com.bibot.app.data.store.BibotPrefs())
     val offlineTts = remember { OfflineTtsHelper(context) }
     val db = remember { BibotDatabase.get(context) }
-    
-    // Landscape detection
+
+    // Landscape detection (dung chung moi kho)
     val config = LocalConfiguration.current
     val isLandscape = config.screenWidthDp > config.screenHeightDp
 
-    var stories by remember { mutableStateOf<List<BookMeta>>(emptyList()) }
-    var selected by remember { mutableStateOf<BookMeta?>(null) }
-    var chapters by remember { mutableStateOf<List<StoryChapter>>(emptyList()) }
-    var currentChap by remember { mutableIntStateOf(0) }
+    var books by remember { mutableStateOf<List<BookMeta>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var selectedBook by remember { mutableStateOf<BookMeta?>(null) }
+    var chapters by remember { mutableStateOf<List<Chapter>>(emptyList()) }
+    var currentChapter by remember { mutableIntStateOf(0) }
     var sentences by remember { mutableStateOf<List<String>>(emptyList()) }
-    var currentSent by remember { mutableIntStateOf(0) }
+    var currentSentence by remember { mutableIntStateOf(0) }
     var totalSentencesAll by remember { mutableIntStateOf(0) }
     var isReading by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     // P1: phiên đọc sách — title list không content, content/câu đọc per-chương (cache đĩa)
     var prepSession by remember { mutableStateOf<BookPrepStore.PrepSession?>(null) }
-    // Đóng handle file khi màn hình thực sự rời composition
     DisposableEffect(Unit) { onDispose { prepSession?.close() } }
-    // Nhảy chương khi đang kể (nút Rev/Next — "search #"): producer poll request này ở đầu vòng lặp
     val jumpChapterReq = remember { mutableIntStateOf(-1) }
     val jumpSentenceReq = remember { mutableIntStateOf(0) }
-    // Tăng khi bấm Rev/Next → consumer bỏ audio đã synth ở vị trí cũ + hủy delay "chờ kể xong"
     val jumpSeq = remember { mutableIntStateOf(0) }
     // Phase Doc/Ngat 8-10' + bonus truoc ad (chi ban demo co ads; ban VIP doc lien mach)
     val phaseTracker = remember { com.bibot.app.core.ads.ReadingPhaseTracker() }
@@ -173,58 +151,46 @@ fun StoryScreen(
     // Chong loop counter: lan ngat truoc cach day bao lau + o chuong nao
     var lastAdBreakMs by remember { mutableStateOf(0L) }
     var lastAdBreakChap by remember { mutableIntStateOf(-1) }
+    // R0: chuoi UI theo collection (EN/sach vs Ke chuyen/Co tich)
+    val strLoading = if (collection.useStoryStrings) R.string.reader_loading_story else R.string.reader_loading_book
+    val strAtStart = if (collection.useStoryStrings) R.string.reader_at_start_story else R.string.reader_at_start_book
+    val strPlay = if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read
+    val strDone = if (collection.useStoryStrings) R.string.reader_done_telling else R.string.reader_done_reading
+    val strStatus = if (collection.useStoryStrings) R.string.reader_status_telling else R.string.reader_status_reading
 
     LaunchedEffect(Unit) {
         offlineTts.ensureInit {}
         repo.refreshAll()
-        if (isCotich) {
-            // Kho Cổ tích: CHỈ sách từ folder Cổ tích (không lẫn kho VI / local)
-            stories = repo.books.value.filter { it.collection == "cotich" }
-            repo.books.collect { all -> stories = all.filter { it.collection == "cotich" } }
-        } else {
-            // Truyện VI: md/txt + PDF (vd Việt Nam Sử Lược — trích text bám font
-            // ToUnicode/TCVN3 trong BlockTextReader). LOẠI sách Cổ tích (module riêng).
-            val storyOk: (BookMeta) -> Boolean = {
-                it.lang == "vi" && it.collection != "cotich" &&
-                    (it.mimeType.contains("markdown") || it.mimeType.contains("plain") ||
-                        it.mimeType.contains("pdf") || it.mimeType.contains("epub") ||
-                        it.title.endsWith(".md") || it.title.endsWith(".txt") ||
-                        it.title.endsWith(".pdf", ignoreCase = true) ||
-                        it.title.endsWith(".epub", ignoreCase = true))
-            }
-            stories = repo.books.value.filter(storyOk)
-            // Also scan local vi files directly
-            if (stories.isEmpty()) {
-                repo.books.collect { all -> stories = all.filter(storyOk) }
-            }
-        }
+        isLoading = false
+        repo.lastSyncWarning.value?.let { status = it }
+        repo.books.collect { books = it }
     }
 
-    fun loadStory(meta: BookMeta) {
-        selected = meta
-        currentChap = 0
-        currentSent = 0
+    fun loadBook(book: BookMeta) {
+        selectedBook = book
+        currentChapter = 0
+        currentSentence = 0
         isReading = false
         chapters = emptyList()
         sentences = emptyList()
         prepSession?.close()
         prepSession = null
-        status = context.getString(R.string.reader_loading_story)
+        status = context.getString(strLoading)
         scope.launch {
             try {
-                val file: File = if (meta.isDownloaded && meta.localFile != null) meta.localFile
+                val file: File = if (book.isDownloaded && book.localFile != null) book.localFile
                 else {
                     status = context.getString(R.string.reader_downloading)
-                    with(Dispatchers.IO) { repo.download(meta) }
+                    with(Dispatchers.IO) { repo.download(book) }
                 }
                 // P1: đọc progress TRƯỚC — biết chương resume để mở đúng câu
                 status = context.getString(R.string.reader_checking_progress)
-                val progress = db.book().get(meta.id)
+                val progress = db.book().get(book.id)
 
                 // P1: hit `.prep` → bỏ hẳn resolveHeading + readChapters/clean (2 pass toàn file).
                 // Miss → build streaming (sink, không giữ sách RAM) → ghi đĩa.
                 val prepDir = FilePaths.prepDir(context)
-                val cacheKey = meta.id.ifBlank { meta.title }
+                val cacheKey = book.id.ifBlank { book.title }
                 val heading = BlockTextReader.Heading.MARKDOWN_OR_STORY
                 val opened = withContext(Dispatchers.IO) {
                     BookPrepStore.open(prepDir, cacheKey, file, heading)
@@ -236,47 +202,53 @@ fun StoryScreen(
                 } else {
                     status = context.getString(R.string.reader_cleaning)
                     val built = withContext(Dispatchers.IO) {
-                        BookPrepStore.build(prepDir, cacheKey, file, heading, "Truyện")
+                        BookPrepStore.build(prepDir, cacheKey, file, heading, collection.fallbackTitle ?: book.title)
                     }
                     session = if (built != null) BookPrepStore.PrepSession.of(built, null)
                     else {
                         // Fallback in-memory khi cache đĩa lỗi (giữ hành vi bản cũ, không mất sách)
                         val chaps = withContext(Dispatchers.IO) {
-                            BlockTextReader.readChapters(file, "Truyện", heading)
+                            BlockTextReader.readChapters(file, collection.fallbackTitle ?: book.title, heading)
                         }
                         BookPrepStore.PrepSession.inMemory(chaps.map { it.title }, chaps.map { it.content })
                     }
                 }
                 prepSession = session
-                chapters = session.titles.map { StoryChapter(it) }
+                chapters = session.titles.map { Chapter(it) }
                 totalSentencesAll = session.sentenceTotal ?: session.estimateTotal
 
-                // Resume: load đúng chương đã nghe (session trả từ `.sent` nếu có, không split lại)
+                // Resume: load đúng chương đã đọc (session trả từ `.sent` nếu có, không split lại)
                 val startChap = if (progress != null && chapters.isNotEmpty())
                     (progress.position / 100).coerceIn(0, chapters.lastIndex) else 0
-                currentChap = startChap
+                currentChapter = startChap
                 sentences = session.sentences(startChap)
-                currentSent = if (progress != null)
+                currentSentence = if (progress != null)
                     (progress.position % 100).coerceIn(0, (sentences.size - 1).coerceAtLeast(0)) else 0
 
-                // Resume announcement if progress exists
                 if (progress != null && progress.position > 0) {
                     scope.launch {
-                        val totalSentences = if (totalSentencesAll > 0) totalSentencesAll else progress.total
                         val currentPos = progress.position
-                        val announce = "Bạn đã nghe ${meta.title} tới câu $currentPos trên $totalSentences. Tiếp tục kể từ câu ${currentPos + 1}."
-                        // Inline TTS logic for announce
+                        val totalNow = if (totalSentencesAll > 0) totalSentencesAll else progress.total
+                        // Thông báo resume đúng NGÔN NGỮ sách — trước đây sách EN bị đọc bằng câu tiếng Việt không dấu
+                        val readLang = collection.resolveLang(book)
+                        val announce = if (readLang == "en") {
+                            "You were listening to ${book.title} at sentence $currentPos of $totalNow. Continuing from sentence ${currentPos + 1}."
+                        } else {
+                            "Bạn đã nghe ${book.title} tới câu $currentPos trên $totalNow. Tiếp tục từ câu ${currentPos + 1}."
+                        }
+                        val useCloud = prefsState.ttsPriority != "offline"
                         // P0-1: key Cloud TTS riêng (Gemini key ≠ TTS key)
-                        val key = prefsState.cloudTtsApiKey.takeIf { it.isNotBlank() }
-                        val useCloud = prefsState.ttsPriority != "offline" && !key.isNullOrBlank()
-                        if (useCloud) {
-                            val bytes = CloudTtsBridge.synthesize(announce, key, voice = CloudTtsBridge.DEFAULT_VI_VOICE, speakingRate = prefsState.storySpeed)
+                        val geminiKey = prefsState.cloudTtsApiKey.takeIf { it.isNotBlank() }
+                        val voice = if (readLang == "en") CloudTtsBridge.DEFAULT_EN_VOICE else CloudTtsBridge.DEFAULT_VI_VOICE
+                        val announceSpeed = if (readLang == "vi") prefsState.storySpeed else prefsState.voiceSpeed
+                        if (useCloud && !geminiKey.isNullOrBlank()) {
+                            val bytes = CloudTtsBridge.synthesize(announce, geminiKey, voice = voice, speakingRate = announceSpeed)
                             if (bytes != null) {
                                 playerVm.playBytes(bytes)
-                                delay((announce.length * 62L).coerceAtLeast(700L))
+                                delay((announce.length * 60L).coerceAtLeast(700L))
                             }
                         } else {
-                            offlineTts.speakOffline(announce, prefsState.storySpeed)
+                            offlineTts.speakOffline(announce, announceSpeed, lang = readLang)
                         }
                     }
                 }
@@ -285,16 +257,16 @@ fun StoryScreen(
                 if (session.sentenceTotal == null) {
                     scope.launch {
                         val real = BookPrepStore.buildSentences(prepDir, cacheKey, file, heading)
-                        if (real != null && real > 0 && selected?.id == meta.id) {
+                        if (real != null && real > 0 && selectedBook?.id == book.id) {
                             session.sentenceTotal = real
                             totalSentencesAll = real
-                            status = context.getString(R.string.reader_loaded, chapters.size, real) + " • 0.88x"
+                            status = context.getString(R.string.reader_loaded, chapters.size, real) + if (collection.useStoryStrings) " \u2022 " + (if (collection.resolveLang(book) == "vi") prefsState.storySpeed else prefsState.voiceSpeed).toString() + "x" else ""
                         }
                     }
                 }
-                status = context.getString(R.string.reader_loaded, chapters.size, totalSentencesAll) + " • 0.88x"
+                status = context.getString(R.string.reader_loaded, chapters.size, totalSentencesAll) + if (collection.useStoryStrings) " \u2022 " + (if (collection.resolveLang(book) == "vi") prefsState.storySpeed else prefsState.voiceSpeed).toString() + "x" else ""
                 // Sách scan/ảnh không có text thật để trích — báo rõ thay vì hiển thị
-                // rác/trang trắng: PDF font Type3 bitmap / EPUB toàn ảnh.
+                // rác/trang trắng: PDF font Type3 bitmap (vd grimm10) / EPUB toàn ảnh.
                 if (totalSentencesAll == 0) {
                     val scannedMsg = withContext(Dispatchers.IO) {
                         when {
@@ -307,7 +279,7 @@ fun StoryScreen(
                             else -> null
                         }
                     }
-                    if (scannedMsg != null && selected?.id == meta.id) status = scannedMsg
+                    if (scannedMsg != null && selectedBook?.id == book.id) status = scannedMsg
                 }
             } catch (e: Exception) {
                 status = context.getString(R.string.reader_error, e.message ?: "")
@@ -315,24 +287,21 @@ fun StoryScreen(
         }
     }
 
-    // Đổi chương — lấy câu từ `.sent`/LRU (miss mới split, trên IO)
-    // sentence < 0 → nhảy tới câu cuối chương đích.
     fun switchChapter(idx: Int, sentence: Int = 0) {
         if (idx !in chapters.indices) return
         val session = prepSession ?: return
         val wantLast = sentence < 0
-        currentChap = idx
-        currentSent = if (wantLast) 0 else sentence.coerceAtLeast(0)
+        currentChapter = idx
+        currentSentence = if (wantLast) 0 else sentence.coerceAtLeast(0)
         scope.launch {
             val list = session.sentences(idx)
             sentences = list
-            currentSent = if (wantLast) (list.size - 1).coerceAtLeast(0)
+            currentSentence = if (wantLast) (list.size - 1).coerceAtLeast(0)
             else sentence.coerceIn(0, (list.size - 1).coerceAtLeast(0))
         }
     }
 
-    // Nút Rev/Next — "search #": nhảy thẳng sang chương đích KHÔNG cần kể hết câu hiện tại.
-    // Đang kể → báo producer nhảy + dọn audio đang phát; đang dừng → chuyển UI như tab chương.
+    // Nút Rev/Next khi đang đọc — nhảy thẳng, bỏ audio đã synth
     fun requestJump(idx: Int, sentence: Int = 0) {
         if (idx !in chapters.indices) return
         if (!isReading) { switchChapter(idx, sentence); return }
@@ -341,74 +310,63 @@ fun StoryScreen(
         com.bibot.app.data.ads.AdManager.onAdClicked = null
         jumpChapterReq.intValue = idx
         jumpSentenceReq.intValue = sentence.coerceAtLeast(0)
-        jumpSeq.intValue++            // consumer: bỏ item cũ + cắt delay chờ audio
-        playerVm.stopPlayback()       // dừng audio cũ ngay (không gọi offlineTts.stop() — tránh kẹt speakOffline)
-        audioStarted = false          // highlight moi chi bat khi audio cau moi that su start
-        status = if (idx == currentChap) context.getString(R.string.reader_jump_sentence, sentence.coerceAtLeast(0) + 1)
+        jumpSeq.intValue++
+        playerVm.stopPlayback()
+        audioStarted = false
+        status = if (idx == currentChapter) context.getString(R.string.reader_jump_sentence, sentence.coerceAtLeast(0) + 1)
         else context.getString(R.string.reader_jump_chapter, idx + 1, chapters.size, chapters[idx].title)
     }
 
     // Rev/Next: nhay doan ngan ± cau trong/khap chuong. Chuyen chuong bang cham tab Hero bar.
     fun jumpSentences(delta: Int) {
         if (chapters.isEmpty() || sentences.isEmpty()) return
-        val target = currentSent + delta
+        val target = currentSentence + delta
         when {
-            target < 0 -> if (currentChap > 0) requestJump(currentChap - 1, Int.MAX_VALUE)
-            else { currentSent = 0; status = context.getString(R.string.reader_at_start_story) }
-            target >= sentences.size -> if (currentChap + 1 < chapters.size) requestJump(currentChap + 1, 0)
-            else { currentSent = sentences.lastIndex; status = context.getString(R.string.reader_at_end) }
-            else -> requestJump(currentChap, target)
+            target < 0 -> if (currentChapter > 0) requestJump(currentChapter - 1, Int.MAX_VALUE)
+            else { currentSentence = 0; status = context.getString(strAtStart) }
+            target >= sentences.size -> if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1, 0)
+            else { currentSentence = sentences.lastIndex; status = context.getString(R.string.reader_at_end) }
+            else -> requestJump(currentChapter, target)
         }
     }
 
-    // "# search" - tìm heading (#) kế tiếp/trước trong nội dung chương hiện tại
+    // "# search" — tìm heading kế/trước trong chương hiện tại (dùng chung findNext/PrevHeading với Kể chuyện)
     // (content chương hiện tại đọc từ `.prep` trên IO — không còn giữ trong RAM)
     fun searchHeading(direction: Int) { // 1 = next, -1 = prev
         val session = prepSession ?: return
-        if (currentChap !in chapters.indices) return
+        if (currentChapter !in chapters.indices) return
         scope.launch {
-            val content = session.content(currentChap)
-            // Estimate current position in chapter text based on sentence index
-            val sentencesInChap = sentences
-            val approxPos = if (sentencesInChap.isNotEmpty() && currentSent < sentencesInChap.size) {
-                val currentSentence = sentencesInChap[currentSent]
-                content.indexOf(currentSentence)
+            val content = session.content(currentChapter)
+            val approxPos = if (sentences.isNotEmpty() && currentSentence < sentences.size) {
+                content.indexOf(sentences[currentSentence])
             } else 0
 
             val newPos = if (direction > 0) findNextHeading(content, approxPos) else findPrevHeading(content, approxPos)
 
             newPos?.let { pos ->
-                // Convert position to sentence index
                 val textBefore = content.substring(0, pos)
                 val sentenceCount = textBefore.split(Regex("[.!?…]\\s*")).size - 1
-                val targetSentence = sentenceCount.coerceIn(0, sentencesInChap.size - 1)
-                if (isReading) {
-                    requestJump(currentChap, targetSentence)
-                } else {
-                    currentSent = targetSentence
-                }
+                val targetSentence = sentenceCount.coerceIn(0, (sentences.size - 1).coerceAtLeast(0))
+                if (isReading) requestJump(currentChapter, targetSentence) else currentSentence = targetSentence
             } ?: run {
-                // Fallback to chapter navigation if no heading found
                 if (direction > 0) {
-                    if (currentChap + 1 < chapters.size) requestJump(currentChap + 1, 0)
+                    if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1, 0)
                     else status = context.getString(R.string.reader_at_end)
                 } else {
-                    if (currentChap > 0) requestJump(currentChap - 1, 0)
-                    else status = context.getString(R.string.reader_at_start_story)
+                    if (currentChapter > 0) requestJump(currentChapter - 1, 0)
+                    else status = context.getString(strAtStart)
                 }
             }
         }
     }
 
-    // 8.3 PCM flip-flop — producer synthesize trên IO, consumer kể trên Main (overlap thật)
     LaunchedEffect(isReading) {
-        if (!isReading || selected == null || chapters.isEmpty()) {
-            // Reset ad preload flag when reading stops
+        if (!isReading || selectedBook == null || chapters.isEmpty()) {
             adPreloaded = false
             return@LaunchedEffect
         }
         // Preload interstitial early when reading starts (fix race condition)
-        if (com.bibot.app.BuildConfig.ENABLE_ADS && !vipActive && !isCotich && !adPreloaded) {
+        if (com.bibot.app.BuildConfig.ENABLE_ADS && collection.adsEnabled && !vipActive && !adPreloaded) {
             try {
                 (context as? android.app.Activity)?.let { act ->
                     com.bibot.app.data.ads.AdManager.loadInterstitial(act)
@@ -416,44 +374,43 @@ fun StoryScreen(
                 adPreloaded = true
             } catch (_: Exception) {}
         }
+        val book = selectedBook ?: return@LaunchedEffect
         // P1: câu từng chương lấy từ session (.sent cache / seek .prep) — không split content trong RAM
         val session = prepSession ?: return@LaunchedEffect
-        val speed = prefsState.storySpeed // 0.88 default
-        // Tổng số câu đã tính lúc nạp (trên IO) — KHÔNG tách lại toàn bộ truyện trên Main
+        val readLang = collection.resolveLang(book)
+        val speed = if (readLang == "vi") prefsState.storySpeed else prefsState.voiceSpeed
         val totalSentences = totalSentencesAll
+        val useCloud = prefsState.ttsPriority != "offline"
         // P0-1: key Cloud TTS riêng (Gemini key ≠ TTS key)
-        val key = prefsState.cloudTtsApiKey.takeIf { it.isNotBlank() }
-        val cloudKeyOk = !key.isNullOrBlank()
-        val cloudOn = prefsState.ttsPriority != "offline" && cloudKeyOk
+        val geminiKey = prefsState.cloudTtsApiKey.takeIf { it.isNotBlank() }
+        val voice = if (readLang == "en") CloudTtsBridge.DEFAULT_EN_VOICE else CloudTtsBridge.DEFAULT_VI_VOICE
+        val cloudOn = useCloud && !geminiKey.isNullOrBlank()
         // Rewarded: mo Cloud theo chuong (chi demo co ads; VIP khong dung nhanh nay)
-        val rewardedCloudOk = com.bibot.app.BuildConfig.ENABLE_ADS && cloudKeyOk && !vipActive
+        val rewardedCloudOk = com.bibot.app.BuildConfig.ENABLE_ADS && !geminiKey.isNullOrBlank() && !vipActive
         var rewardedLeft = try { adsPrefs.getRewardedCloudChapters() } catch (_: Exception) { 0 }
         var rewardedForChap = rewardedLeft > 0
         val piperOn = prefsState.storyPreferPiper &&
-            com.bibot.app.core.tts.PiperTtsHelper.isVoiceComplete(context, "vi")
-        val ttsChannel = Channel<StoryTtsItem>(capacity = 2)
+            com.bibot.app.core.tts.PiperTtsHelper.isVoiceComplete(context, readLang)
+        val ttsChannel = Channel<ReaderTtsItem>(capacity = 2)
         var finishedAll = false
 
         val producer = launch {
-            var chapIdx = currentChap
-            var sentIdx = currentSent
+            var chapIdx = currentChapter
+            var sentIdx = currentSentence
             var localSentences = sentences
             try {
                 while (isActive && isReading && chapIdx < chapters.size) {
-                    // Rev/Next → "search #": nhảy thẳng tới chương đích, không chờ câu hiện tại xong
                     val jc = jumpChapterReq.intValue
                     if (jc >= 0) {
                         jumpChapterReq.intValue = -1
                         chapIdx = jc
                         localSentences = session.sentences(chapIdx)
-                        currentChap = chapIdx
+                        currentChapter = chapIdx
                         sentences = localSentences
                         sentIdx = jumpSentenceReq.intValue.coerceIn(0, (localSentences.size - 1).coerceAtLeast(0))
-                        currentSent = sentIdx
+                        currentSentence = sentIdx
                         continue
                     }
-                    // Số hiệu lượt nhảy lúc BẮT ĐẦU câu này — bấm Rev/Next giữa chừng → item mang
-                    // seq cũ → consumer bỏ đi, không kể nhầm chỗ cũ.
                     val seqAtStart = jumpSeq.intValue
                     if (sentIdx >= localSentences.size) {
                         // Het chuong: tru 1 luot rewarded neu chuong vua doc dung giong Cloud tang
@@ -463,17 +420,15 @@ fun StoryScreen(
                         }
                         chapIdx++
                         if (chapIdx >= chapters.size) break
-                        // Tách câu chương mới trên IO — không chặn Main
                         localSentences = session.sentences(chapIdx)
-                        currentChap = chapIdx
+                        currentChapter = chapIdx
                         sentences = localSentences
                         sentIdx = 0
-                        currentSent = 0
+                        currentSentence = 0
                         rewardedForChap = rewardedLeft > 0
-                        delay(STORY_PAUSE_BETWEEN_MS)
+                        delay(READER_PAUSE_BETWEEN_MS)
                         continue
                     }
-                    // 8.4 + 2.5: clean trước synthesize
                     val clean = com.bibot.app.core.text.TextCleaner.cleanForTts(localSentences[sentIdx])
                     if (clean.isBlank()) { sentIdx++; continue }
                     if (com.bibot.app.core.text.TextCleaner.looksLikeThinking(clean)) { sentIdx++; continue }
@@ -483,21 +438,20 @@ fun StoryScreen(
                         sentIdx++; continue
                     }
                     val pauseMs = if (needPause) 2000L else 0L
-                    // Dùng `plain` (đã bỏ PAUSE2SEC) cho mọi engine — marker chỉ còn làm cờ pause
                     var pcm: ByteArray? = null
                     var mime = "audio/mp3"
                     if (piperOn) {
-                        pcm = try { com.bibot.app.core.tts.PiperTtsHelper.synthesize(context, plain, "vi") } catch (_: Exception) { null }
+                        pcm = try { com.bibot.app.core.tts.PiperTtsHelper.synthesize(context, plain, readLang) } catch (_: Exception) { null }
                         if (pcm != null) mime = "audio/wav"
                     }
-                    if ((pcm == null || pcm.isEmpty()) && (cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && cloudKeyOk))) {
-                        pcm = try { CloudTtsBridge.synthesize(plain, key, voice = CloudTtsBridge.DEFAULT_VI_VOICE, speakingRate = speed) } catch (_: Exception) { null }
+                    if ((pcm == null || pcm.isEmpty()) && (cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank()))) {
+                        pcm = try { CloudTtsBridge.synthesize(plain, geminiKey, voice = voice, speakingRate = speed) } catch (_: Exception) { null }
                         mime = "audio/mp3"
                     }
                     if (pcm != null && pcm.isNotEmpty()) {
-                        ttsChannel.send(StoryTtsItem.Pcm(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, pcm, plain.length, pauseMs, mime, seqAtStart))
+                        ttsChannel.send(ReaderTtsItem.Pcm(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, pcm, plain.length, pauseMs, mime, seqAtStart))
                     } else {
-                        ttsChannel.send(StoryTtsItem.Direct(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, plain, pauseMs, seqAtStart))
+                        ttsChannel.send(ReaderTtsItem.Direct(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, plain, pauseMs, seqAtStart))
                     }
                     sentIdx++
                 }
@@ -507,87 +461,82 @@ fun StoryScreen(
             }
         }
 
-        var count = 0
+        var spokenCount = 0
         try {
             for (item in ttsChannel) {
                 ensureActive()
-                if (!isReading) break // abort_check khi Back/Stop
-                // Đã bấm Rev/Next sau khi item này được synth → bỏ, không kể nhầm chỗ cũ
+                if (!isReading) break
                 if (item.jumpSeq != jumpSeq.intValue) continue
                 // Karaoke sync: TO KHI AUDIO START (khong +1 truoc, khong to som luc cho synth).
-                // Pcm: doi player chuyen sang cau nay that roi moi gan highlight.
-                // Direct: gan ngay truoc khi speak (engine offline start ~ngay lap tuc).
                 when (item) {
-                    is StoryTtsItem.Pcm -> {
-                        val mid = "story_${item.chapIdx}_${item.sentIdx}_${item.jumpSeq}"
+                    is ReaderTtsItem.Pcm -> {
+                        val mid = "${collection.audioPrefix}${item.chapIdx}_${item.sentIdx}_${item.jumpSeq}"
                         playerVm.enqueueBytes(item.bytes, item.mime, mid)
-                        awaitAudioStart(playerVm, mid, (item.textLen * 62L).coerceAtLeast(700L)) { item.jumpSeq != jumpSeq.intValue }
+                        awaitAudioStart(playerVm, mid, (item.textLen * 60L).coerceAtLeast(700L)) { item.jumpSeq != jumpSeq.intValue }
                         if (item.jumpSeq != jumpSeq.intValue) continue
-                        currentSent = item.sentIdx
+                        currentSentence = item.sentIdx
                         audioStarted = true
-                        status = context.getString(R.string.reader_status_telling, item.title, item.sentIdx + 1, item.sentTotal)
-                        awaitAudioDone(playerVm, mid, (item.textLen * 62L).coerceAtLeast(700L)) { item.jumpSeq != jumpSeq.intValue }
+                        status = context.getString(strStatus, item.title, item.sentIdx + 1, item.sentTotal)
+                        awaitAudioDone(playerVm, mid, (item.textLen * 60L).coerceAtLeast(700L)) { item.jumpSeq != jumpSeq.intValue }
                     }
-                    is StoryTtsItem.Direct -> {
-                        currentSent = item.sentIdx
+                    is ReaderTtsItem.Direct -> {
+                        currentSentence = item.sentIdx
                         audioStarted = true
-                        status = context.getString(R.string.reader_status_telling, item.title, item.sentIdx + 1, item.sentTotal)
-                        try { offlineTts.speakOffline(item.text, speed) } catch (_: Exception) {}
+                        status = context.getString(strStatus, item.title, item.sentIdx + 1, item.sentTotal)
+                        // lang = sách EN → giọng en-US (không còn đọc tiếng Anh bằng giọng Việt)
+                        try { offlineTts.speakOffline(item.text, speed, lang = readLang) } catch (_: Exception) {}
                     }
                 }
                 if (item.pauseAfterMs > 0) delayUntilDone(item.pauseAfterMs) { item.jumpSeq != jumpSeq.intValue }
-                count++
-                if (count % STORY_SAVE_EVERY == 0) {
+                spokenCount++
+                if (spokenCount % READER_SAVE_EVERY == 0) {
                     try {
                         db.book().upsert(
                             com.bibot.app.data.db.BookProgress(
-                                bookId = selected!!.id,
-                                path = selected!!.localFile?.absolutePath ?: selected!!.title,
+                                bookId = book.id,
+                                path = book.localFile?.absolutePath ?: book.title,
                                 position = item.chapIdx * 100 + (item.sentIdx + 1),
                                 total = totalSentences
                             )
                         )
                     } catch (_: Exception) {}
                 }
-                // Micro pause per sentence, longer for comma (imitate STORY_PAUSE_COMMA 0.25s)
-                val spokenText = if (item is StoryTtsItem.Direct) item.text else ""
+                // Tạm nghỉ mỗi câu — dài hơn nếu câu kết thúc bằng dấu phẩy
+                val spokenText = if (item is ReaderTtsItem.Direct) item.text else ""
                 val isComma = spokenText.trimEnd().endsWith(",") || spokenText.trimEnd().endsWith("，")
                 delay(if (isComma) 250 else 180)
                 // Phase Doc/Ngat 8-10': VIP bo qua (khong bonus, khong dung, khong QC)
-                if (com.bibot.app.BuildConfig.ENABLE_ADS && !vipActive && item.jumpSeq == jumpSeq.intValue) {
-                    if (item is StoryTtsItem.Direct) phaseTracker.onBlock(item.text)
-                    else if (item is StoryTtsItem.Pcm) phaseTracker.onChars(item.textLen)
+                if (com.bibot.app.BuildConfig.ENABLE_ADS && collection.adsEnabled && !vipActive && item.jumpSeq == jumpSeq.intValue) {
+                    if (item is ReaderTtsItem.Direct) phaseTracker.onBlock(item.text)
+                    else if (item is ReaderTtsItem.Pcm) phaseTracker.onChars(item.textLen)
                     val lv = phaseTracker.level()
                     val chapEnd = item.sentIdx + 1 >= item.sentTotal
-                    // Chong loop counter: du dieu kien van phai cach lan ngat truoc >= 5 phut
-                    // VA khac chuong da ngat (doan ngan doc tiep cung chuong khong kich QC lai).
+                    // Chong loop counter: cach lan ngat truoc >= 5 phut VA khac chuong da ngat.
                     val nowMs = System.currentTimeMillis()
                     val gapOk = nowMs - lastAdBreakMs >= 5 * 60 * 1000L
                     val chapOk = item.chapIdx != lastAdBreakChap
                     if (phaseTracker.shouldBreakAtBoundary(lv, chapEnd) && gapOk && chapOk) {
-                        val bonus = com.bibot.app.core.ads.AdCopy.bonusChapter("vi", item.title)
+                        val bonus = com.bibot.app.core.ads.AdCopy.bonusChapter(readLang, item.title)
                         status = bonus
-                        try { offlineTts.speakOffline(bonus, speed) } catch (_: Exception) {}
+                        try { offlineTts.speakOffline(bonus, speed, lang = readLang) } catch (_: Exception) {}
                         if (item.jumpSeq == jumpSeq.intValue) {
                             try { offlineTts.stop() } catch (_: Exception) {}
                             playerVm.stopPlayback()
                             // Hien QC neu co san; khong co -> doc lien mach khong dung
                             var adShown = false
-                            if (!isCotich) {
-                                try {
-                                    (context as? android.app.Activity)?.let { act ->
-                                        adShown = com.bibot.app.data.ads.AdManager.showInterstitial(act)
-                                    }
-                                } catch (_: Exception) {}
-                            }
+                            try {
+                                (context as? android.app.Activity)?.let { act ->
+                                    adShown = com.bibot.app.data.ads.AdManager.showInterstitial(act)
+                                }
+                            } catch (_: Exception) {}
                             phaseTracker.reset()
                             adPreloaded = false
                             lastAdBreakMs = nowMs
                             lastAdBreakChap = item.chapIdx
                             try {
-                                Log.d("PhaseAd", "break story chap=${item.chapIdx} sent=${item.sentIdx} lv=$lv ${phaseTracker.debugStats()}")
+                                Log.d("PhaseAd", "break ${collection.key} chap=${item.chapIdx} sent=${item.sentIdx} lv=$lv ${phaseTracker.debugStats()}")
                             } catch (_: Exception) {}
-                            currentSent = item.sentIdx + 1
+                            currentSentence = item.sentIdx + 1
                             if (adShown) {
                                 // Tu dong doc tiep khi QC tat (onAdDismissed) — ke ca khi tat man hinh
                                 adBreakActive = true
@@ -605,7 +554,7 @@ fun StoryScreen(
                             }
                             // Khong co QC san: doc tiep cau ke ma khong ngat
                         }
-                    } else if (lv == 1 && !adPreloaded && !isCotich) {
+                    } else if (lv == 1 && !adPreloaded && collection.adsEnabled) {
                         // Armed: preload interstitial de san o bien chuong (fallback nếu preload đầu thất bại)
                         try {
                             (context as? android.app.Activity)?.let { act ->
@@ -620,37 +569,95 @@ fun StoryScreen(
             try { producer.cancel() } catch (_: Exception) {}
         }
         if (isReading && finishedAll) {
-            status = context.getString(R.string.reader_done_telling, selected?.title ?: "")
-            currentSent = sentences.size // qua cuối → tắt highlight câu cuối
+            status = context.getString(strDone, book.title)
+            currentSentence = sentences.size // qua cuối → tắt highlight câu cuối
             isReading = false
         }
     }
 
-    if (selected == null) {
+    if (selectedBook == null) {
+    if (collection == ReaderCollection.EN) {
+        // Module "Sách tiếng Anh": hiện EN + local/link. Sách folder VI (source=pdrive, lang=vi)
+        // thuộc module Kể chuyện → ẩn, tránh danh sách 2 module giống hệt nhau.
+        val enBooks = books.filter { it.lang == "en" }
+        val otherBooks = books.filterNot { it.lang == "en" || (it.lang == "vi" && it.source == "pdrive") }
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
-                // Gọn UI: bỏ tiêu đề + chú thích (đã có trên top bar) — chỉ giữ số lượng
-                Text(stringResource(R.string.home_story_count, stories.size), style = MaterialTheme.typography.labelMedium)
-                if (stories.isEmpty()) {
+                // Gọn UI: bỏ tiêu đề + chú thích (đã có trên top bar) — chỉ giữ 1 dòng đếm EN
+                if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.home_book_count, enBooks.size + otherBooks.size), style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    FilledTonalButton(onClick = { scope.launch { repo.refreshAll(); status = repo.lastSyncWarning.value ?: context.getString(R.string.book_refreshed, repo.books.value.size) } }) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.book_refresh), fontSize = 12.sp)
+                    }
+                    FilledTonalButton(onClick = { scope.launch { repo.refreshAll(); status = context.getString(R.string.book_scanned, repo.localBooks().size) } }) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.book_scan_local), fontSize = 12.sp)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                var urlInput by remember { mutableStateOf("") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = urlInput, onValueChange = { urlInput = it },
+                        label = { Text(stringResource(R.string.book_url_label)) },
+                        placeholder = { Text("https://...") },
+                        modifier = Modifier.weight(1f), singleLine = true
+                    )
+                    Button(onClick = {
+                        if (urlInput.isBlank()) { status = context.getString(R.string.book_enter_url_first); return@Button }
+                        scope.launch { status = context.getString(R.string.reader_loading_url); try { val f = repo.downloadFromUrl(urlInput.trim()); status = context.getString(R.string.book_downloaded, f.name); repo.refreshAll() } catch (e: Exception) { status = context.getString(R.string.reader_error, e.message ?: "") } }
+                    }) { Text(stringResource(R.string.book_download), fontSize = 12.sp) }
+                }
+            }
+            if (enBooks.isNotEmpty()) {
+                item { Text(stringResource(R.string.book_section_en, enBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
+            }
+            items(enBooks, key = { it.id }) { book ->
+                ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } })
+            }
+            if (otherBooks.isNotEmpty()) {
+                item { Text(stringResource(R.string.book_section_local, otherBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
+            }
+            items(otherBooks, key = { it.id }) { book ->
+                ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } })
+            }
+            item {
+                if (isLoading && books.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
+            }
+        }
+    } else {
+        // R0: kho Ke chuyen / Co tich / Tham khao - list don (khong nut quan ly)
+        val visibleBooks = books.filter { collection.filter(it) }
+        val listEmoji = if (collection == ReaderCollection.COTICH) "\uD83E\uDDDA" else "\uD83D\uDCD6"
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.home_story_count, visibleBooks.size), style = MaterialTheme.typography.labelMedium)
+                if (visibleBooks.isEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        if (isCotich) stringResource(R.string.home_cotich_empty)
+                        if (collection == ReaderCollection.COTICH) stringResource(R.string.home_cotich_empty)
                         else stringResource(R.string.home_story_empty),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 Spacer(Modifier.height(4.dp))
             }
-            items(stories, key = { it.id }) { story ->
-                Card(modifier = Modifier.fillMaxWidth().clickable { loadStory(story) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            items(visibleBooks, key = { it.id }) { story ->
+                Card(modifier = Modifier.fillMaxWidth().clickable { loadBook(story) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(listEmoji, fontSize = 22.sp)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(story.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                            Text("vi • " + story.source + " • " + (if (story.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + story.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                            Text(collection.resolveLang(story) + " \u2022 " + story.source + " \u2022 " + (if (story.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + story.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
                         }
-                        FilledTonalButton(onClick = { loadStory(story) }) { Text(stringResource(R.string.reader_play_tell), fontSize = 12.sp) }
+                        FilledTonalButton(onClick = { loadBook(story) }) { Text(stringResource(if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read), fontSize = 12.sp) }
                     }
                 }
             }
@@ -658,9 +665,11 @@ fun StoryScreen(
                 Text(status!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
         }
+    }
     } else {
-        val meta = selected!!
-        val chap = chapters.getOrNull(currentChap)
+        val book = selectedBook!!
+        val uiLang = collection.resolveLang(book)
+        val chap = chapters.getOrNull(currentChapter)
         // Giu man hinh sang trong luc doc (chong may TU nghi/ngu): tat khi Pause/Back/roi man hinh.
         // Bam nut nguon tat man hinh thu cong van duoc — audio doc nen nho WAKE_MODE_LOCAL.
         DisposableEffect(isReading) {
@@ -677,25 +686,25 @@ fun StoryScreen(
             alignment = if (isLandscape) Alignment.BottomEnd else Alignment.BottomCenter,
             info = {
                 Column {
-                    ControlInfoText(stringResource(R.string.reader_pos, currentChap + 1, chapters.size, currentSent + 1, sentences.size))
-                    ControlInfoText((if (isCotich) com.bibot.app.ui.menu.BibotMode.COTICH else com.bibot.app.ui.menu.BibotMode.STORY).label() + " • 0.88x • pause 0.45s", secondary = true)
+                    ControlInfoText(stringResource(R.string.reader_pos, currentChapter + 1, chapters.size, currentSentence + 1, sentences.size))
+                    ControlInfoText((if (uiLang == "en") "EN" else "VI") + " • " + (if (uiLang == "en") prefsState.voiceSpeed else prefsState.storySpeed).toString() + "x", secondary = true)
                 }
             },
             controls = {
                 ControlIconButton(
-                    onClick = { jumpSentences(-STORY_SHORT_JUMP_SENTENCES) },
+                    onClick = { jumpSentences(-READER_SHORT_JUMP_SENTENCES) },
                     imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = stringResource(R.string.reader_jump_back, STORY_SHORT_JUMP_SENTENCES)
+                    contentDescription = stringResource(R.string.reader_jump_back, READER_SHORT_JUMP_SENTENCES)
                 )
                 ControlPlayButton(
                     isPlaying = isReading,
                     onClick = { if (isReading) { isReading = false; adBreakActive = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context) } else { audioStarted = false; phaseTracker.reset(); adPreloaded = false; isReading = true; com.bibot.app.ui.player.KeepAwakeService.start(context) } },
-                    contentDescription = if (isReading) stringResource(R.string.reader_pause) else stringResource(R.string.reader_play_tell)
+                    contentDescription = if (isReading) stringResource(R.string.reader_pause) else stringResource(strPlay)
                 )
                 ControlIconButton(
-                    onClick = { jumpSentences(STORY_SHORT_JUMP_SENTENCES) },
+                    onClick = { jumpSentences(READER_SHORT_JUMP_SENTENCES) },
                     imageVector = Icons.Default.SkipNext,
-                    contentDescription = stringResource(R.string.reader_jump_fwd, STORY_SHORT_JUMP_SENTENCES)
+                    contentDescription = stringResource(R.string.reader_jump_fwd, READER_SHORT_JUMP_SENTENCES)
                 )
             }
         ) {
@@ -706,13 +715,13 @@ fun StoryScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { isReading = false; adBreakActive = false; audioStarted = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context); selected = null },
+                        onClick = { isReading = false; adBreakActive = false; audioStarted = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context); selectedBook = null },
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back), modifier = Modifier.size(20.dp))
                     }
                     Text(
-                        "$listEmoji ${meta.title}",
+                        "${collection.headerEmoji} ${book.title}",
                         maxLines = 1,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -721,27 +730,24 @@ fun StoryScreen(
                 }
             }
             if (chapters.size > 1) {
-                ScrollableTabRow(selectedTabIndex = currentChap, modifier = Modifier.fillMaxWidth()) {
+                ScrollableTabRow(selectedTabIndex = currentChapter, modifier = Modifier.fillMaxWidth()) {
                     chapters.forEachIndexed { idx, c ->
-                        Tab(selected = idx == currentChap, onClick = {
+                        Tab(selected = idx == currentChapter, onClick = {
                             isReading = false; adBreakActive = false; audioStarted = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context)
                             switchChapter(idx)
                         }, text = { Text(c.title.take(16), fontSize = 11.sp) })
                     }
                 }
             }
-            // Content — LazyColumn: chỉ compose câu đang hiển thị (truyện dài không treo UI)
             val listState = rememberLazyListState()
             val density = LocalDensity.current
-            LaunchedEffect(currentSent, isReading) {
+            LaunchedEffect(currentSentence, isReading) {
                 if (isReading && sentences.isNotEmpty()) {
-                    // Gop nhip 350ms: cau tieu de ngan hien chua kip nhin da bi cau sau cuop scroll.
-                    // Chi cuon khi vi tri dung yen: het thay cau ngan nhay lien tuc.
+                    // Gop nhip 350ms + bu header + can giua 1/3 man hinh (chung):
+                    // cau dau ngan/tieu de khong bi luot qua truoc khi mat kip nhin.
                     delay(350)
-                    // +1 bu item tieu de chuong dung dau list; offset am dua cau dang doc
-                    // xuong ~1/3 man hinh (thay vi dinh sat mep tren) de cau ngan van nhin thay.
                     val total = listState.layoutInfo.totalItemsCount
-                    val idx = (currentSent.coerceIn(0, sentences.lastIndex) + 1)
+                    val idx = (currentSentence.coerceIn(0, sentences.lastIndex) + 1)
                         .coerceIn(0, (total - 1).coerceAtLeast(0))
                     try {
                         val center = -(config.screenHeightDp * density.density / 3).toInt()
@@ -755,29 +761,60 @@ fun StoryScreen(
                 contentPadding = PaddingValues(top = 4.dp, start = 16.dp, end = 16.dp, bottom = contentBottomInset()),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                item(key = "head-$currentChap") {
+                item(key = "head-$currentChapter") {
                     chap?.let {
                         Text(it.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.height(8.dp))
                     }
                 }
-                itemsIndexed(sentences, key = { idx, _ -> "$currentChap-$idx" }) { idx, s ->
-                    val isCurrent = idx == currentSent && isReading && audioStarted
-                    // UI không hiện marker PAUSE2SEC — hiện ký hiệu pause thay cho nó
+                itemsIndexed(sentences, key = { idx, _ -> "$currentChapter-$idx" }) { idx, s ->
+                    val isCurrent = idx == currentSentence && isReading && audioStarted
                     val (displayText, hasPause) = com.bibot.app.core.text.TextCleaner.splitPause(s)
                     Column {
-                        Text(if (hasPause) "$displayText ⏸2s" else displayText, style = MaterialTheme.typography.bodyMedium, lineHeight = 22.sp, color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(vertical = 3.dp))
-                        // Native tinh giua ky (TTS Bypass): Cotich ~80 (1 native/2 chu ky + badge gia dinh)
-                        val adIdx = if (isCotich) com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_COTICH else com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_DEFAULT
+                        Text(
+                            if (hasPause) "$displayText ⏸2s" else displayText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            lineHeight = 22.sp,
+                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.padding(vertical = 3.dp)
+                        )
+                        // Native tinh giua ky (TTS Bypass): label EN cho sach EN
+                        val adIdx = if (collection == ReaderCollection.COTICH) com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_COTICH else com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_DEFAULT
                         if (idx == adIdx && sentences.size > adIdx) {
                             Spacer(Modifier.height(4.dp))
-                            com.bibot.app.ui.components.ads.NativeInlineAd(lang = "vi", isFamily = isCotich)
+                            com.bibot.app.ui.components.ads.NativeInlineAd(lang = uiLang, isFamily = collection == ReaderCollection.COTICH)
                         }
                     }
                 }
-                item(key = "status-$currentChap") {
+                item(key = "status-$currentChapter") {
                     status?.let { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderCard(
+    book: BookMeta,
+    onLoad: () -> Unit,
+    onDownload: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth().clickable { onLoad() }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (book.lang == "en") "📘" else "📗", fontSize = 22.sp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(book.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(book.source + " • " + book.lang.uppercase() + " • " + book.mimeType + " • " + (if (book.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + book.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+            }
+            if (!book.isDownloaded) {
+                IconButton(onClick = onDownload) { Icon(Icons.Default.Download, contentDescription = stringResource(R.string.book_download)) }
+            } else {
+                FilledTonalButton(onClick = onLoad) { Text(stringResource(R.string.book_read), fontSize = 12.sp) }
+                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.book_delete), modifier = Modifier.size(20.dp)) }
             }
         }
     }

@@ -25,3 +25,12 @@ object EnBooksCatalog {
 object CotichBooksCatalog {
     const val FOLDER_ID = "1l8gX5ynd9J9Z1u6EQze08sK3VOXzG0Gx"
 }
+
+/**
+ * R0/F0.2 — Kho "Tham khảo" (tài liệu tham khảo, thường là PDF): thêm folder ID
+ * theo đúng pattern VietBooksCatalog, 0 màn mới (dùng chung ReaderScreen).
+ * TODO: điền folderId Drive khi có; để trống = ẩn module (listAll bỏ qua).
+ */
+object ThamkhaoBooksCatalog {
+    const val FOLDER_ID = ""
+}

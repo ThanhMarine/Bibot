@@ -174,7 +174,9 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
 - [x] D5.2 40/40 pattern check cho regex Kotlin (mirror Python, kotlinc chưa có).
 - [x] D5.3 Lưu ý build: `go build ./...` từ gốc hiện fail ở `OpenReadEra/libwebp/swig`
   (code clone third-party, có từ trước — build theo package `internal/... cmd/...`).
-- [ ] D5.4 Chạy `./gradlew :app:assembleDemoDebug` khi có máy build (Kotlin chưa biên dịch local).
+- [x] D5.4 Chạy `./gradlew :app:assembleDemoDebug` khi có máy build (Kotlin chưa biên dịch local).
+  Xong 2026-10-11 (R0): `assembleDemoDebug` + `assembleCommercialDebug` đều
+  BUILD SUCCESSFUL (chỉ warning deprecation có sẵn); `go vet` 0 + `go test ./internal/tts/` PASS.
 
 ---
 
@@ -239,16 +241,27 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
 
 ### F0. R0 — Gộp màn đọc trước mọi thứ (điều kiện để E1.1 không phải wire 3 lần)
 
-- [ ] F0.1 Mới `feature/reader/ReaderScreen(book: BookMeta, collection: ReaderCollection)`
-  + `ReaderViewModel` (gom state rải rác `remember` + producer/consumer + save progress).
-  `BookScreen`/`StoryScreen` thành wrapper mỏng (giữ 1 bản release) rồi xóa ở F0.3.
-- [ ] F0.2 Mới `enum ReaderCollection { EN, STORY_VI, COTICH, THAMKHAO, LOCAL_PDF }`:
-  mỗi loại chỉ là config `{titleRes, lang/voice, chunker, sourceFilter, emptyText}` —
-  Sử Việt/Cổ Tích/English/Tham khảo/PDF local chung 1 màn, Tham khảo = thêm
-  `ThamkhaoBooksCatalog.FOLDER_ID` theo đúng pattern `VietBooksCatalog` (0 màn mới).
-- [ ] F0.3 Xóa `BookScreen.kt` + `StoryScreen.kt` (~700 dòng trùng), `BibotNavSuite`
-  trỏ 4 mode về `ReaderScreen`. Verify: đọc thử 1 sách mỗi collection, hành vi y cũ.
-- [ ] F0.4 Size check: R0 chỉ bớt code (±0 byte tăng). Ghi size `Bibot.apk` trước/sau.
+- [x] F0.1 Mới `feature/reader/ReaderScreen(book: BookMeta, collection: ReaderCollection)`
+  (tổng quát hóa từ `BookScreen`, giữ nguyên luồng producer `Channel(2)` + PrepSession +
+  phase ads; heading regex chuyển về `feature/reader/ReaderHeadings.kt` — xóa import
+  chéo `feature.story`). Xong 2026-10-11: `ReaderScreen.kt` 821 dòng (sinh bằng
+  script `gen_reader.py`, 44 điểm thay thế đều khớp count + check leftover).
+  NOTE: state vẫn `remember` trong composable như cũ (không regression) — hoist sang
+  `ReaderViewModel` dời sang nhịp B3 cùng Touch_point/anchor (F2 cần anchor + readMode).
+- [x] F0.2 Mới `enum ReaderCollection { EN, STORY_VI, COTICH, THAMKHAO, LOCAL_PDF }`:
+  mỗi loại chỉ là config `{headerEmoji, fixedLang, adsEnabled, allowManage,
+  useStoryStrings, fallbackTitle, audioPrefix}` + `filter()` giữ đúng hành vi cũ
+  (EN: ẩn `vi+pdrive`; STORY_VI: `storyOk`; COTICH: `collection==cotich`).
+  Tham khảo = thêm `ThamkhaoBooksCatalog.FOLDER_ID` (đang trống → `listAll` bỏ qua,
+  0 màn mới); `PublicDriveSource` map folder → `collection=thamkhao`.
+- [x] F0.3 Xóa `BookScreen.kt` (768 dòng) + `StoryScreen.kt` (784 dòng), `BibotNavSuite`
+  trỏ 3 mode về `ReaderScreen` (BOOK→EN, STORY→STORY_VI, COTICH→COTICH).
+  Verify máy ảo BibotTest 2026-10-11 (uiautomator): EN hiện `📚 EN Books` + 8 sách +
+  nút Refresh/Scan/URL; Storytelling 16 truyện 📖+Tell; Cổ tích 19 truyện 🧚+Tell;
+  mở truyện đã tải → reader đúng (tab Đoạn, câu VI, `Loaded 15 chapters • 83 sentences
+  • 0.88x`, resume `Chapter 14/15`, `VI • 0.88x`). Không crash (logcat sạch FATAL).
+- [x] F0.4 Size check: R0 bớt ~1500 dòng code trùng. `Bibot.apk` demoDebug sau R0 =
+  58.353.752 bytes (~55,7MB) — dưới budget 85MB (F1.4), +0 lib.
 
 ### F1. Vị trí E1.1 trong kế hoạch
 

@@ -41,12 +41,13 @@ class PublicDriveSource(private val context: Context) {
     suspend fun list(folderId: String = defaultFolderId()): List<BookMeta> = withContext(Dispatchers.IO) {
         val html = fetchFolderHtml(folderId)
         if (html.isEmpty()) return@withContext emptyList()
-        // lang + collection theo folder: story (VI) / cotich (Cổ tích) / en (mặc định)
+        // lang + collection theo folder: story (VI) / cotich (Cổ tích) / thamkhao / en (mặc định)
         val lang: String
         val collection: String
         when (folderId) {
             VietBooksCatalog.FOLDER_ID -> { lang = "vi"; collection = "story" }
             CotichBooksCatalog.FOLDER_ID -> { lang = "vi"; collection = "cotich" }
+            ThamkhaoBooksCatalog.FOLDER_ID -> { lang = "vi"; collection = "thamkhao" }
             else -> { lang = "en"; collection = "en" }
         }
         parseEntries(html).map { (fileId, title) ->
@@ -64,13 +65,14 @@ class PublicDriveSource(private val context: Context) {
     }
 
     /**
-     * List cả 3 folder VI + EN + Cổ tích. Lỗi mạng vẫn ném ra để UI biết.
+     * List cả 4 folder VI + EN + Cổ tích + Tham khảo. Lỗi mạng vẫn ném ra để UI biết.
      * Folder riêng tư (401/403) → bỏ qua folder đó, ghi id vào [privateFolders]
      * để UI cảnh báo "chưa chia sẻ công khai" (không nuốt mất folder còn lại).
+     * Folder chưa cấu hình (FOLDER_ID trống) → bỏ qua.
      */
     suspend fun listAll(privateFolders: MutableList<String> = mutableListOf()): List<BookMeta> {
         val out = mutableListOf<BookMeta>()
-        for (id in listOf(VietBooksCatalog.FOLDER_ID, EnBooksCatalog.FOLDER_ID, CotichBooksCatalog.FOLDER_ID)) {
+        for (id in listOf(VietBooksCatalog.FOLDER_ID, EnBooksCatalog.FOLDER_ID, CotichBooksCatalog.FOLDER_ID, ThamkhaoBooksCatalog.FOLDER_ID).filter { it.isNotBlank() }) {
             try {
                 out += list(id)
             } catch (e: FolderPrivateException) {

@@ -26,11 +26,11 @@ import com.bibot.app.ui.components.ads.AdsBanner
 import com.bibot.app.ui.components.ads.AdsInterstitialHelper
 import com.bibot.app.ui.components.ads.AdsRewardedHelper
 import com.bibot.app.feature.doc.DocBrowserScreen
-import com.bibot.app.feature.book.BookScreen
+import com.bibot.app.feature.reader.ReaderCollection
+import com.bibot.app.feature.reader.ReaderScreen
 import com.bibot.app.feature.music.MusicScreen
 import com.bibot.app.feature.news.NewsScreen
 import com.bibot.app.feature.settings.SettingsScreen
-import com.bibot.app.feature.story.StoryScreen
 import com.bibot.app.BuildConfig
 import com.bibot.app.feature.weather.WeatherScreen
 import com.bibot.app.feature.voice.VoiceScreen
@@ -207,9 +207,9 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                         } else {
                             when (currentMode) {
                                 null -> HomeMenu(onModeSelected = { currentMode = it })
-                                BibotMode.BOOK -> BookScreen(playerVm = playerViewModel)
-                                BibotMode.STORY -> StoryScreen(playerVm = playerViewModel, collection = "story")
-                                BibotMode.COTICH -> StoryScreen(playerVm = playerViewModel, collection = "cotich")
+                                BibotMode.BOOK -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.EN)
+                                BibotMode.STORY -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.STORY_VI)
+                                BibotMode.COTICH -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.COTICH)
                                 BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
                                 BibotMode.WEATHER -> WeatherScreen()
                                 BibotMode.NEWS -> NewsScreen()
