@@ -58,6 +58,13 @@ Sinh mã test đúng secret staging rồi nhập trên app:
 `python tools/vipcodes/vip_batch.py --gen --tier month --months 1 --count 1 --batch 99 --secret <HEX>`.
 Xong việc: `adb reverse --remove-all`, xóa binary staging (không commit).
 
+> **Nếu cần nâng cấp thêm (ghi chú chốt phiên 2026-10-11):** toàn bộ flow staging
+> trên (build relay + reverse + build app + cài) **chỉ chạy khi thật cần** (VD: đổi
+> format entitlement, xoay secret, nghi lệch verify app/server). Lý do hoãn: nhiều
+> bước thủ công, dễ lỗi thời theo code; unit test (`go test`, vector mã thật batch 9)
+> + curl E2E đã bao phủ logic verify. Khi cần thì làm theo mục này, xong cập nhật lại
+> mục này nếu lệnh đổi.
+
 ## 3. Nối app
 
 Điền URL vào `android/app/build.gradle.kts`:
