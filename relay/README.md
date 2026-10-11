@@ -38,6 +38,26 @@ curl -X POST https://bibot-relay-xxx.a.run.app/v1/vip/verify \
   -d '{"code":"BIBOT-...","deviceId":"test-1","appVersion":"1.0"}'
 ```
 
+## 2b. Staging local (không cần cloud, test đường relay thật)
+
+```powershell
+cd relay
+go build -o relay-staging.exe .
+$env:BIBOT_VIP_SECRET = "<HEX test, vd output vip_batch.py --gen-secret>"
+$env:PORT = "8080"
+.\relay-staging.exe            # nghe :8080 trên PC
+# Máy ảo gọi về PC:
+adb reverse tcp:8080 tcp:8080  # emulator:8080 -> PC:8080
+# Build app trỏ relay staging (không sửa code):
+$env:BIBOT_RELAY_URL = "http://localhost:8080"
+cd ..\android; .\gradlew.bat :app:assembleDemoDebug
+adb install -r app\build\outputs\apk\demo\debug\Bibot.apk
+```
+
+Sinh mã test đúng secret staging rồi nhập trên app:
+`python tools/vipcodes/vip_batch.py --gen --tier month --months 1 --count 1 --batch 99 --secret <HEX>`.
+Xong việc: `adb reverse --remove-all`, xóa binary staging (không commit).
+
 ## 3. Nối app
 
 Điền URL vào `android/app/build.gradle.kts`:
