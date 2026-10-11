@@ -1,6 +1,7 @@
 package com.bibot.app.feature.reader
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,8 +41,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -184,80 +191,62 @@ fun ReaderSettingsPopup(
 
 @Composable
 fun ReaderBottomBar(
-    posText: String,
-    engineText: String,
-    chapterIndex: Int,
-    chapterCount: Int,
+    chapterText: String,
+    fraction: Float,
     onPrevChapter: () -> Unit,
     onNextChapter: () -> Unit,
-    onScrubChapter: (Int) -> Unit,
-    history: List<Int>,
-    chapterTitle: (Int) -> String,
-    onHistoryBack: (Int) -> Unit,
-    onHistoryClear: () -> Unit
+    onScrubFraction: (Float) -> Unit
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-            // B3.2: lịch sử trang + XÓA.
-            if (history.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val last = history.last()
-                    TextButton(onClick = { onHistoryBack(last) }) {
-                        Text(stringResource(R.string.chrome_back_to_page, last + 1), fontSize = 11.sp)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onHistoryClear) {
-                        Text(stringResource(R.string.chrome_history_clear), fontSize = 11.sp)
-                    }
-                }
+        Row(
+            Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onPrevChapter, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "‹")
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPrevChapter, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.ChevronLeft, contentDescription = "‹")
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(posText, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                    Text(engineText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, maxLines = 1)
-                    // B3.2: scrubber toàn chiều rộng + vạch chương.
-                    if (chapterCount > 1) {
-                        Slider(
-                            value = chapterIndex.coerceIn(0, chapterCount - 1).toFloat(),
-                            onValueChange = { onScrubChapter(it.toInt().coerceIn(0, chapterCount - 1)) },
-                            valueRange = 0f..(chapterCount - 1).toFloat(),
-                            steps = (chapterCount - 2).coerceAtLeast(0)
-                        )
-                        ChapterTicks(count = chapterCount, current = chapterIndex)
-                    }
-                }
-                IconButton(onClick = onNextChapter, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.ChevronRight, contentDescription = "›")
-                }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    chapterText,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(3.dp))
+                ScrubLine(fraction = fraction, onScrubFraction = onScrubFraction)
+            }
+            IconButton(onClick = onNextChapter, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "›")
             }
         }
     }
 }
 
-/** Vạch chương dưới scrubber (ticks từ readChapters — B3.2). */@Composable
-fun ChapterTicks(count: Int, current: Int) {
-    if (count < 2) return
-    Row(
-        Modifier.fillMaxWidth().height(4.dp).padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(1.dp)
+/**
+ * Vạch xanh mỏng (3dp) chạm để nhảy: thay slider + ticks cồng kềnh —
+ * cùng 1 fraction vị trí tổng thể, không che text.
+ */
+@Composable
+fun ScrubLine(fraction: Float, onScrubFraction: (Float) -> Unit) {
+    var w by remember { mutableStateOf(0) }
+    Box(
+        Modifier.fillMaxWidth().height(14.dp)
+            .onSizeChanged { w = it.width }
+            .pointerInput(w) {
+                detectTapGestures { offset ->
+                    if (w > 0) onScrubFraction((offset.x / w).coerceIn(0f, 1f))
+                }
+            },
+        contentAlignment = Alignment.CenterStart
     ) {
-        val n = count.coerceAtMost(400)
-        for (i in 0 until n) {
-            val on = i * count / n <= current
-            Box(
-                Modifier.weight(1f).height(4.dp)
-                    .background(
-                        if (on) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.outlineVariant,
-                        RoundedCornerShape(1.dp)
-                    )
-            )
-        }
+        LinearProgressIndicator(
+            progress = { fraction.coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(3.dp),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            drawStopIndicator = {}
+        )
     }
 }
+
 
 /**
  * B6.7 — Thanh chỉ báo mảnh (3dp) sát dưới top-bar: vị trí đọc tổng thể,

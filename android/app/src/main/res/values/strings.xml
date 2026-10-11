@@ -371,6 +371,7 @@
     <string name="chrome_brightness">In-app brightness</string>
     <string name="chrome_brightness_auto">System</string>
     <string name="chrome_page_of">Page %1$d of %2$d</string>
+    <string name="chrome_chapter_of">Chapter %1$d/%2$d</string>
     <string name="chrome_back_to_page">‹ Back to page %1$d</string>
     <string name="chrome_history_clear">Clear</string>
     <string name="chrome_anchor_read_from">▶ Read from here</string>

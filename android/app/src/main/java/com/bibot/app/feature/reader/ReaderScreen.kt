@@ -162,7 +162,6 @@ fun ReaderScreen(
     // B6.2/B6.3: popup ⚙ + hint điều hướng chạm (1 lần mỗi máy).
     var settingsOpen by remember { mutableStateOf(false) }
     var hintOpen by remember { mutableStateOf(false) }
-    var history by remember { mutableStateOf(listOf<Int>()) } // lịch sử chương
     var pageCount by remember { mutableIntStateOf(0) }
     var pageIndex by remember { mutableIntStateOf(0) }
     var brightness by remember { mutableStateOf<Float?>(null) } // null = hệ thống
@@ -205,7 +204,6 @@ fun ReaderScreen(
         anchorConfirm = null
         pendingJump = null
         tocOpen = false
-        history = emptyList()
         pageCount = 0
         pageIndex = 0
         brightness = null
@@ -361,10 +359,6 @@ fun ReaderScreen(
     fun switchChapter(idx: Int, sentence: Int = 0) {
         if (idx !in chapters.indices) return
         val session = prepSession ?: return
-        // B3.2: đẩy chương hiện tại vào lịch sử trước khi rời (tối đa 10).
-        if (idx != currentChapter) {
-            history = (history + currentChapter).takeLast(10)
-        }
         val wantLast = sentence < 0
         currentChapter = idx
         currentSentence = if (wantLast) 0 else sentence.coerceAtLeast(0)
@@ -990,12 +984,6 @@ fun ReaderScreen(
         }
 
         val playDesc = if (isReading) stringResource(R.string.reader_pause) else stringResource(strPlay)
-        val posText = if (viewMode == ReaderView.PAGE && pageCount > 0)
-            stringResource(R.string.chrome_page_of, pageIndex + 1, pageCount)
-        else stringResource(R.string.reader_pos, currentChapter + 1, chapters.size, currentSentence + 1, sentences.size)
-        val engineText = (if (uiLang == "en") "EN" else "VI") + " • " +
-            (if (uiLang == "en") prefsState.voiceSpeed else prefsState.storySpeed).toString() + "x" +
-            if (degradedEngine) " • offline" else ""
 
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
@@ -1022,12 +1010,13 @@ fun ReaderScreen(
                         (currentChapter + 1).toFloat() / chapters.size
                     } else 0f
                     ReaderPositionBar(fraction = posFraction)
-                    // Điều hướng chương dời lên top (tránh vùng banner ở đáy).
+                    // Cụm chương gọn: 1 dòng text + vạch xanh + 2 mũi tên.
                     ReaderBottomBar(
-                        posText = posText,
-                        engineText = engineText,
-                        chapterIndex = currentChapter,
-                        chapterCount = chapters.size,
+                        chapterText = (if (viewMode == ReaderView.PAGE && pageCount > 0)
+                            stringResource(R.string.chrome_page_of, pageIndex + 1, pageCount)
+                        else stringResource(R.string.chrome_chapter_of, currentChapter + 1, chapters.size)) +
+                            if (degradedEngine) " • offline" else "",
+                        fraction = posFraction,
                         onPrevChapter = {
                             if (currentChapter > 0) requestJump(currentChapter - 1)
                             else status = context.getString(strAtStart)
@@ -1036,14 +1025,13 @@ fun ReaderScreen(
                             if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
                             else status = context.getString(R.string.reader_at_end)
                         },
-                        onScrubChapter = { if (it != currentChapter) requestJump(it) },
-                        history = history,
-                        chapterTitle = { chapters.getOrNull(it)?.title ?: "" },
-                        onHistoryBack = { idx ->
-                            history = history.dropLast(1)
-                            requestJump(idx)
-                        },
-                        onHistoryClear = { history = emptyList() }
+                        onScrubFraction = { f ->
+                            if (chapters.size > 1) {
+                                val idx = (f * chapters.size).toInt()
+                                    .coerceIn(0, chapters.size - 1)
+                                if (idx != currentChapter) requestJump(idx)
+                            }
+                        }
                     )
                 }
                 // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
@@ -1256,17 +1244,19 @@ fun ReaderScreen(
                 if (chapters.isNotEmpty() && !prefsState.readerHintSeen) hintOpen = true
             }
             if (hintOpen && !prefsState.readerHintSeen) {
+                // Bấm ngoài dialog cũng tính là đã thấy (tránh nag-loop khi chạm trượt).
+                fun dismissHint() {
+                    hintOpen = false
+                    scope.launch {
+                        try { prefs.setReaderHintSeen() } catch (_: Exception) {}
+                    }
+                }
                 AlertDialog(
-                    onDismissRequest = { hintOpen = false },
+                    onDismissRequest = { dismissHint() },
                     title = { Text(stringResource(R.string.chrome_hint_title), fontWeight = FontWeight.Bold) },
                     text = { Text(stringResource(R.string.chrome_hint_text)) },
                     confirmButton = {
-                        TextButton(onClick = {
-                            hintOpen = false
-                            scope.launch {
-                                try { prefs.setReaderHintSeen() } catch (_: Exception) {}
-                            }
-                        }) { Text(stringResource(R.string.chrome_got_it)) }
+                        TextButton(onClick = { dismissHint() }) { Text(stringResource(R.string.chrome_got_it)) }
                     }
                 )
             }

@@ -253,6 +253,12 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B6.9 TEMP (test aid): nút Back hệ thống trong màn đọc → về list (ưu tiên đóng
   dialog/sheet trước). Verify máy ảo (`keyevent 4` từ reader → list Cổ tích, không
   crash). B2 sẽ đổi thành về Detail — nhớ gỡ TEMP khi đó.
+- [x] B6.10 Gọt cụm chương còn 52dp (1 dòng text + vạch xanh 3dp chạm-nhảy + 2 mũi tên):
+  bỏ slider/ticks/dòng engine/lịch sử UI (trùng nội dung, rộng). Verify screenshot
+  (`Chapter 1/15` + vạch, đáy sạch). `chrome_chapter_of` mới (2 locale).
+- [x] B6.11 Hint 1 lần: bấm ngoài dialog cũng lưu cờ (trước đây chạm trượt → nag-loop).
+  Phát hiện khi verify: gỡ + cài lại vẫn giữ prefs (Auto Backup khôi phục DataStore)
+  — muốn sạch thật phải xóa backup; ghi nhận, không đổi backup_rules (vướng VIP grace).
 
 ---
 
