@@ -250,6 +250,9 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B6.8 Dời cụm điều hướng chương lên top (dưới vệt xanh), đáy chỉ còn FAB —
   tránh hẳn vùng banner quảng cáo: verify screenshot (top: top-bar + vệt + ‹ scrubber
   ticks ›, đáy sạch). FAB hạ từ 190dp → 32dp.
+- [x] B6.9 TEMP (test aid): nút Back hệ thống trong màn đọc → về list (ưu tiên đóng
+  dialog/sheet trước). Verify máy ảo (`keyevent 4` từ reader → list Cổ tích, không
+  crash). B2 sẽ đổi thành về Detail — nhớ gỡ TEMP khi đó.
 
 ---
 
