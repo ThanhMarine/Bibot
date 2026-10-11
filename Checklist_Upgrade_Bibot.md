@@ -257,8 +257,15 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   bỏ slider/ticks/dòng engine/lịch sử UI (trùng nội dung, rộng). Verify screenshot
   (`Chapter 1/15` + vạch, đáy sạch). `chrome_chapter_of` mới (2 locale).
 - [x] B6.11 Hint 1 lần: bấm ngoài dialog cũng lưu cờ (trước đây chạm trượt → nag-loop).
-  Phát hiện khi verify: gỡ + cài lại vẫn giữ prefs (Auto Backup khôi phục DataStore)
-  — muốn sạch thật phải xóa backup; ghi nhận, không đổi backup_rules (vướng VIP grace).
+  Đính chính (2026-10-11): `backup_rules` LOẠI TRỪ toàn bộ `datastore/` + `bibot.db` +
+  `bibot/` — gỡ app là sạch thật, KHÔNG cần xóa backup (ghi nhận cũ "backup khôi phục
+  prefs" là sai — lần đó do bấm trượt nút). Không đổi backup_rules (vướng VIP grace).
+  Hack time +40d (`date 112012002025`, `auto_time 0` rồi khôi phục): Drive chết
+  (SSL, dự kiến) nhưng sách local vẫn liệt kê/đọc/neo/karaoke bình thường, FAB →
+  confirm → READ + persist anchor, không FATAL EXCEPTION nào của app (1 SIGSEGV là
+  WebView GPU process hệ thống). Trên máy ảo không có VIP cục bộ
+  (`bibot_ads.preferences_pb` chưa từng tồn tại) nên không trigger được UX hết hạn —
+  phần đó thuộc verify relay E2E của phiên kia.
 
 ---
 
