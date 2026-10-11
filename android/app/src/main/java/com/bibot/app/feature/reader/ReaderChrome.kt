@@ -29,6 +29,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -236,8 +237,7 @@ fun ReaderBottomBar(
     }
 }
 
-/** Vạch chương dưới scrubber (ticks từ readChapters — B3.2). */
-@Composable
+/** Vạch chương dưới scrubber (ticks từ readChapters — B3.2). */@Composable
 fun ChapterTicks(count: Int, current: Int) {
     if (count < 2) return
     Row(
@@ -257,6 +257,20 @@ fun ChapterTicks(count: Int, current: Int) {
             )
         }
     }
+}
+
+/**
+ * B6.7 — Thanh chỉ báo mảnh (3dp) sát dưới top-bar: vị trí đọc tổng thể,
+ * hiển thị-only (điều khiển vẫn ở scrubber đáy). Gần như không che text.
+ */
+@Composable
+fun ReaderPositionBar(fraction: Float) {
+    LinearProgressIndicator(
+        progress = { fraction.coerceIn(0f, 1f) },
+        modifier = Modifier.fillMaxWidth().height(3.dp),
+        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        drawStopIndicator = {}
+    )
 }
 
 @Composable

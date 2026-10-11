@@ -993,6 +993,15 @@ fun ReaderScreen(
                         onToggleView = { settingsOpen = true },
                         playLabel = playDesc
                     )
+                    // B6.7: thanh chỉ báo mảnh sát dưới top-bar (hiển thị-only).
+                    val posFraction = if (viewMode == ReaderView.PAGE && pageCount > 0) {
+                        (pageIndex + 1).toFloat() / pageCount
+                    } else if (chapters.isNotEmpty() && sentences.isNotEmpty()) {
+                        (currentChapter + (currentSentence + 1).toFloat() / sentences.size) / chapters.size
+                    } else if (chapters.isNotEmpty()) {
+                        (currentChapter + 1).toFloat() / chapters.size
+                    } else 0f
+                    ReaderPositionBar(fraction = posFraction)
                 }
                 // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
                 if (readModeState == ReadMode.BROWSE && chapters.isNotEmpty() &&

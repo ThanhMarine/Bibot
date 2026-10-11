@@ -244,6 +244,9 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   (B3.3 đã cover khi READ), hint 1 lần, prep rebuild, tin full + expand,
   2 flavor BUILD SUCCESSFUL + JVM 18/18 (9 TextRules + 9 TtsSegments) + Go PASS,
   logcat sạch FATAL. APK demo 58.534.751B (~55,8MB) < 85MB.
+- [x] B6.7 Thanh chỉ báo mảnh 3dp sát dưới top-bar (hiển thị-only, scrubber đáy giữ
+  nguyên điều khiển): verify screenshot máy ảo thấy vệt xanh full-width
+  (uiautomator không expose node vẽ — check bằng ảnh). +0 text, không che nội dung.
 
 ---
 
