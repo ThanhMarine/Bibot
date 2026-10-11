@@ -1,0 +1,48 @@
+{
+ "version": 1,
+ "rules": [
+  {
+   "id": "drop.page_number",
+   "kind": "drop_line",
+   "scope": [
+    "segment"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 0,
+   "patterns": [
+    "^\\s*[-–—\\[\\({]*\\s*\\d{1,4}\\s*[-–—\\]\\)}]*\\s*$",
+    "(?i)^\\s*(?:[-–—\\[\\({]*\\s*)?(?:trang|page)\\s+\\d{1,4}\\s*(?:[-–—\\]\\)}]*\\s*)?$"
+   ]
+  },
+  {
+   "id": "date.slash_short",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 10,
+   "pattern": "(?i)(?:ngày\\s+)?\\b([0-3]?\\d)\\s*/\\s*([01]?\\d)\\b",
+   "template": "{day:1} tháng {month:2}"
+  },
+  {
+   "id": "roman.single",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 30,
+   "pattern": "(?i)\\b(thế\\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\\s+lục)\\s+([IVXLCDM]+)\\b",
+   "template": "{1} {roman:2}"
+  }
+ ],
+ "checksum": "f661e0cea669fad772e7b0019990eb75809c583fecb10a02870b61ff1262fc73"
+}

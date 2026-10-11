@@ -1,0 +1,64 @@
+# Reading Rules — nguồn sự thật duy nhất cho cách đọc/nói của Bibot.
+# Người và AI cùng sửa file này. KHÔNG sửa regex trong code khi rule đã ở đây.
+# Build: tools/rules/compile_rules.py reading-rules.ruler  ->  reading-rules.json
+# Doc: tools/rules/RULES_AUTHORING.md
+#
+# Hook (code cài sẵn 3 nơi Kotlin/Go/Python, cùng ngữ nghĩa):
+#   {N}       group N nguyên văn | {day:N} ngày (1-10 có "mùng", sai->bỏ rule)
+#   {month:N} tháng (1-12, sai->bỏ) | {year:N} năm (2 số->2000+, 4 số 1000-2999)
+#   {num:N}   số thành chữ | {roman:N} La Mã thành chữ (sai->bỏ rule)
+# Quy ước pattern: CHỈ giao Java∩RE2∩Python (cấm lookbehind/lookahead/atomic/
+# possessive/backref) — compile_rules.py từ chối pattern ngoài giao.
+
+version: 1
+
+rules:
+  - id: date.slash_short
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 10
+    pattern: '(?i)(?:ngày\s+)?\b([0-3]?\d)\s*/\s*([01]?\d)\b'
+    template: '{day:1} tháng {month:2}'
+    note: 'Không-năm chỉ nhận "/". "-" không năm là khoảng (giữ "đến").'
+    tests:
+      - {in: '31/12', out: 'ngày ba mươi mốt tháng mười hai'}
+      - {in: 'Gặp nhau ngày 31/12 nhé', out: 'Gặp nhau ngày ba mươi mốt tháng mười hai nhé'}
+      - {in: '05/06', out: 'ngày mùng năm tháng sáu'}
+      - {in: '1.440 đồng', out: '1.440 đồng'}
+      - {in: '12:30 trưa', out: '12:30 trưa'}
+      - {in: '32/12 sai', out: '32/12 sai'}
+      - {in: '31/13 sai', out: '31/13 sai'}
+
+  - id: drop.page_number
+    kind: drop_line
+    scope: [segment]
+    lang: [vi, en]
+    priority: 0
+    patterns:
+      - '^\s*[-–—\[\({]*\s*\d{1,4}\s*[-–—\]\)}]*\s*$'
+      - '(?i)^\s*(?:[-–—\[\({]*\s*)?(?:trang|page)\s+\d{1,4}\s*(?:[-–—\]\)}]*\s*)?$'
+    note: 'Dòng số trang đứng riêng — xét theo DÒNG, bỏ mọi lúc.'
+    tests:
+      - {in: '12', drop: true}
+      - {in: '[12]', drop: true}
+      - {in: '- 12 -', drop: true}
+      - {in: 'Trang 12', drop: true}
+      - {in: 'năm 2026 rồi', drop: false}
+      - {in: '19840 người', drop: false}
+
+  - id: roman.single
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 30
+    pattern: '(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)\b'
+    template: '{1} {roman:2}'
+    note: 'Chỉ sau từ khóa. Phi chuẩn IIX=8 cứu; IIII giữ nguyên.'
+    tests:
+      - {in: 'Chương X mở đầu', out: 'Chương mười mở đầu'}
+      - {in: 'Chương XX', out: 'Chương hai mươi'}
+      - {in: 'Phụ lục VII', out: 'Phụ lục bảy'}
+      - {in: 'Phần IIX đặc biệt', out: 'Phần tám đặc biệt'}
+      - {in: 'Chương IIII sai', out: 'Chương IIII sai'}
+      - {in: 'Louis XIV đến chơi', out: 'Louis XIV đến chơi'}

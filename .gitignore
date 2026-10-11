@@ -47,3 +47,4 @@ inst_user_settings.tmp
 Thumbs.db
 .DS_Store
 *~
+__pycache__/
