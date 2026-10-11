@@ -365,6 +365,7 @@
     <string name="chrome_menu_desc">Reading menu</string>
     <string name="chrome_toc">Contents</string>
     <string name="chrome_search">Search in book</string>
+    <string name="chrome_search_hint">Type a word to find…</string>
     <string name="chrome_search_soon">Book search arrives in phase B4.</string>
     <string name="chrome_view_text">Text view</string>
     <string name="chrome_view_page">Page view</string>

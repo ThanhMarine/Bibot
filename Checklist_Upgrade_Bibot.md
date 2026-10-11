@@ -256,6 +256,14 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B6.10 Gọt cụm chương còn 52dp (1 dòng text + vạch xanh 3dp chạm-nhảy + 2 mũi tên):
   bỏ slider/ticks/dòng engine/lịch sử UI (trùng nội dung, rộng). Verify screenshot
   (`Chapter 1/15` + vạch, đáy sạch). `chrome_chapter_of` mới (2 locale).
+- [x] B6.12 Gọt tiếp theo review landscape (user): bar chương còn 44dp —
+  1 dòng text + 2 mũi tên (bỏ luôn vạch scrub riêng, chỉ còn 1 vạch top);
+  landscape gom top + chương vào 1 hàng 48dp (`ReaderCompactBar`).
+  Verify screenshot portrait + máy ảo (không FATAL).
+- [x] B6.13 Nút Search tích hợp tìm thật trong chương (trước B4.2): thanh kết quả +
+  ↑ ↓ + đếm `n/m`, highlight câu trúng + tự cuộn (verify máy ảo: `trong` → 1/1).
+  B4.2 mở rộng toàn sách + SearchWindow sau. Nút Contents đã link TOC sheet
+  (verify từ B3, dùng lại).
 - [x] B6.11 Hint 1 lần: bấm ngoài dialog cũng lưu cờ (trước đây chạm trượt → nag-loop).
   Đính chính (2026-10-11): `backup_rules` LOẠI TRỪ toàn bộ `datastore/` + `bibot.db` +
   `bibot/` — gỡ app là sạch thật, KHÔNG cần xóa backup (ghi nhận cũ "backup khôi phục

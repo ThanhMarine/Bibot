@@ -1,7 +1,6 @@
 package com.bibot.app.feature.reader
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +19,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -35,20 +36,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -192,28 +188,23 @@ fun ReaderSettingsPopup(
 @Composable
 fun ReaderBottomBar(
     chapterText: String,
-    fraction: Float,
     onPrevChapter: () -> Unit,
-    onNextChapter: () -> Unit,
-    onScrubFraction: (Float) -> Unit
+    onNextChapter: () -> Unit
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
-            Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp),
+            Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onPrevChapter, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.ChevronLeft, contentDescription = "‹")
             }
-            Column(Modifier.weight(1f)) {
-                Text(
-                    chapterText,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(3.dp))
-                ScrubLine(fraction = fraction, onScrubFraction = onScrubFraction)
-            }
+            Text(
+                chapterText,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
             IconButton(onClick = onNextChapter, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.ChevronRight, contentDescription = "›")
             }
@@ -222,35 +213,114 @@ fun ReaderBottomBar(
 }
 
 /**
- * Vạch xanh mỏng (3dp) chạm để nhảy: thay slider + ticks cồng kềnh —
- * cùng 1 fraction vị trí tổng thể, không che text.
+ * Landscape: gom top-bar + điều hướng chương vào 1 hàng 48dp
+ * (màn ngang thấp — cụm 3 tầng tốn ~1/3 chiều cao). Vạch tiến trình giữ lại dưới.
  */
 @Composable
-fun ScrubLine(fraction: Float, onScrubFraction: (Float) -> Unit) {
-    var w by remember { mutableStateOf(0) }
-    Box(
-        Modifier.fillMaxWidth().height(14.dp)
-            .onSizeChanged { w = it.width }
-            .pointerInput(w) {
-                detectTapGestures { offset ->
-                    if (w > 0) onScrubFraction((offset.x / w).coerceIn(0f, 1f))
-                }
-            },
-        contentAlignment = Alignment.CenterStart
-    ) {
-        LinearProgressIndicator(
-            progress = { fraction.coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth().height(3.dp),
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            drawStopIndicator = {}
-        )
+fun ReaderCompactBar(
+    title: String,
+    chapterText: String,
+    isReading: Boolean,
+    playEnabled: Boolean,
+    onBack: () -> Unit,
+    onTogglePlay: () -> Unit,
+    onSearch: () -> Unit,
+    onToc: () -> Unit,
+    onSettings: () -> Unit,
+    onPrevChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+    playLabel: String
+) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Row(
+            Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    chapterText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            IconButton(onClick = onPrevChapter, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "‹")
+            }
+            IconButton(onClick = onNextChapter, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "›")
+            }
+            IconButton(onClick = onTogglePlay, enabled = playEnabled, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = playLabel
+                )
+            }
+            IconButton(onClick = onSearch, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.chrome_search))
+            }
+            IconButton(onClick = onToc, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.MenuBook, contentDescription = stringResource(R.string.chrome_toc))
+            }
+            IconButton(onClick = onSettings, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.chrome_view_text))
+            }
+        }
     }
 }
 
+/**
+ * Thanh tìm kiếm trong chương: nhập từ + ↑ ↓ duyệt kết quả + đóng.
+ * B4.2 sẽ mở rộng ra toàn sách (hiện tại: phạm vi chương đang đọc).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReaderSearchBar(
+    query: String,
+    onQuery: (String) -> Unit,
+    hitText: String,
+    hasPrevNext: Boolean,
+    onPrevHit: () -> Unit,
+    onNextHit: () -> Unit,
+    onClose: () -> Unit
+) {
+    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQuery,
+                placeholder = { Text(stringResource(R.string.chrome_search_hint), fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(hitText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(48.dp))
+            IconButton(onClick = onPrevHit, enabled = hasPrevNext, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "↑")
+            }
+            IconButton(onClick = onNextHit, enabled = hasPrevNext, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "↓")
+            }
+            IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.dialog_close))
+            }
+        }
+    }
+}
 
 /**
  * B6.7 — Thanh chỉ báo mảnh (3dp) sát dưới top-bar: vị trí đọc tổng thể,
- * hiển thị-only (điều khiển vẫn ở scrubber đáy). Gần như không che text.
+ * hiển thị-only. Đây là vạch tiến trình DUY NHẤT (bar chương đã bỏ vạch riêng).
  */
 @Composable
 fun ReaderPositionBar(fraction: Float) {

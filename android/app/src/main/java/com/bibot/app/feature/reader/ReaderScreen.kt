@@ -8,11 +8,13 @@ package com.bibot.app.feature.reader
  */
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -159,6 +161,12 @@ fun ReaderScreen(
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
     var pendingJump by remember { mutableStateOf<JumpConfirm?>(null) } // B3.3
     var tocOpen by remember { mutableStateOf(false) }
+    // Tìm kiếm trong chương (nút Search): B4.2 mở rộng ra toàn sách sau.
+    var searchOpen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchHits by remember { mutableStateOf(listOf<Int>()) }
+    var searchPos by remember { mutableIntStateOf(0) }
+    var searchChap by remember { mutableIntStateOf(-1) }
     // B6.2/B6.3: popup ⚙ + hint điều hướng chạm (1 lần mỗi máy).
     var settingsOpen by remember { mutableStateOf(false) }
     var hintOpen by remember { mutableStateOf(false) }
@@ -535,7 +543,65 @@ fun ReaderScreen(
         }
     }
 
-    // "# search" — tìm heading kế/trước trong chương hiện tại (dùng chung findNext/PrevHeading với Kể chuyện)
+    // Tìm trong chương đang đọc: offset → câu (kỹ thuật như searchHeading).
+    // B4.2 mở rộng toàn sách + SearchWindow ±7 từ sau.
+    fun runSearch(q: String) {
+        searchHits = emptyList()
+        searchPos = 0
+        searchChap = -1
+        val needle = q.trim().lowercase()
+        if (needle.length < 2) return
+        val chap = currentChapter
+        scope.launch(Dispatchers.IO) {
+            try {
+                val content = prepSession?.content(chap) ?: ""
+                val low = content.lowercase()
+                val sents = sentences.toList()
+                if (sents.isEmpty()) return@launch
+                val found = mutableListOf<Int>()
+                var from = 0
+                var guard = 0
+                while (guard < 200) {
+                    guard++
+                    val p = low.indexOf(needle, from)
+                    if (p < 0) break
+                    var acc = 0
+                    var idx = sents.size - 1
+                    for (i in sents.indices) {
+                        if (p < acc + sents[i].length + 1) { idx = i; break }
+                        acc += sents[i].length + 1
+                    }
+                    if (found.isEmpty() || found.last() != idx) found.add(idx)
+                    from = p + needle.length
+                }
+                if (found.isNotEmpty() && chap == currentChapter) {
+                    searchHits = found.take(100)
+                    searchPos = 0
+                    searchChap = chap
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun goHit(step: Int) {
+        val hits = searchHits
+        if (hits.isEmpty() || searchChap != currentChapter) return
+        val next = ((searchPos + step) % hits.size + hits.size) % hits.size
+        searchPos = next
+        val idx = hits[next]
+        if (isReading) jumpNow(currentChapter, idx)
+        else currentSentence = idx.coerceIn(0, (sentences.size - 1).coerceAtLeast(0))
+    }
+
+    fun closeSearch() {
+        searchOpen = false
+        searchQuery = ""
+        searchHits = emptyList()
+        searchPos = 0
+        searchChap = -1
+    }
+
+    // "# search" heading cũ (dùng chung findNext/PrevHeading) — giữ cho B4.
     // (content chương hiện tại đọc từ `.prep` trên IO — không còn giữ trong RAM)
     fun searchHeading(direction: Int) { // 1 = next, -1 = prev
         val session = prepSession ?: return
@@ -988,20 +1054,49 @@ fun ReaderScreen(
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
                 // B3.1: full-screen khi đọc — chrome ẩn/hiện bằng chạm giữa nội dung.
+                // Landscape gom top + điều hướng vào 1 hàng 48dp (màn ngang thấp).
+                val chapterLine = (if (viewMode == ReaderView.PAGE && pageCount > 0)
+                    stringResource(R.string.chrome_page_of, pageIndex + 1, pageCount)
+                else stringResource(R.string.chrome_chapter_of, currentChapter + 1, chapters.size)) +
+                    if (degradedEngine) " • offline" else ""
                 if (menuVisible) {
-                    ReaderTopBar(
-                        title = "${collection.headerEmoji} ${book.title}",
-                        isReading = isReading,
-                        playEnabled = !scanNoTts,
-                        pageMode = isPdfBook && !viewLockedPage,
-                        onBack = { stopAll(); selectedBook = null },
-                        onTogglePlay = { togglePlay() },
-                        onSearch = { status = context.getString(R.string.chrome_search_soon) },
-                        onToc = { tocOpen = true },
-                        onToggleView = { settingsOpen = true },
-                        playLabel = playDesc
-                    )
+                    if (isLandscape) {
+                        ReaderCompactBar(
+                            title = "${collection.headerEmoji} ${book.title}",
+                            chapterText = chapterLine,
+                            isReading = isReading,
+                            playEnabled = !scanNoTts,
+                            onBack = { stopAll(); selectedBook = null },
+                            onTogglePlay = { togglePlay() },
+                            onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
+                            onToc = { tocOpen = true },
+                            onSettings = { settingsOpen = true },
+                            onPrevChapter = {
+                                if (currentChapter > 0) requestJump(currentChapter - 1)
+                                else status = context.getString(strAtStart)
+                            },
+                            onNextChapter = {
+                                if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
+                                else status = context.getString(R.string.reader_at_end)
+                            },
+                            playLabel = playDesc
+                        )
+                    } else {
+                        ReaderTopBar(
+                            title = "${collection.headerEmoji} ${book.title}",
+                            isReading = isReading,
+                            playEnabled = !scanNoTts,
+                            pageMode = isPdfBook && !viewLockedPage,
+                            onBack = { stopAll(); selectedBook = null },
+                            onTogglePlay = { togglePlay() },
+                            onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
+                            onToc = { tocOpen = true },
+                            onToggleView = { settingsOpen = true },
+                            playLabel = playDesc
+                        )
+                    }
                     // B6.7: thanh chỉ báo mảnh sát dưới top-bar (hiển thị-only).
+                    // Đây là vạch tiến trình DUY NHẤT (bar chương không còn vạch riêng).
                     val posFraction = if (viewMode == ReaderView.PAGE && pageCount > 0) {
                         (pageIndex + 1).toFloat() / pageCount
                     } else if (chapters.isNotEmpty() && sentences.isNotEmpty()) {
@@ -1010,28 +1105,32 @@ fun ReaderScreen(
                         (currentChapter + 1).toFloat() / chapters.size
                     } else 0f
                     ReaderPositionBar(fraction = posFraction)
-                    // Cụm chương gọn: 1 dòng text + vạch xanh + 2 mũi tên.
-                    ReaderBottomBar(
-                        chapterText = (if (viewMode == ReaderView.PAGE && pageCount > 0)
-                            stringResource(R.string.chrome_page_of, pageIndex + 1, pageCount)
-                        else stringResource(R.string.chrome_chapter_of, currentChapter + 1, chapters.size)) +
-                            if (degradedEngine) " • offline" else "",
-                        fraction = posFraction,
-                        onPrevChapter = {
-                            if (currentChapter > 0) requestJump(currentChapter - 1)
-                            else status = context.getString(strAtStart)
-                        },
-                        onNextChapter = {
-                            if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
-                            else status = context.getString(R.string.reader_at_end)
-                        },
-                        onScrubFraction = { f ->
-                            if (chapters.size > 1) {
-                                val idx = (f * chapters.size).toInt()
-                                    .coerceIn(0, chapters.size - 1)
-                                if (idx != currentChapter) requestJump(idx)
+                    // Cụm chương gọn portrait: 1 dòng text + 2 mũi tên (không vạch riêng).
+                    if (!isLandscape) {
+                        ReaderBottomBar(
+                            chapterText = chapterLine,
+                            onPrevChapter = {
+                                if (currentChapter > 0) requestJump(currentChapter - 1)
+                                else status = context.getString(strAtStart)
+                            },
+                            onNextChapter = {
+                                if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
+                                else status = context.getString(R.string.reader_at_end)
                             }
-                        }
+                        )
+                    }
+                }
+                // Tìm trong chương: thanh kết quả + ↑ ↓ (B4.2 mở rộng toàn sách sau).
+                if (searchOpen) {
+                    val hitCount = if (searchChap == currentChapter) searchHits.size else 0
+                    ReaderSearchBar(
+                        query = searchQuery,
+                        onQuery = { searchQuery = it; runSearch(it) },
+                        hitText = if (hitCount == 0) "" else "${searchPos + 1}/$hitCount",
+                        hasPrevNext = hitCount > 1,
+                        onPrevHit = { goHit(-1) },
+                        onNextHit = { goHit(1) },
+                        onClose = { closeSearch() }
                     )
                 }
                 // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
@@ -1130,6 +1229,17 @@ fun ReaderScreen(
                                 } catch (_: Exception) {}
                             }
                         }
+                        // Tự cuộn tới hit tìm kiếm trong chương.
+                        val hitIdx = if (searchOpen && searchChap == currentChapter) searchHits.getOrNull(searchPos) else null
+                        LaunchedEffect(hitIdx, searchOpen) {
+                            if (searchOpen && hitIdx != null && sentences.isNotEmpty()) {
+                                try {
+                                    listState.animateScrollToItem(
+                                        (hitIdx + 1).coerceIn(0, (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+                                    )
+                                } catch (_: Exception) {}
+                            }
+                        }
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
@@ -1153,6 +1263,9 @@ fun ReaderScreen(
                                 val isSel = selAnchor?.let {
                                     it.view == ReaderView.TEXT && it.page == currentChapter && it.offset == idx
                                 } == true
+                                // Hit tìm kiếm trong chương (vàng nổi bật + tự cuộn tới).
+                                val isHit = searchOpen && searchChap == currentChapter &&
+                                    searchHits.getOrNull(searchPos) == idx
                                 val (displayText, hasPause) = com.bibot.app.core.text.TextCleaner.splitPause(s)
                                 Column {
                                     Text(
@@ -1160,8 +1273,13 @@ fun ReaderScreen(
                                         style = MaterialTheme.typography.bodyMedium,
                                         lineHeight = 22.sp,
                                         color = if (isCurrent || isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = if (isCurrent || isSel) FontWeight.Bold else FontWeight.Normal,
+                                        fontWeight = if (isCurrent || isSel || isHit) FontWeight.Bold else FontWeight.Normal,
                                         modifier = Modifier.padding(vertical = 3.dp)
+                                            .background(
+                                                if (isHit) MaterialTheme.colorScheme.tertiaryContainer
+                                                else androidx.compose.ui.graphics.Color.Transparent,
+                                                RoundedCornerShape(2.dp)
+                                            )
                                             .combinedClickable(
                                                 onClick = {
                                                     if (readModeState == ReadMode.BROWSE) {

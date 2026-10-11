@@ -365,6 +365,7 @@
     <string name="chrome_menu_desc">Menu đọc sách</string>
     <string name="chrome_toc">Mục lục</string>
     <string name="chrome_search">Tìm trong sách</string>
+    <string name="chrome_search_hint">Nhập từ cần tìm…</string>
     <string name="chrome_search_soon">Tìm kiếm trong sách sẽ có ở nhịp B4.</string>
     <string name="chrome_view_text">Xem chữ</string>
     <string name="chrome_view_page">Xem trang</string>
