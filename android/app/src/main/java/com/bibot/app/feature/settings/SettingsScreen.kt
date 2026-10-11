@@ -1335,7 +1335,7 @@ private fun VipContent() {
         }
         OutlinedTextField(
             value = code,
-            onValueChange = { code = it.uppercase().filter { ch -> ch.isLetterOrDigit() || ch == '-' }.take(32) },
+            onValueChange = { code = it.uppercase().filter { ch -> ch.isLetterOrDigit() || ch == '-' }.take(40) },
             label = { Text(stringResource(R.string.common_vip_code)) },
             placeholder = { Text(stringResource(R.string.vip_placeholder)) },
             modifier = Modifier.fillMaxWidth(),

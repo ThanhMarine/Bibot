@@ -43,7 +43,9 @@ android {
         }
 
         buildConfigField("String", "BIBOT_PERSONA", "\"Em là Bi\"")
-        buildConfigField("String", "BIBOT_LLM_PROXY_URL", "\"\"")
+        // I2 staging: BIBOT_RELAY_URL (env, không commit) trỏ relay staging/PageFreeze;
+        // trống = dùng dev fallback local (debug) / NeedOnline (release).
+        buildConfigField("String", "BIBOT_LLM_PROXY_URL", "\"" + (System.getenv("BIBOT_RELAY_URL") ?: "") + "\"")
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"\"")
         buildConfigField("String", "FIREBASE_APP_ID", "\"\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"\"")

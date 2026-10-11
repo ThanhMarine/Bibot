@@ -34,11 +34,6 @@ object AdPrefKeys {
     val VIP_CODE_HASH = stringPreferencesKey("vip_code_hash")
 }
 
-/** Grace offline (I2): tháng 7 ngày, lifetime recheck 30 ngày, lệch đồng hồ 24h. */
-const val VIP_GRACE_MONTH_MS = 7L * DAY_MILLIS
-const val VIP_GRACE_LIFE_MS = 30L * DAY_MILLIS
-const val VIP_SKEW_MS = DAY_MILLIS
-
 /** Tier lưu trong DataStore (khớp SettingsScreen.VipContent + VipCode). */
 const val VIP_TIER_MONTH = "month"
 const val VIP_TIER_LIFETIME = "lifetime"
@@ -46,6 +41,11 @@ const val VIP_LIFETIME_UNTIL = Long.MAX_VALUE
 /** Cộng dồn tối đa ~12 tháng (tránh tràn khi nhập nhiều mã). */
 const val VIP_MAX_STACK_DAYS = 366L
 const val DAY_MILLIS = 86400000L
+
+/** Grace offline (I2): tháng 7 ngày, lifetime recheck 30 ngày, lệch đồng hồ 24h. */
+const val VIP_GRACE_MONTH_MS = 7L * DAY_MILLIS
+const val VIP_GRACE_LIFE_MS = 30L * DAY_MILLIS
+const val VIP_SKEW_MS = DAY_MILLIS
 
 data class AdsState(
     val isAdFree: Boolean = false,

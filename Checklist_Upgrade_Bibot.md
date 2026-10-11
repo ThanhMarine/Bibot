@@ -631,3 +631,7 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
 - [ ] I2.4 Verify build + máy ảo: `assembleDemoDebug` pass; nhập mã thật (dev relay local
   hoặc staging) → VIP on; tắt mạng → grace giữ VIP; vặn đồng hồ ngược >24h → rớt;
   đổi mã khác offline → NeedOnline; release APK `strings` không còn secret.
+  Bug đã bắt khi user test: ô nhập `.take(32)` cắt mã 35 ký tự (thiếu 3) → nới `.take(40)`.
+  Verify máy ảo 2026-10-11 (dev fallback, chưa có relay staging): mã đúng → VIP 1 tháng;
+  tắt mạng → giữ 1 tháng (grace); mã sai → GIỮ VIP cũ (đúng thiết kế, chống typo mất
+  quyền); không crash. Còn nợ: relay thật staging, vặn đồng hồ, `strings` release.
