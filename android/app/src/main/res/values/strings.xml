@@ -381,6 +381,9 @@
     <string name="chrome_resume">▶ Resume sentence %1$d</string>
     <string name="chrome_browse_hint">Browse freely — tap a sentence to anchor the reading point.</string>
     <string name="chrome_page_anchor">Page %1$d — reads from about %2$d%%.</string>
+    <string name="chrome_got_it">Got it</string>
+    <string name="chrome_hint_title">Touch reading</string>
+    <string name="chrome_hint_text">Swipe ◀ ▶ to change chapter • Tap center to show/hide the menu • Tap a sentence to anchor the reading point.</string>
     <string name="lib_title">📚 Library</string>
     <string name="lib_search">Search library…</string>
     <string name="lib_search_hint">Title, author…</string>

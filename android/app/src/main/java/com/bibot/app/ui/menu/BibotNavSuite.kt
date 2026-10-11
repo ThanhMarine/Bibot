@@ -101,6 +101,10 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
 
     // Ads preferences for banner/interstitial/rewarded
     val adsPrefs = remember { AdsPreferences(context) }
+    // B6.1: mode đọc (sách/truyện/PDF) ẩn toàn bộ chrome app (topBar/bottomBar/Rail
+    // + banner) → true full-screen kiểu ReadEra; back bằng nút của reader/library.
+    val inReader = currentMode == BibotMode.BOOK || currentMode == BibotMode.STORY ||
+        currentMode == BibotMode.COTICH || currentMode == BibotMode.PDF
 
     // Nền trống đồng phủ FULL màn hình tới sát 4 góc — MỌI màn hình, phone & tablet.
     // Đặt NGOÀI Scaffold nên đi xuyên cả top bar / thanh điều hướng (2 thanh trong suốt).
@@ -112,6 +116,8 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
+                // B6.1: ẩn topBar app trong mode đọc (reader có top bar riêng).
+                if (!inReader) {
                 // Top bar gọn 52dp + title titleMedium (gốc M3: 64dp + titleLarge 22sp)
                 // — giảm khoảng cách các dòng đề mục, nhường chỗ cho nội dung chính.
                 Row(
@@ -145,10 +151,12 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                         Spacer(Modifier.width(48.dp))
                     }
                 }
+                }
             },
             bottomBar = {
                 // 11.3: tablet dùng Rail (bên trái) nên ẩn bottom bar
-                if (!tablet) {
+                // B6.1: ẩn luôn trong mode đọc.
+                if (!tablet && !inReader) {
                     NavigationBar(containerColor = barColor, tonalElevation = 0.dp) {
                         NavigationBarItem(
                             selected = currentMode == null,
@@ -177,7 +185,8 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
             Column(Modifier.fillMaxSize().padding(innerPadding)) {
                 Row(Modifier.fillMaxSize().weight(1f)) {
                     // 11.3: NavigationRail landscape cho tablet (WindowSizeClass Adaptive)
-                    if (tablet) {
+                    // B6.1: ẩn trong mode đọc.
+                    if (tablet && !inReader) {
                         NavigationRail(containerColor = barColor) {
                             NavigationRailItem(
                                 selected = currentMode == null,
@@ -213,15 +222,16 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                                 BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
                                 BibotMode.WEATHER -> WeatherScreen()
                                 BibotMode.NEWS -> NewsScreen()
-                                BibotMode.PDF -> DocBrowserScreen()
+                                BibotMode.PDF -> DocBrowserScreen(onBackHome = { goHome() })
                                 BibotMode.SETTINGS -> SettingsScreen()
                                 else -> HomeMenu(onModeSelected = { currentMode = it })
                             }
                         }
                     }
                 }
-                // Banner ad (hiển thị ở dưới cùng content area, trên navigation bar)
-                AdsBanner(adsPreferences = adsPrefs)
+                // Banner ad (dưới content, trên navigation bar) — B6.1: ẩn khi đọc
+                // (giữ interstitial/rewarded; đánh đổi doanh thu banner lúc đọc).
+                if (!inReader) AdsBanner(adsPreferences = adsPrefs)
                 // Interstitial & Rewarded helpers: hiển thị QC khi chuyển mode + preload rewarded
                 val currentModeName = currentMode?.name ?: "HOME"
                 val isVoice = currentMode == BibotMode.VOICE

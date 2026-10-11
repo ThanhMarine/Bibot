@@ -114,4 +114,18 @@ class TextRulesTest {
         )
         assertEquals("Chương 1", titles.first())
     }
+
+    @Test
+    fun bookChunking_60words() {
+        // B6.4: pipeline sách 60 từ/300 ký tự (liền mạch); default voice-chat giữ nguyên.
+        val text = (1..30).joinToString(" ") { "từchuyện$it" } + ". " +
+            (1..30).joinToString(" ") { "câukể$it" } + "."
+        val long = VietnameseChunker.split(text, maxWords = 60, maxChars = 300)
+        val short = VietnameseChunker.split(text)
+        assertTrue(long.isNotEmpty() && short.isNotEmpty())
+        assertTrue(long.size <= short.size)
+        val wc = { s: String -> s.trim().split(Regex("\\s+")).size }
+        assertTrue(long.all { wc(it) <= 70 })
+        assertEquals(short.joinToString(" "), long.joinToString(" "))
+    }
 }

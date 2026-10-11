@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.Check
@@ -122,7 +123,9 @@ fun libCollectionLabel(collection: String, lang: String): String = when (collect
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocBrowserScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // B6.1: back về Home (chrome app ẩn trong mode đọc nên thư viện tự giữ nút back).
+    onBackHome: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -581,6 +584,9 @@ fun DocBrowserScreen(
             ) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        IconButton(onClick = onBackHome, modifier = Modifier.size(44.dp)) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back))
+                        }
                         IconButton(onClick = { scope.launch { drawerState.open() } }, modifier = Modifier.size(44.dp)) {
                             Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.lib_menu_desc))
                         }

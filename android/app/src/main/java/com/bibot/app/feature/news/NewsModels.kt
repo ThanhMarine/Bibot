@@ -248,7 +248,9 @@ object NewsApi {
                             val d = cleanText(desc)
                             items += NewsItem(
                                 title = t,
-                                description = if (d.length > 200) d.take(200) + "…" else d,
+                                // B6.5: giữ TRÒN text_block (bỏ take(200)); UI tap-to-expand,
+                                // TTS mergeTts đọc đủ tin.
+                                description = d,
                                 source = sourceName,
                                 publishedAt = formatPubDate(pub)
                             )

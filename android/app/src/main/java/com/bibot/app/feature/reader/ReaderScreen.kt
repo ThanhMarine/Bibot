@@ -10,6 +10,8 @@ package com.bibot.app.feature.reader
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -157,6 +159,9 @@ fun ReaderScreen(
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
     var pendingJump by remember { mutableStateOf<JumpConfirm?>(null) } // B3.3
     var tocOpen by remember { mutableStateOf(false) }
+    // B6.2/B6.3: popup ⚙ + hint điều hướng chạm (1 lần mỗi máy).
+    var settingsOpen by remember { mutableStateOf(false) }
+    var hintOpen by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf(listOf<Int>()) } // lịch sử chương
     var pageCount by remember { mutableIntStateOf(0) }
     var pageIndex by remember { mutableIntStateOf(0) }
@@ -985,14 +990,9 @@ fun ReaderScreen(
                         onTogglePlay = { togglePlay() },
                         onSearch = { status = context.getString(R.string.chrome_search_soon) },
                         onToc = { tocOpen = true },
-                        onToggleView = {
-                            if (isPdfBook && !viewLockedPage) {
-                                viewMode = if (viewMode == ReaderView.TEXT) ReaderView.PAGE else ReaderView.TEXT
-                            }
-                        },
+                        onToggleView = { settingsOpen = true },
                         playLabel = playDesc
                     )
-                    ReaderBrightnessRow(brightness = brightness, onBrightness = { brightness = it })
                 }
                 // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
                 if (readModeState == ReadMode.BROWSE && chapters.isNotEmpty() &&
@@ -1036,7 +1036,28 @@ fun ReaderScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                     )
                 }
-                Box(Modifier.weight(1f).fillMaxWidth()) {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth()
+                        // B6.3: vuốt ngang đổi chương (dialog khi READ, thẳng khi dừng).
+                        .pointerInput(currentChapter, chapters.size) {
+                            var total = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { total = 0f },
+                                onDragCancel = { total = 0f },
+                                onDragEnd = {
+                                    if (total < -120) {
+                                        if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
+                                        else status = context.getString(R.string.reader_at_end)
+                                    } else if (total > 120) {
+                                        if (currentChapter > 0) requestJump(currentChapter - 1)
+                                        else status = context.getString(strAtStart)
+                                    }
+                                    total = 0f
+                                },
+                                onHorizontalDrag = { _, amount -> total += amount }
+                            )
+                        }
+                ) {
                     val bf = bookFile
                     if (viewMode == ReaderView.PAGE && bf != null) {
                         PdfPageView(
@@ -1186,6 +1207,39 @@ fun ReaderScreen(
                     current = currentChapter,
                     onPick = { tocOpen = false; requestJump(it) },
                     onDismiss = { tocOpen = false }
+                )
+            }
+            // B6.2: popup ⚙ (toggle view + brightness).
+            ReaderSettingsPopup(
+                expanded = settingsOpen,
+                onDismiss = { settingsOpen = false },
+                viewMode = viewMode,
+                pageModeEnabled = isPdfBook && !viewLockedPage,
+                onToggleView = {
+                    if (isPdfBook && !viewLockedPage) {
+                        viewMode = if (viewMode == ReaderView.TEXT) ReaderView.PAGE else ReaderView.TEXT
+                    }
+                },
+                brightness = brightness,
+                onBrightness = { brightness = it }
+            )
+            // B6.3: popup hint lần đầu mỗi máy (nhớ DataStore, có nút xác nhận).
+            LaunchedEffect(chapters.size, prefsState.readerHintSeen) {
+                if (chapters.isNotEmpty() && !prefsState.readerHintSeen) hintOpen = true
+            }
+            if (hintOpen && !prefsState.readerHintSeen) {
+                AlertDialog(
+                    onDismissRequest = { hintOpen = false },
+                    title = { Text(stringResource(R.string.chrome_hint_title), fontWeight = FontWeight.Bold) },
+                    text = { Text(stringResource(R.string.chrome_hint_text)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            hintOpen = false
+                            scope.launch {
+                                try { prefs.setReaderHintSeen() } catch (_: Exception) {}
+                            }
+                        }) { Text(stringResource(R.string.chrome_got_it)) }
+                    }
                 )
             }
         }

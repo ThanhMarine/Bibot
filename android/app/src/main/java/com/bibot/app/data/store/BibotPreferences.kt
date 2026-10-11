@@ -42,6 +42,8 @@ object PrefKeys {
     val MEMORY_LAST_PUSH_TS = longPreferencesKey("memory_last_push_ts")
     // Thong bao NPT: id da xem (chuoi "id1,id2", giu 50 ma moi nhat)
     val SEEN_ANNOUNCE_IDS = stringPreferencesKey("seen_announce_ids")
+    // B6.3: popup hint điều hướng chạm ở màn đọc — hiện 1 lần mỗi máy
+    val READER_HINT_SEEN = booleanPreferencesKey("reader_hint_seen")
 }
 
 data class BibotPrefs(
@@ -62,7 +64,8 @@ data class BibotPrefs(
     val storyPreferPiper: Boolean = true,
     val ttsOfflineFallback: Boolean = true,
     val theme: String = "system",
-    val language: String = "system"
+    val language: String = "system",
+    val readerHintSeen: Boolean = false
 )
 
 class BibotPreferences(private val context: Context) {
@@ -85,7 +88,8 @@ class BibotPreferences(private val context: Context) {
             storyPreferPiper = p[PrefKeys.STORY_PREFER_PIPER] ?: true,
             ttsOfflineFallback = p[PrefKeys.TTS_OFFLINE_FALLBACK] ?: true,
             theme = p[PrefKeys.THEME] ?: "system",
-            language = p[PrefKeys.LANGUAGE] ?: "system"
+            language = p[PrefKeys.LANGUAGE] ?: "system",
+            readerHintSeen = p[PrefKeys.READER_HINT_SEEN] ?: false
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }
@@ -104,6 +108,8 @@ class BibotPreferences(private val context: Context) {
     suspend fun setStoryPreferPiper(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.STORY_PREFER_PIPER] = v } }
     suspend fun setTtsOfflineFallback(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.TTS_OFFLINE_FALLBACK] = v } }
     suspend fun setLanguage(v: String) { context.bibotDataStore.edit { it[PrefKeys.LANGUAGE] = v } }
+    // B6.3: đã hiện popup hint điều hướng chạm (1 lần mỗi máy)
+    suspend fun setReaderHintSeen() { context.bibotDataStore.edit { it[PrefKeys.READER_HINT_SEEN] = true } }
 
     // API keys lưu EncryptedSharedPreferences nếu cần; ở đây lưu DataStore + backupRules exclude
     suspend fun setGeminiKey(v: String) { context.bibotDataStore.edit { it[PrefKeys.GEMINI_API_KEY] = v } }

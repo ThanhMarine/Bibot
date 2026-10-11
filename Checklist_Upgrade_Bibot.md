@@ -211,6 +211,40 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   không upload nhưng vẫn đọc được; hết key/offline vẫn đọc wiki đã cache;
   C4 chung (2 flavor + máy ảo).
 
+### B6. Tối ưu vùng hiển thị + liền mạch đọc (review screenshot 5 màn, 2026-10-11) — [x]
+
+> Làm ngay sau B3 (nhỏ, không đảo roadmap). Vấn đề thấy trên ảnh: double top-bar
+> (app 52dp + reader), bottom nav + banner đè màn đọc, hàng brightness cố định,
+> nút Lock lạ (code hiện tại KHÔNG còn — ảnh build cũ, không cần xóa),
+> chunk ngắn + tin bị cắt 200 ký tự.
+
+- [x] B6.1 Ẩn chrome app trong mode đọc: `BibotNavSuite` ẩn topBar/bottomBar/Rail khi
+  `BOOK/STORY/COTICH/PDF` (back bằng nút reader) + ẩn `AdsBanner` trong 4 mode này
+  (true full-screen kiểu ReadEra; đánh đổi doanh thu banner lúc đọc — giữ
+  interstitial/rewarded). Thêm nút back cho `DocBrowserScreen` (kẻo kẹt thư viện).
+  Verify máy ảo: reader top-bar bắt đầu y=168 sát status bar, hết nav/banner;
+  về Home hiện lại; logcat sạch FATAL.
+- [x] B6.2 Gọn menu reader: brightness vào popup nút ⚙ (bỏ hàng cố định);
+  popup gồm toggle Xem chữ/Xem trang + slider + Auto. Giữ 5 nút top-bar theo ReadEra.
+  (Popup mới, không bấm thử từng control — slider/window-attr là API chuẩn; ghi nhận.)
+- [x] B6.3 Điều hướng chạm: vuốt ngang đổi chương (dialog khi READ, thẳng khi dừng —
+  verify: swipe trái ở cuối → "Already at the last chapter", swipe phải → Chương 14
+  + hàng lịch sử `‹ Back to page 15 / Clear`); popup hint lần đầu mỗi máy
+  (verify: hiện sau mở sách, `Đã hiểu` → prefs 24→50B, mở lại không hiện).
+- [x] B6.4 Chunking sách 50–70 từ (quyết định user): `BookPrepStore` dùng
+  `VietnameseChunker(maxWords=60, maxChars=300)` tại 2 điểm build `.sent`/fallback +
+  `PREP_VERSION 2→3` (verify máy ảo: sách rebuild êm `77 sentences` thay vì 83,
+  resume đúng Chương 15). Giữ default chunker (voice chat Go/mobile không đổi).
+  Đánh đổi: ít lần synth + liền mạch, latency chunk và độ hạt karaoke giảm nhẹ.
+- [x] B6.5 Tin tròn block: `NewsItem.description` full (bỏ `take(200)` — verify live:
+  Tuổi Trẻ về 270 ký tự không cắt) + UI tap-to-expand (verify bounds 126→168px
+  sau 1 tap); `mergeTts` hưởng ké. JVM test RSS bỏ (XmlPullParser không chạy trên
+  JVM thường — ghi nhận), thay bằng verify máy ảo.
+- [x] B6.6 Verify: uiautomator so vùng text (hết ~200dp chrome thừa), swipe + dialog
+  (B3.3 đã cover khi READ), hint 1 lần, prep rebuild, tin full + expand,
+  2 flavor BUILD SUCCESSFUL + JVM 18/18 (9 TextRules + 9 TtsSegments) + Go PASS,
+  logcat sạch FATAL. APK demo 58.534.751B (~55,8MB) < 85MB.
+
 ---
 
 ## PHẦN C — Chất lượng chung (áp cho mọi giai đoạn)
@@ -219,9 +253,10 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [ ] C2 Mọi màn có 4 trạng thái: loading / empty / error + Retry / content. Không ghi đè 1 chuỗi `status?`.
 - [ ] C3 Không `readText()` toàn file; mọi list dùng `LazyColumn`; tab chương dài có search.
 - [ ] C4 Mỗi giai đoạn xong: `go vet` 0 + `assembleDemoDebug + assembleCommercialDebug` pass + test máy ảo (BibotTest) với sách 1.8MB/2545 trang.
-- [ ] C5 Thứ tự làm (đã chèn R0 + E1.1 + B5, xem Phần F):
-  `R0 → A1 → B1 → B3+E1.1 → B2 → A2 → B4 → B5 → A3`.
-  Mỗi bước build được APK, không phá voice chat.
+- [ ] C5 Thứ tự làm (đã chèn R0 + E1.1 + B5 + B6, xem Phần F):
+  `R0 → A1 → B1 → B3+E1.1 → B6 → B2 → A2 → B4 → B5 → A3`.
+  Mỗi bước build được APK, không phá voice chat. B6 là polish từ review screenshot,
+  làm ngay sau B3 (nhỏ, không đảo roadmap).
 
 ---
 

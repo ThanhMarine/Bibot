@@ -37,7 +37,8 @@ object BookPrepStore {
     /** Bump khi đổi clean pipeline / heading detect / split semantics (xem doc trên). */
     // v2 (2026-10-10): trích PDF bám font (ToUnicode CID + TCVN3 + xuống dòng Td/Tm),
     // PDF scan/ảnh trả rỗng + báo rõ — cache salad bản cũ phải build lại.
-    const val PREP_VERSION = 2
+    // v3 (2026-10-11, B6.4): chunk sách 60 từ/300 ký tự cho liền mạch (quyết định user).
+    const val PREP_VERSION = 3
 
     // Ước tính tổng câu — TB ~95 ký tự/câu (dùng khi sentence cache chưa build xong)
     const val EST_CHARS_PER_SENT = 95
@@ -347,8 +348,10 @@ object BookPrepStore {
                     // 1) Đọc content batch từ prep (I/O)
                     val texts = withContext(Dispatchers.IO) { (i until batchEnd).map { prep.readChapter(it) } }
                     // 2) Split song song batch (CPU — LimitedParallelism 3-4, giữ thứ tự)
+                    // B6.4: chunk sách 60 từ/300 ký tự cho liền mạch (quyết định user) —
+                    // ít lần synth hơn; voice chat giữ default 40/200 (không latency).
                     val results = withContext(splitDispatcher) {
-                        coroutineScope { texts.map { t -> async { VietnameseChunker.split(t) } }.awaitAll() }
+                        coroutineScope { texts.map { t -> async { VietnameseChunker.split(t, maxWords = 60, maxChars = 300) } }.awaitAll() }
                     }
                     // 3) Ghi streaming đúng thứ tự rồi thả kết quả
                     withContext(Dispatchers.IO) {
@@ -421,7 +424,8 @@ object BookPrepStore {
             val list = if (cached != null) cached else {
                 val c = content(idx)
                 if (closed) return emptyList()
-                VietnameseChunker.split(c)
+                // B6.4: cùng 60/300 như build `.sent` (liền mạch, khớp cache).
+                VietnameseChunker.split(c, maxWords = 60, maxChars = 300)
             }
             synchronized(sentLru) { putLru(sentLru, idx, list, 3) }
             return list

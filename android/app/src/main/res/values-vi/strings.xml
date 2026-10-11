@@ -381,6 +381,9 @@
     <string name="chrome_resume">▶ Đọc tiếp câu %1$d</string>
     <string name="chrome_browse_hint">Cứ lướt xem — chạm vào câu để neo điểm đọc.</string>
     <string name="chrome_page_anchor">Trang %1$d — đọc từ khoảng %2$d%%.</string>
+    <string name="chrome_got_it">Đã hiểu</string>
+    <string name="chrome_hint_title">Đọc bằng chạm</string>
+    <string name="chrome_hint_text">Vuốt ◀ ▶ để đổi chương • Chạm giữa để ẩn/hiện menu • Chạm vào câu để neo điểm đọc.</string>
     <string name="lib_title">📚 Thư viện</string>
     <string name="lib_search">Tìm trong thư viện…</string>
     <string name="lib_search_hint">Tên sách, tác giả…</string>

@@ -25,7 +25,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -116,8 +119,7 @@ fun ReaderTopBar(
 fun ReaderBrightnessRow(
     brightness: Float?,
     onBrightness: (Float?) -> Unit
-) {
-    Row(
+) {    Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -140,6 +142,42 @@ fun ReaderBrightnessRow(
         )
         Spacer(Modifier.width(4.dp))
         Text(stringResource(R.string.chrome_brightness_auto), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/**
+ * B6.2 — Popup nút ⚙: toggle Xem chữ/Xem trang + brightness (gọn 1 chỗ,
+ * thay hàng brightness cố định chiếm vùng đọc).
+ */
+@Composable
+fun ReaderSettingsPopup(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    viewMode: ReaderView,
+    pageModeEnabled: Boolean,
+    onToggleView: () -> Unit,
+    brightness: Float?,
+    onBrightness: (Float?) -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier.width(280.dp)
+    ) {
+        DropdownMenuItem(
+            text = {
+                Text(
+                    stringResource(
+                        if (viewMode == ReaderView.TEXT) R.string.chrome_view_page
+                        else R.string.chrome_view_text
+                    )
+                )
+            },
+            onClick = { onToggleView(); onDismiss() },
+            enabled = pageModeEnabled
+        )
+        HorizontalDivider()
+        ReaderBrightnessRow(brightness = brightness, onBrightness = onBrightness)
     }
 }
 

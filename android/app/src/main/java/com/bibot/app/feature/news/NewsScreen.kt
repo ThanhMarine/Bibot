@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -205,8 +206,12 @@ fun NewsScreen(
             itemsIndexed(newsItems) { idx, item ->
                 val isCurrent = idx == viewModel.currentIndex
                 val isReadingThis = isCurrent && (viewModel.isSpeaking || viewModel.autoReadMode)
+                // B6.5: tap để mở rộng tin (tròn text_block thay vì cắt ngầm).
+                var expanded by remember(item.title, item.publishedAt) { mutableStateOf(false) }
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { viewModel.speakCurrentNews(idx) },
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        if (expanded) viewModel.speakCurrentNews(idx) else expanded = true
+                    },
                     colors = CardDefaults.cardColors(
                         containerColor = if (isReadingThis) MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.surfaceVariant
@@ -228,7 +233,13 @@ fun NewsScreen(
                         }
                         if (item.description.isNotBlank()) {
                             Spacer(Modifier.height(4.dp))
-                            Text(item.description, style = MaterialTheme.typography.bodySmall, maxLines = 3)
+                            Text(
+                                item.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = if (expanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable { expanded = !expanded }
+                            )
                         }
                         Spacer(Modifier.height(4.dp))
                         val sourceText = stringResource(R.string.news_source, item.source, if (item.publishedAt.isNotEmpty()) " • " + item.publishedAt else "")

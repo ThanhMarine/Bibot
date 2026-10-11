@@ -139,8 +139,8 @@ class VietnameseChunker(
         private val DIGIT_CLAUSE_END = Regex("""\d[,;:]\s*$""")
         private val DELIM = Regex("([.!?…]|[;:,、]|\\s+(?:và|hoặc|nhưng|mà|tuy nhiên|do đó|vì vậy|nên|khi|nếu|khi mà)\\s+)")
 
-        fun split(text: String): List<String> {
-            val c = VietnameseChunker()
+        fun split(text: String, maxWords: Int = 40, maxChars: Int = 200): List<String> {
+            val c = VietnameseChunker(maxWords = maxWords, maxChars = maxChars)
             val r = mutableListOf<String>()
             r += c.feed(text)
             r += c.flush()
