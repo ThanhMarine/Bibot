@@ -332,6 +332,28 @@ func normalizeDegreesGo(s string) string {
 
 // CleanTTSText ports services/streaming_llm.py:143-208 clean_tts_text faithfully.
 func CleanTTSText(text string) string {
+	return cleanTTSTextLang(text, "vi")
+}
+
+// D6: "Fig. 5" -> "hình 5" (vi) / "figure 5" (en); "No. 12" -> "số 12"/"number 12".
+// Dấu chấm bắt buộc — không ăn "no 5" trong câu tiếng Anh.
+var figRefRe = regexp.MustCompile(`(?i)\bfig\.\s*(\d{1,4})\b`)
+var noRefRe = regexp.MustCompile(`(?i)\bno\.\s*(\d{1,4})\b`)
+
+func readFigureRefsGo(s, lang string) string {
+	if s == "" {
+		return s
+	}
+	figWord, noWord := "hình", "số"
+	if lang == "en" {
+		figWord, noWord = "figure", "number"
+	}
+	s = figRefRe.ReplaceAllString(s, figWord+" $1")
+	s = noRefRe.ReplaceAllString(s, noWord+" $1")
+	return s
+}
+
+func cleanTTSTextLang(text, lang string) string {
 	if text == "" {
 		return ""
 	}
@@ -345,6 +367,8 @@ func CleanTTSText(text string) string {
 	text = readDatesGo(text)
 	text = normalizeDegreesGo(text)
 	text = readRomanGo(text)
+	// D6: trích dẫn hình/bảng trước abbrevDot/numDot để viết tắt không bị xử lý riêng.
+	text = readFigureRefsGo(text, lang)
 	text = removeDigitGluedToLetter(text)
 	text = replaceAbbrevDot(text)
 	text = replaceNumDot(text)
@@ -383,7 +407,12 @@ func CleanTTSText(text string) string {
 // Synthesize generates audio from text using Google Cloud TTS REST (WaveNet/Neural2) or returns error for fallback.
 // Supported voice: vi-VN-Neural2-A, vi-VN-Wavenet-A, en-US-Neural2-A. Fallback caller handles Android TTS offline.
 func Synthesize(text, voice string) ([]byte, error) {
-	clean := CleanTTSText(text)
+	// D6: lang cho figure-refs suy từ voice (giữ chữ ký — caller cũ không đổi).
+	ttsLang := "vi"
+	if strings.HasPrefix(voice, "en-") {
+		ttsLang = "en"
+	}
+	clean := cleanTTSTextLang(text, ttsLang)
 	if clean == "" {
 		return nil, fmt.Errorf("empty text after cleaning")
 	}

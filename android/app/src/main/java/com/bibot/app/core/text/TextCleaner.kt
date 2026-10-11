@@ -198,7 +198,7 @@ object TextCleaner {
         return t
     }
 
-    fun cleanForTts(raw: String): String {
+    fun cleanForTts(raw: String, lang: String = "vi"): String {
         if (raw.isBlank()) return ""
         var text = raw
         // 0. HTML/markup thừa (comment CHAPTER-BREAK, <a id=...>, &nbsp;, bảng, # heading)
@@ -227,6 +227,10 @@ object TextCleaner {
         // 3c. số La Mã sau từ khóa: "thế kỷ XI-XIX" → "thế kỷ mười một đến thế kỷ mười chín".
         // Chỉ sau từ khóa (thế kỷ/chương/phần...) nên không ăn chữ thường ("I", "C", "Louis XIV" giữ nguyên).
         text = readRomanNumerals(text)
+        // 3d. D6: trích dẫn hình/bảng — "Fig. 5" → "hình 5" (VI) / "figure 5" (EN);
+        // "No. 12" → "số 12"/"number 12". Dấu chấm BẮT BUỘC (không ăn "no 5" tiếng Anh).
+        // Chạy trước abbrevDot/numDot (bước 5) để viết tắt không bị xử lý riêng.
+        text = readFigureRefs(text, lang)
         // 4. số dính chữ (reasoning leak)
         text = removeDigitGluedToLetter(text)
         // 5. viết tắt/số
@@ -362,6 +366,40 @@ object TextCleaner {
         t = romanSingleRegex.replace(t) { m ->
             val v = romanToInt(m.groupValues[2])
             if (v == null) m.value else "${m.groupValues[1]} ${numberToVietnameseWords(v.toString())}"
+        }
+        return t
+    }
+
+    // D6: nhóm viết tắt trích dẫn — "Fig."/"No."/"St."... + "." cuối chunk KHÔNG phải
+    // hết câu (kẻo chunker chẻ "(Fig." | "5)" và TTS ngắt giữa trích dẫn).
+    private val citeAbbrevWords = setOf(
+        "fig", "no", "st", "mr", "mrs", "ms", "dr", "prof", "vs",
+        "etc", "ie", "eg", "am", "pm", "tr", "tp", "nxb",
+        "p", "pp", "ch", "sec", "vol", "ed"
+    )
+
+    /** True nếu chunk kết bằng viết tắt trích dẫn + "." (vd "xem minh họa (Fig."). */
+    fun endsWithCiteAbbrev(chunk: String): Boolean {
+        val t = chunk.trimEnd()
+        if (!t.endsWith('.')) return false
+        val w = t.dropLast(1).substringAfterLast(' ').substringAfterLast('(')
+            .substringAfterLast('[').substringAfterLast('{').substringAfterLast('"')
+            .substringAfterLast('“').trim().lowercase()
+        return w in citeAbbrevWords
+    }
+
+    // D6: "Fig. 5" → "hình 5" (VI) / "figure 5" (EN); "No. 12" → "số 12"/"number 12".
+    // Dấu chấm bắt buộc — không ăn "no 5" trong câu tiếng Anh.
+    private val figRefRegex = Regex("""(?i)\bfig\.\s*(\d{1,4})\b""")
+    private val noRefRegex = Regex("""(?i)\bno\.\s*(\d{1,4})\b""")
+
+    fun readFigureRefs(s: String, lang: String = "vi"): String {
+        if (s.isEmpty()) return s
+        var t = figRefRegex.replace(s) { m ->
+            if (lang == "en") "figure ${m.groupValues[1]}" else "hình ${m.groupValues[1]}"
+        }
+        t = noRefRegex.replace(t) { m ->
+            if (lang == "en") "number ${m.groupValues[1]}" else "số ${m.groupValues[1]}"
         }
         return t
     }

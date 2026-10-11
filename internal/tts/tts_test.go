@@ -80,3 +80,31 @@ func TestCleanTTSTextReadingRules(t *testing.T) {
 		}
 	}
 }
+
+// D6: trích dẫn hình/bảng theo ngôn ngữ.
+func TestReadFigureRefsGo(t *testing.T) {
+	vi := map[string]string{
+		"Xem (Fig. 5) nhé":  "Xem (hình 5) nhé",
+		"Trích No. 12 hay": "Trích số 12 hay",
+		"There is no 5 here": "There is no 5 here", // không chấm → giữ nguyên
+		"Fig 5 không chấm":   "Fig 5 không chấm",
+	}
+	for in, want := range vi {
+		if got := readFigureRefsGo(in, "vi"); got != want {
+			t.Errorf("readFigureRefsGo(%q, vi) = %q, want %q", in, got, want)
+		}
+	}
+	en := map[string]string{
+		"See (Fig. 5).": "See (figure 5).",
+		"Bảng No. 3":    "Bảng number 3",
+	}
+	for in, want := range en {
+		if got := readFigureRefsGo(in, "en"); got != want {
+			t.Errorf("readFigureRefsGo(%q, en) = %q, want %q", in, got, want)
+		}
+	}
+	// Qua pipeline đầy đủ (mặc định vi).
+	if got := CleanTTSText("Xem (Fig. 5) nhé"); got != "Xem (hình 5) nhé" {
+		t.Errorf("CleanTTSText fig = %q", got)
+	}
+}

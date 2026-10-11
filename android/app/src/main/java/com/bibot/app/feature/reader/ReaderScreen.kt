@@ -658,7 +658,7 @@ fun ReaderScreen(
                         delay(READER_PAUSE_BETWEEN_MS)
                         continue
                     }
-                    val clean = com.bibot.app.core.text.TextCleaner.cleanForTts(localSentences[sentIdx])
+                    val clean = com.bibot.app.core.text.TextCleaner.cleanForTts(localSentences[sentIdx], readLang)
                     if (clean.isBlank()) { sentIdx++; continue }
                     if (com.bibot.app.core.text.TextCleaner.looksLikeThinking(clean)) { sentIdx++; continue }
                     val (plain, needPause) = com.bibot.app.core.text.TextCleaner.splitPause(clean)

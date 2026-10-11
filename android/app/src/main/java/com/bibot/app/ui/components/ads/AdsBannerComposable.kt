@@ -1,13 +1,11 @@
 package com.bibot.app.ui.components.ads
 
 import android.content.Context
-import android.util.DisplayMetrics
-import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdRequest
@@ -24,13 +22,17 @@ import com.bibot.app.data.ads.isVipActive
  * - Landscape: chiều rộng màn hình, chiều cao tự động
  * - Tablet: hỗ trợ cả portrait và landscape
  * Tự động hide khi ad-free hoặc user tắt trong Settings.
+ *
+ * G1 (fix crash xoay màn hình): AdMob cấm `setAdSize` sau `loadAd` — bản cũ gọi
+ * trong `update` nên recompose lúc xoay là FATAL. Nay key `AndroidView` theo
+ * (widthDp, landscape): xoay → factory dựng AdView mới đúng size + loadAd mới,
+ * view cũ `destroy()` qua `onRelease`. Không còn `defaultDisplay` deprecated.
  */
 @Composable
 fun AdsBanner(
     adsPreferences: AdsPreferences,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     if (!com.bibot.app.BuildConfig.ENABLE_ADS) {
         Spacer(modifier = modifier.height(0.dp))
         return
@@ -42,27 +44,29 @@ fun AdsBanner(
     val showBanner = adsState.isBannerEnabled && !adsState.isAdFree && !isVipActive(adsState)
 
     if (showBanner) {
-        AndroidView(
-            modifier = modifier.fillMaxWidth(),
-            factory = { ctx ->
-                val adView = AdView(ctx).apply {
-                    setAdSize(getAdaptiveAdSize(ctx))
-                    adUnitId = AdConfig.BANNER_AD_UNIT_ID
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT
-                    )
-                    loadAd(AdRequest.Builder().build())
+        val config = LocalConfiguration.current
+        val widthDp = config.screenWidthDp.coerceAtLeast(320)
+        val isLandscape = config.screenWidthDp > config.screenHeightDp
+        androidx.compose.runtime.key(widthDp, isLandscape) {
+            AndroidView(
+                modifier = modifier.fillMaxWidth(),
+                factory = { ctx ->
+                    AdView(ctx).apply {
+                        setAdSize(getAdaptiveAdSize(ctx, widthDp, isLandscape))
+                        adUnitId = AdConfig.BANNER_AD_UNIT_ID
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT
+                        )
+                        loadAd(AdRequest.Builder().build())
+                    }
+                },
+                // Xoay/recreate: hủy view cũ (tránh rò WebView/AdView).
+                onRelease = { adView ->
+                    try { adView.destroy() } catch (_: Exception) {}
                 }
-                adView
-            },
-            update = { adView ->
-                val newSize = getAdaptiveAdSize(adView.context)
-                if (adView.adSize != newSize) {
-                    adView.setAdSize(newSize)
-                }
-            }
-        )
+            )
+        }
     } else {
         Spacer(modifier = modifier.height(0.dp))
     }
@@ -70,26 +74,15 @@ fun AdsBanner(
 
 /**
  * Lấy adaptive banner size phù hợp với orientation và màn hình hiện tại.
- * - Portrait: full width, anchored adaptive
- * - Landscape: chiều rộng màn hình, chiều cao tự động
- * - Tablet: hỗ trợ cả portrait và landscape
+ * widthDp/isLandscape lấy từ Compose LocalConfiguration (không dùng
+ * `defaultDisplay` deprecated — sập trên API mới khi display đã detach).
  */
-fun getAdaptiveAdSize(context: Context): AdSize {
-    val metrics = DisplayMetrics()
-    (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager)
-        .defaultDisplay.getMetrics(metrics)
-    
-    val screenWidthPx = metrics.widthPixels
-    val screenHeightPx = metrics.heightPixels
-    val density = metrics.density
-    
-    val screenWidthDp = (screenWidthPx / density).toInt()
-    val isLandscape = screenWidthPx > screenHeightPx
-    
+fun getAdaptiveAdSize(context: Context, widthDp: Int, isLandscape: Boolean): AdSize {
+    val w = widthDp.coerceAtLeast(320)
     return if (isLandscape) {
-        AdSize.getLandscapeAnchoredAdaptiveBannerAdSize(context, screenWidthDp)
+        AdSize.getLandscapeAnchoredAdaptiveBannerAdSize(context, w)
     } else {
-        AdSize.getPortraitAnchoredAdaptiveBannerAdSize(context, screenWidthDp)
+        AdSize.getPortraitAnchoredAdaptiveBannerAdSize(context, w)
     }
 }
 

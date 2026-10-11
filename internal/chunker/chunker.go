@@ -18,6 +18,53 @@ var singleWords = map[string]struct{}{
 	"tôi": {}, "bạn": {}, "anh": {}, "chị": {}, "em": {}, "chúng": {}, "họ": {}, "ta": {}, "mình": {},
 }
 
+// D6: viết tắt trích dẫn — "Fig."/"No." cuối chunk KHÔNG phải hết câu
+// (parity Kotlin TextCleaner.endsWithCiteAbbrev).
+var citeAbbrevWords = map[string]struct{}{
+	"fig": {}, "no": {}, "st": {}, "mr": {}, "mrs": {}, "ms": {}, "dr": {}, "prof": {}, "vs": {},
+	"etc": {}, "ie": {}, "eg": {}, "am": {}, "pm": {}, "tr": {}, "tp": {}, "nxb": {},
+	"p": {}, "pp": {}, "ch": {}, "sec": {}, "vol": {}, "ed": {},
+}
+
+func endsWithCiteAbbrev(chunk string) bool {
+	t := strings.TrimRight(chunk, " \t\n")
+	if !strings.HasSuffix(t, ".") {
+		return false
+	}
+	w := t[:len(t)-1]
+	if i := strings.LastIndex(w, " "); i >= 0 {
+		w = w[i+1:]
+	}
+	w = strings.TrimLeft(w, "([{\"'“")
+	w = strings.ToLower(strings.TrimSpace(w))
+	_, ok := citeAbbrevWords[w]
+	return ok
+}
+
+// D6: còn mở ngoặc ([{ chưa đóng, hoặc trong "..."/“...” → chưa gom đủ đoạn.
+func insideBracketsOrQuote(t string) bool {
+	depth := 0
+	straightQuote := false
+	curlyOpen := false
+	for _, c := range t {
+		switch c {
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			if depth > 0 {
+				depth--
+			}
+		case '"':
+			straightQuote = !straightQuote
+		case '“':
+			curlyOpen = true
+		case '”':
+			curlyOpen = false
+		}
+	}
+	return depth > 0 || straightQuote || curlyOpen
+}
+
 func wordCount(s string) int { return len(strings.Fields(s)) }
 
 // Chunker ports services/vietnamese_chunker.py:36 VietnameseTextChunker
@@ -59,6 +106,14 @@ func (c *Chunker) shouldYield(chunk string, wc int) bool {
 		if wc < c.MaxWords+4 {
 			return false
 		}
+	}
+	// D6: gom đủ đoạn trong ngoặc/trích dẫn; ép yield khi quá dài để không kẹt.
+	if insideBracketsOrQuote(chunk) && wc < c.MaxWords+8 && len(chunk) < c.MaxChars*2 {
+		return false
+	}
+	// D6: "Fig."/"No." cuối chunk không phải hết câu.
+	if endsWithCiteAbbrev(chunk) && wc < c.MaxWords+4 && len(chunk) < int(float64(c.MaxChars)*1.5) {
+		return false
 	}
 	if _, isSingle := singleWords[lastW]; (isSingle || isDigits(lastW)) && !endsSentence {
 		if wc < c.MaxWords+4 && len(chunk) < int(float64(c.MaxChars)*1.5) {

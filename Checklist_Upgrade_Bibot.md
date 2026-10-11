@@ -150,7 +150,13 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   Chưa làm: `position` Hitbox/xpointer (đợi A2.4; `chap*100+sent` cũ giữ nguyên).
 - [x] B3.5 Verify máy ảo BibotTest: chrome ẩn/hiện bằng chạm giữa khi READ, đọc tiếp
   không che chữ (karaoke chạy, FAB Pause); TOC nhảy chương hỏi dialog; anchor +
-  progress sống qua install -r. Chưa đo 30 phút/xoay máy (ghi nhận test dài ở B4).
+  progress sống qua install -r. Chưa đo 30 phút (ghi nhận test dài ở B4).
+- [x] B3.6/G1 Khắc phục crash xoay ngang-dọc (2026-10-11): tái hiện trên máy ảo —
+  FATAL trong `AdsBannerComposable` (`update` gọi `setAdSize` sau `loadAd`, AdMob
+  cấm; kèm `defaultDisplay` deprecated). Sửa: key `AndroidView` theo
+  (widthDp, landscape) từ `LocalConfiguration` → xoay dựng AdView mới đúng size;
+  `onRelease destroy()`; bỏ `defaultDisplay`. Verify: xoay list + reader cả 2 chiều,
+  không FATAL, giữ vị trí/chrome (Chapter 1/14, karaoke tiếp tục).
 
 ### B4. Giai đoạn 4 — Mục lục / Quotes / Bookmark / Search
 
@@ -286,6 +292,36 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
   Xong 2026-10-11 (R0): `assembleDemoDebug` + `assembleCommercialDebug` đều
   BUILD SUCCESSFUL (chỉ warning deprecation có sẵn); `go vet` 0 + `go test ./internal/tts/` PASS.
 
+### D6. Gom chunk trong ngoặc/trích dẫn + đọc Fig./No. (2026-10-11) — [x]
+
+- [x] D6.1 Chunker không ngắt giữa `(...)/[...]/ {...}/"..."`: `insideBracketsOrQuote`
+  (depth + straight-quote toggle + `“ ”`) giữ chunk cho đủ đoạn; ép yield khi quá dài
+  (vượt 8 từ / gấp đôi ký tự) để không kẹt. Cả `VietnameseChunker.kt` + Go `chunker.go`.
+- [x] D6.2 Viết tắt trích dẫn cuối chunk không phải hết câu (`endsWithCiteAbbrev`):
+  `fig/no/st/mr/mrs/ms/dr/prof/vs/etc/ie/eg/am/pm/tr/tp/nxb/p/pp/ch/sec/vol/ed` —
+  chặn chẻ `(Fig.` | `5)`. Cả 2 phía.
+- [x] D6.3 Đọc chữ theo ngôn ngữ (`readFigureRefs`, bước 3d sau La Mã, trước
+  abbrevDot/numDot): `Fig. 5` → `hình 5` (VI) / `figure 5` (EN);
+  `No. 12` → `số 12`/`number 12`. Dấu chấm BẮT BUỘC (không ăn `no 5` tiếng Anh).
+  `cleanForTts` thêm param `lang="vi"` (tương thích caller cũ);
+  `ReaderScreen` truyền `readLang`; Go `Synthesize` suy lang từ prefix voice.
+- [x] D6.4 Verify: Go `TestEndsWithCiteAbbrev/InsideBracketsOrQuote/FeedKeepsParenthetical/
+  ReadFigureRefsGo` PASS; JVM `TextRulesTest` (chunk whole/quote/abbrev/fig vi-en) 8/8
+  cùng `TtsSegmentsTest` 9/9 PASS; máy ảo đọc Ngưu Lang có `(1989...)`/`mùng bảy`
+  tự nhiên (spot-check dòng `(âm lịch)` không bị chẻ).
+
+### D7. Đề mục dòng ngắn không keyword (2026-10-11) — [x]
+
+- [x] D7.1 `detectStoryHeading` thêm fallback dòng ngắn: ≤60 ký tự, ≤10 từ, không kết
+  dấu câu (`.!?…:;,)]}'"”’`), mở đầu hoa/số, dòng sau tồn tại + mở đầu hoa/số
+  (kế thừa guard P6 chống wrap), loại số trang/`mục lục`/chấm lãnh đạo TOC.
+  Áp dụng SAU khi đã vào sách (đề mục phần đầu chưa mốc vẫn buffer theo D1 —
+  `Tác giả/NXB` không thành chương). Thơ đối thoại ngắn hoa-đầu có thể tách nhầm
+  (ghi nhận): hậu quả nhẹ (1 mục TOC + ngắt 450ms), `MAX_CHAPTERS` chặn.
+- [x] D7.2 Verify: JVM `TextRulesTest` — `Tiểu sử tác giả` tách chương sau `Chương 1`;
+  âm tính (wrap thường/số trang/mục lục/kết hai chấm) giữ 1 chương; `Chương 1`
+  keyword không regression. Kotlin-only (Go không có heading logic — ghi nhận).
+
 ---
 
 ## PHẦN E — Logic render ReadEra trên máy ảo (đã đo 2026-10-11) → học cho Bibot
@@ -405,3 +441,51 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
 - [x] F2.6 Verify máy ảo: BROWSE vuốt không TTS (effect gate); long-press trang 2/3 →
   "reads from about 50%" → READ karaoke đúng; kill app (install -r giữ data) mở lại →
   resume chip + anchor cũ (`savedAnchor`); logcat sạch FATAL.
+
+---
+
+## PHẦN G — Crash xoay màn hình + chunking ngoặc + đọc đề mục (mới)
+
+### G1. Khắc phục crash khi xoay ngang–dọc
+
+- [ ] G1.1 Nguyên nhân (đã xác định từ code): state đọc sách vẫn `remember` trong
+  composable (F0.1 NOTE — hoist sang `ReaderViewModel` dời sang B3); xoay màn hình →
+  Activity recreate → `DisposableEffect.onDispose` đóng `prepSession` trong khi producer
+  `Channel(2)` + scope cũ vẫn synth → race dùng session đã đóng + ExoPlayer surface
+  recreate → crash. KHÔNG dùng `android:configChanges` (phá resources/locale).
+- [ ] G1.2 Fix đúng: hoist toàn bộ state đọc (`prepSession`, `jumpSeq`, producer job,
+  `currentChapter/Sentence`) vào `ReaderViewModel` + `SavedStateHandle` (giữ
+  chapter/sent/anchor qua recreate); `PlayerViewModel` (AndroidViewModel) giữ ExoPlayer
+  sống sót; `DisposableEffect` chỉ đóng khi rời màn hình thật (không phải config change).
+  Làm cùng B3 (đúng chỗ F0.1 đã hẹn).
+- [ ] G1.3 Verify máy ảo (ma trận xoay): xoay khi IDLE / đang READ TTS / đang BROWSE /
+  giữa dialog đổi anchor / khi QC interstitial → không FATAL, đọc tiếp đúng câu
+  (logcat + `dumpsys meminfo` không leak ExoPlayer).
+
+### G2. Nguyên tắc gom chunk cho đoạn trong ngoặc (...)/{...}/[...]/"..." (ghi chú, trích dẫn)
+
+- [ ] G2.1 Bug đã xác định: `DELIM` của `VietnameseChunker.kt:114` tách ở `.` `;` `:` `,`
+  nên `(at Fig. 5)` bị chẻ ngay sau `Fig.` (`SENT_END` khớp → yield giữa ngoặc).
+  Fix: theo dõi **bracket-depth** trong `feed()` — DELIM nằm trong ngoặc (depth>0,
+  kể cả `"..."` toggle) thì không yield/không tách; ngoặc đóng xong mới xét yield.
+- [ ] G2.2 Chuẩn hoá đọc trong `TextCleaner` (trước chunker, theo `fixedLang` của
+  `ReaderCollection` F0.2): VI — `Fig.`→`hình`, `e.g.`→`ví dụ`, `i.e.`→`nghĩa là`,
+  `vs.`→`so với`, `etc.`→`vân vân`; EN — `Fig.`→`figure`, `e.g.`→`for example`…;
+  số trong ngoặc theo D2 (`1989`→`một nghìn chín trăm tám mươi chín`,
+  `from 1989 to 2011` giữ nguyên từ, chỉ đổi số). Vỏ ngoặc ngoài → dấu phẩy
+  (`, … ,`) để TTS ngắt tự nhiên; bỏ ngoặc rỗng `()`.
+- [ ] G2.3 Mirror Go (`tts.go`): guard tương đương cho `ChunkerSplit` + expand tối thiểu
+  (`Fig.`→`hình`/`figure` theo tham số lang) + `go test` case mới.
+- [ ] G2.4 Verify: `(from 1989 to 2011)`, `(see Fig. 5)`, `"trích dẫn dài..."` không bao giờ
+  bị chẻ làm đôi; nghe VI/EN mỗi loại 3 câu ngoặc; `go test` + 40-case regex pass.
+
+### G3. Nhận diện đề mục + đọc có ngắt câu
+
+- [ ] G3.1 Quy tắc (khớp `detectStoryHeading` + `mdHeading` sẵn có): đề mục = chuỗi NGẮN
+  (≤120 ký tự, 1 dòng), KHÔNG dấu chấm cuối (`.!?…:;`), bắt đầu HOA/số, xuống hàng ngay
+  sau. Mở rộng: EPUB `h1-h3`/spine title, `CHAPTER-BREAK title=`, MD `##` (đã có).
+- [ ] G3.2 Hành vi mới: producer phát **tiêu đề chương là chunk đầu tiên kèm pause**
+  (`pauseAfterMs` = `BOOK_PAUSE_BETWEEN_MS`, hoặc marker `⏸` như pause 2s) rồi mới tới
+  câu nội dung; karaoke highlight tab tương ứng. Hiện tại title chỉ hiện UI, TTS bỏ qua.
+- [ ] G3.3 Verify máy ảo: mở sách bất kỳ → audio đầu tiên là tên chương + khoảng lặng
+  rõ rệt trước câu đầu; chương `##`, `Chương X`, `Part One`, `h2` EPUB đều đọc.

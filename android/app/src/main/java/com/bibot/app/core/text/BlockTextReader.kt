@@ -1267,7 +1267,12 @@ object BlockTextReader {
         if (s.last() in storyHeadingEndPunct) return null
         if (s.equals("mục lục", true)) return null
         if (!s[0].isUpperCase() && !s[0].isDigit()) return null
-        val m = storyHeading.matchEntire(s) ?: return null
+        val m = storyHeading.matchEntire(s)
+        if (m == null) {
+            // D7/G3: đề mục dòng ngắn không keyword ("Lời giới thiệu", "Tiểu sử tác giả"):
+            // ngắn, không kết dấu câu → xuống hàng → tách chương để đọc có ngắt câu.
+            return if (isShortHeading(s, nextLine)) s else null
+        }
         val kwRange = m.groups[1]?.range ?: return null
         val rest = s.substring(kwRange.last + 1).trimStart()
         // Dấu phẩy/chấm phẩy ngay sau từ loại → câu văn ("Truyện, nhân hỏi...")
@@ -1281,6 +1286,29 @@ object BlockTextReader {
         val ns = nextLine?.trim() ?: ""
         if (ns.isNotEmpty() && ns[0].isLowerCase()) return null
         return s
+    }
+
+    // D7/G3: đề mục ngắn — chuỗi ngắn (≤60 ký tự, ≤10 từ), không dấu chấm cuối,
+    // mở đầu hoa/số; dòng sau tồn tại + mở đầu hoa/số (kế thừa guard P6 chống wrap).
+    // Loại số trang đứng riêng, "mục lục", dòng chấm lãnh đạo TOC.
+    // Rủi ro còn lại (ghi nhận): thơ/câu đối thoại ngắn hoa-đầu có thể tách nhầm —
+    // hậu quả nhẹ (1 mục TOC + ngắt 450ms), MAX_CHAPTERS chặn thiệt hại.
+    private const val SHORT_HEADING_MAX_CHARS = 60
+    private const val SHORT_HEADING_MAX_WORDS = 10
+    private val shortHeadingEndPunct = ".!?…:;,)]}'\"”’"
+
+    private fun isShortHeading(s: String, nextLine: String?): Boolean {
+        if (s.isEmpty() || s.length > SHORT_HEADING_MAX_CHARS) return false
+        if (s.last() in shortHeadingEndPunct) return false
+        if (s.split(Regex("\\s+")).size > SHORT_HEADING_MAX_WORDS) return false
+        if (!s[0].isUpperCase() && !s[0].isDigit()) return false
+        if (s.equals("mục lục", true)) return false
+        if (pureNumberLineRegex.containsMatchIn(s)) return false
+        if (tocLeaderRegex.containsMatchIn(s)) return false
+        val ns = nextLine?.trim() ?: ""
+        if (ns.isEmpty()) return false
+        if (!ns[0].isUpperCase() && !ns[0].isDigit()) return false
+        return true
     }
 
     private fun appendClean(part: String, out: StringBuilder) {

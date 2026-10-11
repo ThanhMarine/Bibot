@@ -1,5 +1,7 @@
 package com.bibot.app.core.tts
 
+import com.bibot.app.core.text.TextCleaner
+
 /**
  * Vietnamese chunker — yields chunks sized ~35-40 words, rounded to nearest . or ,.
  * Only ends audio chunk when encountering . or ./n for natural pausing.
@@ -33,6 +35,13 @@ class VietnameseChunker(
         if (DECIMAL_END.containsMatchIn(t)) {
             if (wc < maxWords + 4) return false
         }
+        // D6: gom đủ đoạn trong ngoặc/trích dẫn — không ngắt giữa "(Fig. 5 ...".
+        // Ép yield khi quá dài (vượt 8 từ / gấp đôi ký tự) để không kẹt chunk vô hạn.
+        if (insideBracketsOrQuote(t) && wc < maxWords + 8 && t.length < maxChars * 2) return false
+        // D6: "Fig."/"No." cuối chunk không phải hết câu (kẻo chẻ "(Fig." | "5)").
+        if (TextCleaner.endsWithCiteAbbrev(t) &&
+            wc < maxWords + 4 && t.length < (maxChars * 1.5).toInt()
+        ) return false
         if ((lastW in singleWords || lastW.all { it.isDigit() }) && !endsSentence) {
             if (wc < maxWords + 4 && t.length < (maxChars * 1.5).toInt()) return false
         }
@@ -101,6 +110,23 @@ class VietnameseChunker(
     }
 
     fun reset() { buffer.clear() }
+
+    // D6: còn mở ngoặc ([{ chưa đóng, hoặc trong cặp "..."/“...” → chưa gom đủ đoạn.
+    private fun insideBracketsOrQuote(t: String): Boolean {
+        var depth = 0
+        var straightQuote = false
+        var curlyOpen = false
+        for (c in t) {
+            when (c) {
+                '(', '[', '{' -> depth++
+                ')', ']', '}' -> if (depth > 0) depth--
+                '"' -> straightQuote = !straightQuote
+                '“' -> curlyOpen = true
+                '”' -> curlyOpen = false
+            }
+        }
+        return depth > 0 || straightQuote || curlyOpen
+    }
 
     companion object {
         // P0: cache Pattern — trước đây mỗi wordCount/shouldYield compile Regex MỚI
