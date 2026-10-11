@@ -113,12 +113,25 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
     fun play() { player.play() }
     fun pause() { player.pause() }
-    fun seekTo(positionMs: Long) { player.seekTo(positionMs) }
-    fun seekForward(ms: Long = 10000) { player.seekTo((player.currentPosition + ms).coerceAtMost(player.duration)) }
+    fun seekTo(positionMs: Long) {
+        val d = player.duration
+        player.seekTo(if (d > 0) positionMs.coerceIn(0L, d) else positionMs.coerceAtLeast(0L))
+    }
+    // A1.3: duration chưa biết (TIME_UNSET=-1, MP3 chưa load xong) thì KHÔNG clamp
+    // về -1 (bug cũ: coerceAtMost(-1) → seekTo(-1)). Seek tuyến tính trên MP3
+    // CBR theo byte (ExoPlayer + Xing header của Google MP3).
+    fun seekForward(ms: Long = 10000) {
+        val d = player.duration
+        val target = player.currentPosition + ms
+        player.seekTo(if (d > 0) target.coerceAtMost(d) else target)
+    }
     fun seekBack(ms: Long = 10000) { player.seekTo((player.currentPosition - ms).coerceAtLeast(0L)) }
+    // A1.3: speed 0.5–2.0x (khớp CloudTtsBridge.coerceIn) — ngoài dải thì kẹp,
+    // không để ExoPlayer nhận rate lạ vỡ nhịp karaoke.
     fun setSpeed(speed: Float) {
-        player.playbackParameters = PlaybackParameters(speed)
-        _playerState.value = _playerState.value.copy(playbackSpeed = speed)
+        val s = speed.coerceIn(0.5f, 2.0f)
+        player.playbackParameters = PlaybackParameters(s)
+        _playerState.value = _playerState.value.copy(playbackSpeed = s)
     }
     fun playUrl(url: String, title: String = "Bibot", subtitle: String = "", speed: Float = 0.85f, mediaId: String? = null) {
         // Session mới (setMediaItem thay cả queue) → reset tracking karaoke

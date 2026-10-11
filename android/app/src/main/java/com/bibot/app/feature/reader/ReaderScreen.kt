@@ -142,6 +142,9 @@ fun ReaderScreen(
     var adPreloaded by remember { mutableStateOf(false) }
     // Highlight chi bat khi audio that su start (sua loi chunk dau to som trong luc cho synth)
     var audioStarted by remember { mutableStateOf(false) }
+    // A1.4: engine thực tế của lượt đọc (Piper/Cloud/Offline) — snapshot lúc bắt
+    // đầu đọc để báo degraded (thiếu model/key), không re-plan giữa chừng.
+    var degradedEngine by remember { mutableStateOf(false) }
     // Quyen VIP (ma VIP): sach pha QC + mo Cloud (can key), hieu luc tu lan bam Doc ke tiep
     val adsPrefs = remember { com.bibot.app.data.ads.AdsPreferences(context) }
     val adsState by adsPrefs.adsStateFlow.collectAsState(initial = com.bibot.app.data.ads.AdsState())
@@ -391,6 +394,28 @@ fun ReaderScreen(
         var rewardedForChap = rewardedLeft > 0
         val piperOn = prefsState.storyPreferPiper &&
             com.bibot.app.core.tts.PiperTtsHelper.isVoiceComplete(context, readLang)
+        // A1.1/A1.2/A1.4: voice-resolve TRƯỚC khi plan — snapshot 1 lần cho cả lượt
+        // đọc (ordinal là identity resume, xem segments.go/TtsSegments.kt).
+        // settingsHash tách theo voice/speed: đổi voice rồi switch-back trúng cache cũ.
+        val resolved = com.bibot.app.core.tts.TtsVoiceResolve.resolve(
+            readLang, prefsState, context,
+            rewardedCloud = rewardedCloudOk && rewardedForChap, vipBypass = vipActive
+        )
+        degradedEngine = resolved.degraded
+        val segSettingsHash = com.bibot.app.core.tts.TtsSegments.settingsHash(
+            com.bibot.app.core.tts.TtsSettings(
+                voice = resolved.voiceId, speed = speed.toString(),
+                format = resolved.format, language = readLang
+            ),
+            com.bibot.app.core.tts.TtsSegmentation(maxBlockLength = 200, language = readLang)
+        )
+        val segCache = com.bibot.app.core.tts.TtsAudioCache(context, db)
+        val segDocId = book.id.ifBlank { book.title }
+        val segDocVersion = try { book.localFile?.lastModified() ?: 0L } catch (_: Exception) { 0L }
+        val segPrefix = com.bibot.app.core.tts.TtsSegments.keyPrefix(
+            segDocId,
+            com.bibot.app.core.tts.TtsSegments.readerTypeFor(book.localFile?.name ?: book.title)
+        )
         val ttsChannel = Channel<ReaderTtsItem>(capacity = 2)
         var finishedAll = false
 
@@ -440,15 +465,44 @@ fun ReaderScreen(
                     val pauseMs = if (needPause) 2000L else 0L
                     var pcm: ByteArray? = null
                     var mime = "audio/mp3"
-                    if (piperOn) {
+                    // A1.2: lookup content-addressed TRƯỚC khi synth — cùng text+voice
+                    // (+speed) ở bất kỳ vị trí/chương nào dùng chung 1 file audio.
+                    var segAudioHash: String? = null
+                    var segFromCache = false
+                    if (piperOn || cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank())) {
+                        try {
+                            val segKey = com.bibot.app.core.tts.TtsSegments.segmentKey(segPrefix, plain)
+                            segAudioHash = com.bibot.app.core.tts.TtsSegments.audioContentHash(
+                                segDocId, segDocVersion, segSettingsHash, segKey,
+                                com.bibot.app.core.tts.TtsSegments.normalizeContentText(plain), ""
+                            )
+                            val hit = segCache.lookup(segSettingsHash, segAudioHash)
+                            if (hit != null) {
+                                val hb = hit.readBytes()
+                                if (hb.isNotEmpty()) {
+                                    pcm = hb
+                                    mime = if (hit.extension.equals("wav", ignoreCase = true)) "audio/wav" else "audio/mp3"
+                                    segFromCache = true
+                                }
+                            }
+                        } catch (_: Exception) { pcm = null; segFromCache = false }
+                    }
+                    if (piperOn && !segFromCache) {
                         pcm = try { com.bibot.app.core.tts.PiperTtsHelper.synthesize(context, plain, readLang) } catch (_: Exception) { null }
                         if (pcm != null) mime = "audio/wav"
                     }
-                    if ((pcm == null || pcm.isEmpty()) && (cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank()))) {
+                    if ((pcm == null || pcm.isEmpty()) && !segFromCache && (cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank()))) {
                         pcm = try { CloudTtsBridge.synthesize(plain, geminiKey, voice = voice, speakingRate = speed) } catch (_: Exception) { null }
                         mime = "audio/mp3"
                     }
                     if (pcm != null && pcm.isNotEmpty()) {
+                        // Miss mà synth được → lưu cache fire-and-forget (không chặn phát).
+                        if (!segFromCache && segAudioHash != null) {
+                            val b = pcm; val h = segAudioHash; val m = mime
+                            scope.launch(Dispatchers.IO) {
+                                segCache.store(segSettingsHash, h, if (m.contains("wav")) "wav" else "mp3", b)
+                            }
+                        }
                         ttsChannel.send(ReaderTtsItem.Pcm(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, pcm, plain.length, pauseMs, mime, seqAtStart))
                     } else {
                         ttsChannel.send(ReaderTtsItem.Direct(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, plain, pauseMs, seqAtStart))
@@ -687,7 +741,7 @@ fun ReaderScreen(
             info = {
                 Column {
                     ControlInfoText(stringResource(R.string.reader_pos, currentChapter + 1, chapters.size, currentSentence + 1, sentences.size))
-                    ControlInfoText((if (uiLang == "en") "EN" else "VI") + " • " + (if (uiLang == "en") prefsState.voiceSpeed else prefsState.storySpeed).toString() + "x", secondary = true)
+                    ControlInfoText((if (uiLang == "en") "EN" else "VI") + " • " + (if (uiLang == "en") prefsState.voiceSpeed else prefsState.storySpeed).toString() + "x" + if (degradedEngine) " • offline" else "", secondary = true)
                 }
             },
             controls = {

@@ -215,6 +215,8 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.admob)
 
+    testImplementation("junit:junit:4.13.2")
+
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     debugImplementation(libs.androidx.ui.tooling)

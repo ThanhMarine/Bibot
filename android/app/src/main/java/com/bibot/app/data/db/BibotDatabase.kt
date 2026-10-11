@@ -52,6 +52,23 @@ data class PdfJob(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+// A1.2: sidecar per-segment cho audio cache content-addressed (port openreader
+// sidecar per-ordinal duration/align/audioKey/status). audioHash = identity duy
+// nhất (dedup cùng text ở nhiều vị trí); settingsHash tách theo voice/speed.
+@Entity(tableName = "tts_segment_cache")
+data class TtsSegmentCache(
+    @PrimaryKey val audioHash: String,
+    val settingsHash: String,
+    val segmentKey: String = "",
+    val docId: String = "",
+    val ext: String = "mp3", // mp3 (cloud) | wav (piper)
+    val bytesLen: Long = 0,
+    val durationMs: Long? = null, // đo sau khi phát (ExoPlayer), null = chưa biết
+    val status: String = "ready", // ready
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastHitAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface MemoryCoreDao {
     @Query("SELECT * FROM memory_core") suspend fun all(): List<MemoryCore>
@@ -93,9 +110,22 @@ interface PdfJobDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(e: PdfJob)
 }
 
+@Dao
+interface TtsSegmentDao {
+    @Query("SELECT * FROM tts_segment_cache WHERE audioHash=:a AND settingsHash=:s LIMIT 1")
+    suspend fun get(a: String, s: String): TtsSegmentCache?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(e: TtsSegmentCache)
+    @Query("UPDATE tts_segment_cache SET lastHitAt=:ts WHERE audioHash=:a")
+    suspend fun touch(a: String, ts: Long)
+    @Query("SELECT COALESCE(SUM(bytesLen),0) FROM tts_segment_cache") suspend fun sumBytes(): Long
+    @Query("SELECT * FROM tts_segment_cache ORDER BY lastHitAt ASC LIMIT :n")
+    suspend fun oldest(n: Int): List<TtsSegmentCache>
+    @Query("DELETE FROM tts_segment_cache WHERE audioHash=:a") suspend fun delete(a: String)
+}
+
 @Database(
-    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class],
-    version = 1, exportSchema = false
+    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class],
+    version = 2, exportSchema = false
 )
 abstract class BibotDatabase : RoomDatabase() {
     abstract fun memoryCore(): MemoryCoreDao
@@ -103,6 +133,7 @@ abstract class BibotDatabase : RoomDatabase() {
     abstract fun chatLog(): ChatLogDao
     abstract fun book(): BookProgressDao
     abstract fun pdf(): PdfJobDao
+    abstract fun ttsSegments(): TtsSegmentDao
 
     companion object {
         @Volatile private var INSTANCE: BibotDatabase? = null

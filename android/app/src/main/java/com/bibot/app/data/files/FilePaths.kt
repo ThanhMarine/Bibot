@@ -67,6 +67,35 @@ object FilePaths {
     fun llmChunkFile(context: Context, id: String): File = File(chunkTempDir(context), "llm_$id.tmp")
     fun pdfChunkDir(context: Context): File = File(pdfCache(context), "chunks").apply { mkdirs() }
 
+    // A1.2: segment audio cache — content-addressed, DURABLE (không TTL).
+    // noBackup (tránh backup phình): {noBackup}/audio/segments/{settingsHash}/{audioHash}.{mp3|wav}.
+    // Chỉ LRU theo size (cleanupSegmentCache), tách khỏi cleanupCache TTL bên dưới.
+    fun ttsSegmentRoot(context: Context): File = File(noBackupRoot(context), "audio/segments").apply { mkdirs() }
+    fun ttsSegmentDir(context: Context, settingsHash: String): File =
+        File(ttsSegmentRoot(context), settingsHash.filter { it.isLetterOrDigit() || it == '-' }).apply { mkdirs() }
+    fun ttsSegmentFile(context: Context, settingsHash: String, audioHash: String, ext: String): File {
+        val safeExt = if (ext.equals("wav", ignoreCase = true)) "wav" else "mp3"
+        return File(ttsSegmentDir(context, settingsHash), "${audioHash.filter { it.isLetterOrDigit() }}.$safeExt")
+    }
+
+    /** LRU size-only cho segment cache (không TTL — file còn hit là còn giá trị). */
+    fun cleanupSegmentCache(context: Context, maxMb: Long = 300): String {
+        return try {
+            val root = ttsSegmentRoot(context)
+            val files = root.walkTopDown().filter { it.isFile }.sortedBy { it.lastModified() }.toList()
+            var total = files.sumOf { it.length() }
+            var deleted = 0
+            for (f in files) {
+                if (total <= maxMb * 1024 * 1024) break
+                val sz = f.length()
+                if (f.delete()) { deleted++; total -= sz }
+            }
+            // Dọn dir settings rỗng
+            root.listFiles()?.filter { it.isDirectory && (it.listFiles()?.isEmpty() != false) }?.forEach { it.delete() }
+            "Segments: cleaned $deleted files, remaining ${total / (1024 * 1024)}MB"
+        } catch (e: Exception) { "Segments: cleanup fail ${e.message}" }
+    }
+
     /** Dọn cache temp: xoá file > ttlHours, LRU nếu vượt maxMb. Gọi onStart + WorkManager 1 lần/ngày. */
     fun cleanupCache(context: Context, maxMb: Int = 200, ttlHours: Int = 24): String {
         val roots = listOf(chunkTempDir(context), ttsCache(context), pdfCache(context), prepDir(context))
@@ -84,7 +113,9 @@ object FilePaths {
             if (totalMb <= maxMb) break
             val sz = f.length(); if (f.delete()) { deleted++; freed += sz; totalMb -= sz / (1024 * 1024) }
         }
-        return "Cleaned $deleted files, freed ${freed / 1024} KB, remaining ${totalMb}MB"
+        // A1.2: segment cache durable riêng (size-only, không TTL) — không nằm trong roots TTL/LRU trên.
+        val segReport = try { cleanupSegmentCache(context) } catch (_: Exception) { "" }
+        return "Cleaned $deleted files, freed ${freed / 1024} KB, remaining ${totalMb}MB; $segReport"
     }
 
     // Helpers

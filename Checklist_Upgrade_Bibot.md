@@ -19,19 +19,46 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 
 ### A1. P0 — Cache + identity TTS kiểu openreader (ăn ngay, ít rủi ro)
 
-- [ ] A1.1 Port `packages/tts/src/segment-plan.ts + segments.ts + nlp.ts` sang Go chunker:
-  - File chạm: `internal/chunker/chunker.go`, `android/.../core/tts/VietnameseChunker.kt`
+- [x] A1.1 Port `packages/tts/src/segment-plan.ts + segments.ts + nlp.ts` sang Go chunker:
+  - File chạm: `internal/chunker/chunker.go` (giữ nguyên), MỚI `internal/chunker/segments.go`
+    + `segments_test.go`; Kotlin MỚI `core/tts/TtsSegments.kt` (+ `src/test/.../TtsSegmentsTest.kt`).
   - Mỗi segment có `{ordinal, key=FNV(normalizedText), locator(spineIndex/charOffset), start/endAnchor}`.
+  - FNV-1a tính trên UTF-16 units (khớp JS charCodeAt; vector ASCII chuẩn + surrogate
+    pin chéo Go↔Kotlin `dae009c7`). Có segmentKey → locator null (dedup chủ đích,
+    khớp segments.ts). Key side-local (Go/Kotlin không chia sẻ file).
   - `ordinal` là identity duy nhất để play/seek/resume; locator/text không dùng để start playback.
-- [ ] A1.2 Port `settingsHash/audioContentHash`:
-  - `settingsHash = sha256(voice/format + maxBlockLength/language/skipKinds)`; `audioKey = .../{settingsHash}/{audioHash}.mp3`.
-  - File chạm: `data/files/FilePaths.kt` (thay `chunk_*.wav/llm_*.tmp` tạm), Room thêm bảng sidecar per-ordinal (`duration/align/audioKey/status`).
+- [x] A1.2 Port `settingsHash/audioContentHash`:
+  - `settingsHash = SHA256(settingsCanonical + 0x00 + segmentationCanonical)`
+    (voice/format/speed/language/maxBlock); `audioKey = {settingsHash}/{audioHash}.{mp3|wav}`.
+  - File chạm: `data/files/FilePaths.kt` (MỚI `ttsSegmentRoot/Dir/File` durable ở
+    noBackup — KHÔNG TTL, LRU 300MB riêng `cleanupSegmentCache`, móc vào `cleanupCache`);
+    Room entity MỚI `tts_segment_cache` + `TtsSegmentDao` (DB v1→2, destructive migration
+    có sẵn); helper MỚI `core/tts/TtsAudioCache.kt` (lookup chạm LRU / store nguyên tử
+    tmp→rename + siết cap); `ReaderScreen` producer lookup-trước-synth + store
+    fire-and-forget (chỉ path Pcm piper/cloud; Direct offline không cache — voice
+    nằm ở engine máy). `bibot_tts_<ms>` tạm giữ cho announce/khẩn.
   - Đổi voice/speed → trúng cache cũ khi switch-back, thay vì mất cache như hiện tại.
-- [ ] A1.3 Chuẩn CBR theo `tts/src/audio-format.ts`: `44.1kHz mono 128k CBR, strip Xing`, silence tính theo frame `1152/44100`.
-  - File chạm: `core/tts/CloudTtsBridge.kt`, `ui/player/PlayerViewModel.kt` → `seekBack/Forward 10s` + speed `0.85x` không vỡ.
-- [ ] A1.4 Voice-resolve trước khi plan (commit openreader `0b4d559b` + `voice-resolution.ts`):
-  - File chạm: `feature/settings/SettingsScreen.kt`, `ModelsViewModel.kt` → probe voices → mới tạo plan; voice rỗng thì báo, không re-plan mất state.
-- [ ] A1.5 Verify: đổi voice EN↔VI rồi switch-back → trúng cache; seek ±10s tuyến tính trên MP3 CBR; thiếu model → báo rõ, không mất trạng thái đọc.
+- [x] A1.3 Chuẩn CBR theo `tts/src/audio-format.ts`: hằng đích `44.1kHz mono 128k CBR,
+  16000 B/s, frame 1152 (~26.12ms)` port vào `TtsSegments` làm đích cho export (A3).
+  KHÔNG transcode on-device (không ffmpeg): giữ Google MP3 (có Xing → ExoPlayer seek
+  tốt) + Piper wav; KHÔNG strip Xing (strip chỉ đúng khi tự nối stream như openreader).
+  - File chạm: `ui/player/PlayerViewModel.kt` → fix bug `seekForward` kẹp về -1 khi
+    duration TIME_UNSET; `setSpeed` kẹp 0.5–2.0x (khớp CloudTtsBridge); `seekBack`
+    vốn đã an toàn. Seek ±10s dùng ở `BibotPlayerBar`.
+- [x] A1.4 Voice-resolve trước khi plan (port fix openreader `0b4d559b`):
+  - MỚI `core/tts/TtsVoiceResolve.kt`: 1 chuỗi fallback duy nhất Piper→Cloud→Offline
+    (giữ đúng case reward theo chương + VIP bypass); snapshot 1 lần lúc bắt đầu đọc,
+    không re-plan giữa chừng; voiceId không bao giờ rỗng (bất biến có test).
+  - `ReaderScreen` dùng resolver cho effect đọc; degraded (thiếu model/key) hiện tag
+    `• offline` ở dòng info (thay vì im lặng fallback như trước).
+  - File checklist ghi `SettingsScreen/ModelsViewModel`: ModelsViewModel đã probe
+    installed trước mọi tác vụ (đủ); VoiceChatViewModel giữ logic riêng (ngoài A1).
+- [x] A1.5 Verify: Go `internal/chunker` 8 test PASS; JVM `TtsSegmentsTest` 9/9 PASS
+  (FNV vector + parity Go, settings tách voice/speed, dedup, resolve ma trận 8 case);
+  `assembleDemoDebug + assembleCommercialDebug` SUCCESS; máy ảo BibotTest: đọc Cổ tích
+  resume đúng + tag `VI • 0.88x • offline`, logcat sạch FATAL, `no_backup/.../segments/`
+  đã tạo. Hạn chế trung thực: hit-cache Pcm trên máy thật cần Cloud key/Piper model
+  (emulator không có) — lookup/store đã bọc try/catch, miss = luồng cũ y nguyên.
 
 ### A2. P1 — Reader engine (lazy page + convert + snap config)
 
