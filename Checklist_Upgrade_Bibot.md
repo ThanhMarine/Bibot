@@ -489,3 +489,107 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
   câu nội dung; karaoke highlight tab tương ứng. Hiện tại title chỉ hiện UI, TTS bỏ qua.
 - [ ] G3.3 Verify máy ảo: mở sách bất kỳ → audio đầu tiên là tên chương + khoảng lặng
   rõ rệt trước câu đầu; chương `##`, `Chương X`, `Part One`, `h2` EPUB đều đọc.
+
+---
+
+## PHẦN H — Module "Reading Rules" mới: rulepack con người/AI cùng sửa được, runtime nhẹ, reuse mọi nơi
+
+Vấn đề: quy tắc đọc (D1–D4, G2–G3) đang là regex cứng rải trong `TextCleaner.kt`,
+`BlockTextReader.kt`, `tts.go` — muốn sửa 1 quy tắc phải đụng code 2 ngôn ngữ + sợ
+regression. Giải pháp: **1 rulepack khai báo duy nhất, 2 dạng file** —
+`reading-rules.ruler` (tác giả sửa, cú pháp YAML) + `reading-rules.json` (máy đọc,
+sinh tự động lúc build). **Loại `.db`/SQLite**: nặng, cần driver, Go không có sẵn —
+JSON thắng về nhẹ + đa nền tảng 0-dependency.
+
+### H0. Đặc tả rulepack — [x] khóa + chạy được 2026-10-11
+
+- [x] H0.1 Schema mỗi rule: `{id, kind, scope, lang, pattern(s), template?, params?,
+  priority, tests[]}` (`validate` gộp vào hook tên: `day/month/year/num/roman`).
+  `kind` = `rewrite` | `drop_line` | `start_marker` | `split_guard`.
+  `priority` = thứ tự pipeline. File: `tools/rules/reading-rules.ruler` (v1, 3 rule).
+- [x] H0.2 Test nhúng trong ruler (19 case, cả giữ nguyên) — `compile_rules.py` chạy
+  toàn bộ, 19/19 PASS, thay `regex_check.py` rời rạc.
+- [x] H0.3 Giao Java∩RE2∩Python: script từ chối lookaround/atomic/possessive/backref/
+  named (đã bắt bug thật khi dev). `version` int + `checksum` sha256 trong JSON
+  (1006 bytes). Lệch nhỏ: `split_guard` mới có trong schema + doc, chưa có rule mẫu
+  (sang H2.3).
+
+### H1. Scaffold + 3 rule pilot — [x] chạy được (H1.3 dời H2)
+
+- [x] H1.1 `tools/rules/reading-rules.ruler` (3 rule pilot) + `compile_rules.py`
+  (YAML→JSON + tests + đo size) + `RULES_AUTHORING.md`. Lệch: script còn mirror 1 bản
+  JSON sang `internal/rules/reading-rules.json` (do `go:embed` cấm `..`).
+- [x] H1.2 Loader Kotlin `core/text/ReadingRules.kt` (`org.json`, 0 lib mới:
+  `parse/load/apply/isDropLine/isStartMarker`, hook dùng `TextCleaner` sẵn có) +
+  JSON copy vào `android/app/src/main/assets/reading-rules.json` (1053 bytes).
+  Loader Go `internal/rules/` (`//go:embed` + stdlib, engine + hook + `viWords`
+  port từ Kotlin) + `rules_test.go` 4 test PASS. Budget giữ: JSON ~1KB (trần 30KB).
+  Ghi nhận 2 bug đã sửa khi verify: Go `FindAllStringSubmatchIndex` trả -1 với group
+  optional (đã fix + Kotlin an toàn sẵn); quirk `mười mốt` parity Kotlin (fix sang H2).
+  Kotlin chưa biên dịch local (như D5.4) — `assembleDebug` sẽ kiểm chứng.
+- [ ] H1.3 1 entry reuse duy nhất: voice chat / news / weather / đọc sách đều gọi
+  `ReadingRules.apply()` — DỜI sang H2 (migrate từng bước, giữ hàm cũ làm wrapper).
+
+### H2. Migrate dần, mỗi bước xóa code cứng (D1–D4, G2–G3 → ruler)
+
+- [ ] H2.1 Dates/degrees/roman (D2–D4) vào ruler; xóa hàm cứng tương ứng, test cũ phải
+  xanh (port case sang `tests[]` trong ruler, xóa dần `tts_test.go` trùng).
+- [ ] H2.2 Drop-line + start-marker (D1) vào ruler (`kind: drop_line/start_marker`);
+  `BlockTextReader` chỉ còn state machine buffer/discard (logic), pattern lấy từ ruler.
+- [ ] H2.3 Chunk guard ngoặc (G2) + đọc đề mục (G3): tham số `split_guard.pairs: ()[]{}`""
+  và `heading.max_chars/speak_pause_ms` vào ruler; `VietnameseChunker`/producer đọc
+  tham số, không hardcode.
+- [ ] H2.4 Mỗi H2.x xong: `go test`, `regex_check` thay bằng `compile_rules.py test`,
+  APK không tăng quá 0.2MB (JSON nhúng ~20KB).
+
+### H3. Cập nhật bởi người/AI + OTA nhẹ
+
+- [ ] H3.1 Quy trình: sửa `.ruler` → chạy `compile_rules.py` (sinh JSON + test xanh) →
+  commit cả 2 file (JSON là artifact có version, review được diff). CI chặn pattern
+  ngoài giao + test đỏ.
+- [ ] H3.2 OTA tùy chọn: tải JSON mới về `filesDir` (verify checksum + `version` lớn
+  hơn), fallback JSON nhúng khi lỗi — không cần update APK để sửa cách đọc.
+- [ ] H3.3 Verify cuối: người không biết code thêm được 1 rule theo `RULES_AUTHORING.md`
+  (VD: `e.g.`→`ví dụ`); AI đọc `.ruler` đề xuất rule mới từ log sách lỗi; máy ảo nghe
+  đúng sau OTA mà không cài lại APK.
+
+---
+
+## PHẦN I — VIP verify server-side + grace offline (xong relay 2026-10-11)
+
+Vấn đề: secret HMAC nướng trong APK (`BuildConfig.VIP_HMAC_SECRET`) — R8 không giấu
+được string constants, lộ secret = tự đúc mã VIP. Obfuscation không cứu được.
+Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIFY.md`).
+
+### I1. Relay — [x] xong + verify thật
+
+- [x] I1.1 `POST /v1/vip/verify` (`relay/main.go`): port 1-1 `VipCode.kt`+`vip_batch.py`
+  (base32-custom/HMAC6/payload) + entitlement ký bind code↔máy + `serverTime` chống
+  vặn đồng hồ + quota 10/ngày/máy + anti-share (`VIP_MAX_DEVICES=3`) + thu hồi batch
+  (`VIP_REVOKED_BATCHES`). Toàn stdlib, `go vet` + `go test` 3/3 PASS (vector mã thật
+  batch 9) + curl E2E qua HTTP thật (`valid:true`, entitlement có `sig`).
+- [x] I1.2 Cấu hình: `BIBOT_VIP_SECRET` (+`GEMINI_API_KEY` sẵn có) qua Secret Manager,
+  KHÔNG commit git — kể cả repo `meme` private (repo đó chỉ chứa file non-secret:
+  Dockerfile, script deploy). Lệnh deploy + curl mẫu đã cập nhật `relay/README.md`.
+
+### I2. App (Kotlin) — [x] code xong 2026-10-11 (chờ assembleDebug kiểm chứng)
+
+- [x] I2.1 `data/ads/VipVerifier.kt` (mới, HttpURLConnection + org.json, 0 dep):
+  `redeem()` online POST relay → lưu entitlement + `last_check=serverTime` +
+  `max_seen` → `setVip` (giữ cộng dồn monthly theo cap cũ, tuyệt đối nên nhập lại
+  không cộng oan); mã lưu mà server báo invalid (hết hạn/thu hồi) → clear ngay.
+  Offline: tin entitlement cũ nếu đúng mã + tháng (còn hạn & trong grace 7 ngày) /
+  lifetime (recheck 30 ngày) + `now >= max_seen - 24h`; đổi mã → NeedOnline.
+  Dev fallback giữ khi chưa cấu hình relay + build có secret (debug).
+  DataStore thêm `VIP_ENT/VIP_ENT_TIER/VIP_LAST_CHECK/VIP_MAX_SEEN/VIP_CODE_HASH`
+  + `save/load/clearVipAuth`, `touchVipMaxSeen`.
+- [x] I2.2 Release ngừng nướng secret: `VIP_HMAC_SECRET` chuyển khỏi `defaultConfig`
+  sang `debug` (có secret) / `release` (rỗng). `SettingsScreen` VipContent chuyển sang
+  `VipVerifier.redeem` (bỏ verify local + bỏ chặn nhập lại, giữ `markVipCodeUsed`
+  audit); thêm strings `vip_grace_offline/vip_need_online/vip_shared_warn` (en+vi).
+  Gate không đổi: mọi chỗ đọc `isVipActive(adsState)` từ DataStore (`setVip` đã ghi).
+- [ ] I2.3 Phase 2: enforce Play Integrity (`integrityToken` hiện log-only) + quota relay
+  theo entitlement thay vì deviceId trần.
+- [ ] I2.4 Verify build + máy ảo: `assembleDemoDebug` pass; nhập mã thật (dev relay local
+  hoặc staging) → VIP on; tắt mạng → grace giữ VIP; vặn đồng hồ ngược >24h → rớt;
+  đổi mã khác offline → NeedOnline; release APK `strings` không còn secret.

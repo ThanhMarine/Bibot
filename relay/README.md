@@ -13,7 +13,7 @@ gcloud run deploy bibot-relay \
   --image gcr.io/PROJECT_ID/bibot-relay \
   --platform managed --region asia-southeast1 \
   --allow-unauthenticated \
-  --set-secrets GEMINI_API_KEY=bibot-gemini-key:latest \
+  --set-secrets GEMINI_API_KEY=bibot-gemini-key:latest,BIBOT_VIP_SECRET=bibot-vip-secret:latest \
   --max-instances 1 --memory 256Mi
 ```
 
@@ -21,6 +21,8 @@ Tạo secret trước 1 lần:
 
 ```bash
 echo -n "AIza..." | gcloud secrets create bibot-gemini-key --data-file=-
+echo -n "<HEX64>" | gcloud secrets create bibot-vip-secret --data-file=-
+# HEX lấy từ: python tools/vipcodes/vip_batch.py --gen-secret (KHÔNG commit)
 ```
 
 ## 2. Test
@@ -30,6 +32,10 @@ curl -N -X POST https://bibot-relay-xxx.a.run.app/v1/chat \
   -H 'Content-Type: application/json' \
   -d '{"prompt":"mấy giờ rồi?","system":"Em là Bi","deviceId":"test-1"}'
 curl https://bibot-relay-xxx.a.run.app/healthz
+# VIP verify (chi tiết relay/VIP_VERIFY.md):
+curl -X POST https://bibot-relay-xxx.a.run.app/v1/vip/verify \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"BIBOT-...","deviceId":"test-1","appVersion":"1.0"}'
 ```
 
 ## 3. Nối app

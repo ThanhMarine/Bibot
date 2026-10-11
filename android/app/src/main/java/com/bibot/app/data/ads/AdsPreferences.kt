@@ -22,7 +22,22 @@ object AdPrefKeys {
     val AD_DAILY_QUOTA_EXHAUSTED = booleanPreferencesKey("ad_daily_quota_exhausted")
     /** Hash SHA-256 (chuẩn hoá) của các mã VIP đã đổi — chống tái dùng 1 mã cộng dồn vô hạn. */
     val VIP_USED_CODES = stringSetPreferencesKey("vip_used_codes")
+    /** Entitlement ký từ relay (JSON) — nguồn grace offline (I2). */
+    val VIP_ENT = stringPreferencesKey("vip_entitlement_json")
+    /** Tier lúc verify online ("month"/"lifetime") — đi kèm entitlement. */
+    val VIP_ENT_TIER = stringPreferencesKey("vip_ent_tier")
+    /** serverTime lần verify online cuối. */
+    val VIP_LAST_CHECK = longPreferencesKey("vip_last_check_ms")
+    /** Max thời gian từng thấy (neo chống vặn đồng hồ ngược). */
+    val VIP_MAX_SEEN = longPreferencesKey("vip_max_seen_ms")
+    /** Hash mã đã verify online (đổi mã → bắt buộc online lại). */
+    val VIP_CODE_HASH = stringPreferencesKey("vip_code_hash")
 }
+
+/** Grace offline (I2): tháng 7 ngày, lifetime recheck 30 ngày, lệch đồng hồ 24h. */
+const val VIP_GRACE_MONTH_MS = 7L * DAY_MILLIS
+const val VIP_GRACE_LIFE_MS = 30L * DAY_MILLIS
+const val VIP_SKEW_MS = DAY_MILLIS
 
 /** Tier lưu trong DataStore (khớp SettingsScreen.VipContent + VipCode). */
 const val VIP_TIER_MONTH = "month"
@@ -111,6 +126,52 @@ class AdsPreferences(private val context: Context) {
         val h = hashVipCode(code)
         val cur = it[AdPrefKeys.VIP_USED_CODES] ?: emptySet()
         it[AdPrefKeys.VIP_USED_CODES] = (cur + h).toList().takeLast(500).toSet()
+    }
+
+    /** Entitlement ký từ relay cho grace offline (I2). */
+    data class VipAuth(
+        val entJson: String,
+        val tier: String,
+        val until: Long,
+        val lastCheck: Long,
+        val maxSeen: Long,
+        val codeHash: String
+    )
+
+    suspend fun saveVipAuth(entJson: String, tier: String, until: Long, lastCheck: Long, maxSeen: Long, codeHash: String) =
+        context.bibotAdsDataStore.edit {
+            it[AdPrefKeys.VIP_ENT] = entJson
+            it[AdPrefKeys.VIP_ENT_TIER] = tier
+            it[AdPrefKeys.VIP_LAST_CHECK] = lastCheck
+            it[AdPrefKeys.VIP_MAX_SEEN] = maxSeen
+            it[AdPrefKeys.VIP_CODE_HASH] = codeHash
+        }
+
+    suspend fun loadVipAuth(): VipAuth? = try {
+        val p = context.bibotAdsDataStore.data.first()
+        val ent = p[AdPrefKeys.VIP_ENT] ?: return null
+        VipAuth(
+            entJson = ent,
+            tier = p[AdPrefKeys.VIP_ENT_TIER] ?: "",
+            // until lấy từ AdsState hiện hành (đã setVip lúc online); auth chỉ giữ mốc thời gian.
+            until = p[AdPrefKeys.VIP_UNTIL] ?: 0L,
+            lastCheck = p[AdPrefKeys.VIP_LAST_CHECK] ?: 0L,
+            maxSeen = p[AdPrefKeys.VIP_MAX_SEEN] ?: 0L,
+            codeHash = p[AdPrefKeys.VIP_CODE_HASH] ?: ""
+        )
+    } catch (_: Exception) { null }
+
+    suspend fun touchVipMaxSeen(now: Long) = context.bibotAdsDataStore.edit {
+        val cur = it[AdPrefKeys.VIP_MAX_SEEN] ?: 0L
+        if (now > cur) it[AdPrefKeys.VIP_MAX_SEEN] = now
+    }
+
+    suspend fun clearVipAuth() = context.bibotAdsDataStore.edit {
+        it.remove(AdPrefKeys.VIP_ENT)
+        it.remove(AdPrefKeys.VIP_ENT_TIER)
+        it.remove(AdPrefKeys.VIP_LAST_CHECK)
+        it.remove(AdPrefKeys.VIP_MAX_SEEN)
+        it.remove(AdPrefKeys.VIP_CODE_HASH)
     }
     suspend fun setDailyQuotaExhausted(v: Boolean) = context.bibotAdsDataStore.edit { it[AdPrefKeys.AD_DAILY_QUOTA_EXHAUSTED] = v }
     suspend fun resetDailyQuota() = context.bibotAdsDataStore.edit { it[AdPrefKeys.AD_DAILY_QUOTA_EXHAUSTED] = false }

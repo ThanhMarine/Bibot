@@ -48,7 +48,8 @@ android {
         buildConfigField("String", "FIREBASE_APP_ID", "\"\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"\"")
         buildConfigField("String", "ADMOB_APP_ID", "\"ca-app-pub-2478233272401556~3883137708\"")
-        buildConfigField("String", "VIP_HMAC_SECRET", "\"" + vipHmacSecret + "\"")
+        // I2: KHÔNG nướng VIP_HMAC_SECRET vào release (R8 không giấu được string) —
+        // secret chỉ có ở debug (dev test offline), release để rỗng, server verify.
         buildConfigField("String", "ANNOUNCE_URL", "\"\"")
         buildConfigField("String", "AD_TEST_DEVICES", "\"" + (System.getenv("AD_TEST_DEVICES") ?: "") + "\"")
         buildConfigField("String", "DEFAULT_DRIVE_FOLDER_ID", "\"1UfFOF2FQbA5L9MKJtevEEGja1K0dAhxm\"")
@@ -97,7 +98,13 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Dev test offline mã VIP local (VipCode.verify). Release luôn rỗng.
+            buildConfigField("String", "VIP_HMAC_SECRET", "\"" + vipHmacSecret + "\"")
+        }
         release {
+            // I2: release KHÔNG nướng secret — server verify duy nhất.
+            buildConfigField("String", "VIP_HMAC_SECRET", "\"\"")
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")

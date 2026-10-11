@@ -1348,38 +1348,32 @@ private fun VipContent() {
             scope.launch {
                 try {
                     val input = code.trim()
-                    val now2 = System.currentTimeMillis()
-                    // Chống tái dùng: 1 mã chỉ đổi 1 lần (lưu hash SHA-256, không lưu mã gốc).
-                    if (adsPrefs.isVipCodeUsed(input)) {
-                        status = context.getString(R.string.vip_used)
-                        return@launch
-                    }
-                    val secret = try { com.bibot.app.BuildConfig.VIP_HMAC_SECRET } catch (_: Exception) { "" }
-                    when (val r = com.bibot.app.data.ads.VipCode.verify(secret, input, now2)) {
-                        is com.bibot.app.data.ads.VipCode.VipResult.Invalid -> {
-                            status = context.getString(R.string.vip_invalid, r.reason)
-                        }
-                        is com.bibot.app.data.ads.VipCode.VipResult.Valid -> {
-                            if (r.tier == com.bibot.app.data.ads.VipCode.TIER_LIFETIME) {
-                                adsPrefs.setVip(
-                                    com.bibot.app.data.ads.VIP_TIER_LIFETIME,
-                                    com.bibot.app.data.ads.VIP_LIFETIME_UNTIL
-                                )
-                                adsPrefs.markVipCodeUsed(input)
-                                status = context.getString(R.string.vip_life_ok)
+                    // I2: verify qua relay + grace offline (VipVerifier). Server cho hạn
+                    // tuyệt đối nên nhập lại cùng mã chỉ refresh, không cộng dồn oan.
+                    when (val r = com.bibot.app.data.ads.VipVerifier.redeem(context, adsPrefs, input)) {
+                        is com.bibot.app.data.ads.VipVerifier.RedeemResult.VerifiedOnline -> {
+                            status = if (r.lifetime) {
+                                context.getString(R.string.vip_life_ok)
                             } else {
-                                val months = r.months.coerceIn(1, 36)
-                                // Snapshot tươi (tránh base cũ khi flow chưa kịp update).
-                                val cur = try { adsPrefs.adsStateFlow.first() } catch (_: Exception) { adsState }
-                                val curUntil = cur.vipUntil.takeIf { it > 0 && it != Long.MAX_VALUE } ?: 0L
-                                val base = maxOf(now2, curUntil)
-                                val cap = now2 + com.bibot.app.data.ads.VIP_MAX_STACK_DAYS * com.bibot.app.data.ads.DAY_MILLIS
-                                val until = (base + months * 30L * com.bibot.app.data.ads.DAY_MILLIS).coerceAtMost(cap)
-                                adsPrefs.setVip(com.bibot.app.data.ads.VIP_TIER_MONTH, until)
-                                adsPrefs.markVipCodeUsed(input)
-                                status = context.getString(R.string.vip_month_ok, months, fmtDate(until))
+                                context.getString(R.string.vip_month_ok, r.months, fmtDate(r.until))
+                            }
+                            if (r.sharedWarn) {
+                                status = (status ?: "") + " " + context.getString(R.string.vip_shared_warn)
                             }
                             code = ""
+                        }
+                        is com.bibot.app.data.ads.VipVerifier.RedeemResult.GraceOffline -> {
+                            status = if (r.lifetime) {
+                                context.getString(R.string.vip_life_on)
+                            } else {
+                                context.getString(R.string.vip_grace_offline, fmtDate(r.until))
+                            }
+                        }
+                        is com.bibot.app.data.ads.VipVerifier.RedeemResult.NeedOnline -> {
+                            status = context.getString(R.string.vip_need_online)
+                        }
+                        is com.bibot.app.data.ads.VipVerifier.RedeemResult.Invalid -> {
+                            status = context.getString(R.string.vip_invalid, r.reason)
                         }
                     }
                 } catch (_: Exception) {

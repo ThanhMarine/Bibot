@@ -222,6 +222,9 @@
     <string name="vip_redeem_fail">Lỗi đổi mã, thử lại sau.</string>
     <string name="vip_checking">Đang kiểm tra...</string>
     <string name="vip_placeholder">BIBOT-XXXXXX-XXXXXX-…</string>
+    <string name="vip_grace_offline">Ngoại tuyến: giữ VIP theo lần kiểm tra trước (hạn %1$s).</string>
+    <string name="vip_need_online">Cần mạng để xác thực mã này.</string>
+    <string name="vip_shared_warn">Chú ý: mã này đang dùng trên nhiều máy.</string>
     <string name="announce_sub">Tin mới từ nhà phát triển</string>
     <string name="announce_empty">Chưa có thông báo nào.</string>
     <string name="api_use_free">Dùng Bibot Free</string>
