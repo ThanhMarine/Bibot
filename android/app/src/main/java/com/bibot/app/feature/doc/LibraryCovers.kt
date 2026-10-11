@@ -14,7 +14,8 @@ import java.io.File
 /**
  * B1.2 — Bìa sách cho row thư viện, +0 lib (quyết định lệch checklist: KHÔNG thêm
  * Coil — PdfRenderer framework + decode EPUB cover sẵn có là đủ):
- *  - PDF đã tải: render trang 0 thu nhỏ (~160px, RGB_565) qua PdfRenderer.
+ *  - PDF đã tải: render trang 0 thu nhỏ (~160px) qua PdfRenderer
+ *    (framework bắt buộc ARGB_8888 — thumb nhỏ nên RAM không đáng kể).
  *  - EPUB đã tải: `EpubReader.readCover` → decode sampled (tránh OOM).
  *  - Còn lại (chưa tải / md/txt): null → UI vẽ ô chữ cái + emoji format.
  * Cache RAM LRU 24 bitmap (~160px ≈ 50KB/ảnh). Mọi render/decode trên IO.
@@ -64,7 +65,7 @@ object LibraryCovers {
             val scale = MAX_W.toFloat() / w
             val bw = MAX_W
             val bh = (h * scale).toInt().coerceIn(1, 320)
-            val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.RGB_565)
+            val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
             page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
             bmp
         } catch (_: Exception) {

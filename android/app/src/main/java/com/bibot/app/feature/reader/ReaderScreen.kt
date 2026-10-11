@@ -9,20 +9,18 @@ package com.bibot.app.feature.reader
 
 import android.util.Log
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,10 +47,6 @@ import com.bibot.app.data.db.BibotDatabase
 import com.bibot.app.data.files.FilePaths
 import com.bibot.app.data.offline.OfflineTtsHelper
 import com.bibot.app.data.store.BibotPreferences
-import com.bibot.app.ui.player.ControlIconButton
-import com.bibot.app.ui.player.ControlInfoText
-import com.bibot.app.ui.player.ControlPlayButton
-import com.bibot.app.ui.player.FloatingControlScaffold
 import com.bibot.app.ui.player.PlayerViewModel
 import com.bibot.app.ui.player.contentBottomInset
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +58,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private const val READER_SAVE_EVERY = 8
 private const val READER_PAUSE_BETWEEN_MS = 450L
 // Rev/Next nhay doan ngan (± cau) thay vi doi chuong; chuyen chuong bang cham tab Hero bar
 private const val READER_SHORT_JUMP_SENTENCES = 10
@@ -103,7 +96,7 @@ private sealed interface ReaderTtsItem {
 // P1: chương chỉ giữ TITLE — content đọc per-chương từ `.prep` (seek) qua PrepSession
 data class Chapter(val title: String)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ReaderScreen(
     playerVm: PlayerViewModel = viewModel(),
@@ -154,6 +147,25 @@ fun ReaderScreen(
     // Chong loop counter: lan ngat truoc cach day bao lau + o chuong nao
     var lastAdBreakMs by remember { mutableStateOf(0L) }
     var lastAdBreakChap by remember { mutableIntStateOf(-1) }
+    // B3+E1.1+F2: chrome + 2 chế độ VIEW + Touch_point (mặc định BROWSE: chỉ render).
+    var menuVisible by remember { mutableStateOf(true) }
+    var viewMode by remember { mutableStateOf(ReaderView.TEXT) }
+    var isPdfBook by remember { mutableStateOf(false) }
+    var viewLockedPage by remember { mutableStateOf(false) } // scan: chỉ PAGE
+    var readModeState by remember { mutableStateOf(ReadMode.BROWSE) }
+    var selAnchor by remember { mutableStateOf<ReadAnchor?>(null) } // marker điểm neo
+    var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
+    var pendingJump by remember { mutableStateOf<JumpConfirm?>(null) } // B3.3
+    var tocOpen by remember { mutableStateOf(false) }
+    var history by remember { mutableStateOf(listOf<Int>()) } // lịch sử chương
+    var pageCount by remember { mutableIntStateOf(0) }
+    var pageIndex by remember { mutableIntStateOf(0) }
+    var brightness by remember { mutableStateOf<Float?>(null) } // null = hệ thống
+    var bookFile by remember { mutableStateOf<File?>(null) }
+    var fileHashState by remember { mutableStateOf("") } // SHA-1 (E1.3)
+    var scanNoTts by remember { mutableStateOf(false) } // scan: disable loa
+    var savedPos by remember { mutableIntStateOf(0) } // position đã lưu (resume chip)
+    var savedAnchor by remember { mutableStateOf<ReadAnchor?>(null) }
     // R0: chuoi UI theo collection (EN/sach vs Ke chuyen/Co tich)
     val strLoading = if (collection.useStoryStrings) R.string.reader_loading_story else R.string.reader_loading_book
     val strAtStart = if (collection.useStoryStrings) R.string.reader_at_start_story else R.string.reader_at_start_book
@@ -182,6 +194,24 @@ fun ReaderScreen(
         sentences = emptyList()
         prepSession?.close()
         prepSession = null
+        // B3+F2: về BROWSE khi mở sách (chỉ render, chưa chunking/TTS).
+        readModeState = ReadMode.BROWSE
+        selAnchor = null
+        anchorConfirm = null
+        pendingJump = null
+        tocOpen = false
+        history = emptyList()
+        pageCount = 0
+        pageIndex = 0
+        brightness = null
+        bookFile = null
+        fileHashState = ""
+        scanNoTts = false
+        isPdfBook = false
+        viewLockedPage = false
+        menuVisible = true
+        savedPos = 0
+        savedAnchor = null
         status = context.getString(strLoading)
         scope.launch {
             try {
@@ -193,6 +223,7 @@ fun ReaderScreen(
                 // P1: đọc progress TRƯỚC — biết chương resume để mở đúng câu
                 status = context.getString(R.string.reader_checking_progress)
                 val progress = db.book().get(book.id)
+                savedPos = progress?.position ?: 0
 
                 // P1: hit `.prep` → bỏ hẳn resolveHeading + readChapters/clean (2 pass toàn file).
                 // Miss → build streaming (sink, không giữ sách RAM) → ghi đĩa.
@@ -231,6 +262,34 @@ fun ReaderScreen(
                 sentences = session.sentences(startChap)
                 currentSentence = if (progress != null)
                     (progress.position % 100).coerceIn(0, (sentences.size - 1).coerceAtLeast(0)) else 0
+
+                // B3+E1.1+F2: VIEW mặc định + fileHash + scan-lock + neo đã lưu.
+                // PDF (local/Tham khảo/EN) → PAGE; EPUB/MD/TXT → TEXT; scan → PAGE khóa.
+                bookFile = file
+                val isPdf = file.extension.equals("pdf", ignoreCase = true)
+                val isEpub = file.extension.equals("epub", ignoreCase = true)
+                isPdfBook = isPdf
+                val scanned = withContext(Dispatchers.IO) {
+                    if (isPdf) BlockTextReader.isScannedPdf(file)
+                    else if (isEpub) com.bibot.app.core.text.EpubReader.isScannedEpub(file)
+                    else false
+                }
+                scanNoTts = scanned
+                viewLockedPage = isPdf && scanned
+                viewMode = if (isPdf) ReaderView.PAGE else ReaderView.TEXT
+                menuVisible = true
+                scope.launch(Dispatchers.IO) { fileHashState = sha1File(file) }
+                savedAnchor = if (progress != null && progress.anchorPage >= 0) {
+                    if (viewMode == ReaderView.PAGE) {
+                        ReadAnchor(ReaderView.PAGE, progress.anchorPage.coerceAtLeast(0), 0)
+                    } else {
+                        ReadAnchor(
+                            ReaderView.TEXT,
+                            progress.anchorPage.coerceIn(0, (chapters.size - 1).coerceAtLeast(0)),
+                            progress.anchorOffset.coerceAtLeast(0)
+                        )
+                    }
+                } else null
 
                 if (progress != null && progress.position > 0) {
                     scope.launch {
@@ -297,6 +356,10 @@ fun ReaderScreen(
     fun switchChapter(idx: Int, sentence: Int = 0) {
         if (idx !in chapters.indices) return
         val session = prepSession ?: return
+        // B3.2: đẩy chương hiện tại vào lịch sử trước khi rời (tối đa 10).
+        if (idx != currentChapter) {
+            history = (history + currentChapter).takeLast(10)
+        }
         val wantLast = sentence < 0
         currentChapter = idx
         currentSentence = if (wantLast) 0 else sentence.coerceAtLeast(0)
@@ -308,10 +371,10 @@ fun ReaderScreen(
         }
     }
 
-    // Nút Rev/Next khi đang đọc — nhảy thẳng, bỏ audio đã synth
-    fun requestJump(idx: Int, sentence: Int = 0) {
+    // Thực thi nhảy, không hỏi (dùng trong dialog Có / khi đang dừng).
+    fun jumpNow(idx: Int, sentence: Int = 0) {
         if (idx !in chapters.indices) return
-        if (!isReading) { switchChapter(idx, sentence); return }
+        pendingJump = null // dialog Có → đóng hộp
         // Huy lenh tu-resume neu user nhay thu cong giua luc QC (chong doc lai ngoai y)
         adBreakActive = false
         com.bibot.app.data.ads.AdManager.onAdClicked = null
@@ -324,7 +387,21 @@ fun ReaderScreen(
         else context.getString(R.string.reader_jump_chapter, idx + 1, chapters.size, chapters[idx].title)
     }
 
-    // Rev/Next: nhay doan ngan ± cau trong/khap chuong. Chuyen chuong bang cham tab Hero bar.
+    // B3.3: đổi chương/câu khi đang READ → hỏi kiểu ReadEra (Không/Có).
+    // Đang dừng (BROWSE/pause) → chuyển ngay như cũ.
+    fun requestJump(idx: Int, sentence: Int = 0) {
+        if (idx !in chapters.indices) return
+        if (!isReading) { switchChapter(idx, sentence); return }
+        if (readModeState != ReadMode.READ) { jumpNow(idx, sentence); return }
+        if (idx == currentChapter && sentence == currentSentence) return
+        pendingJump = JumpConfirm(
+            context.getString(R.string.chrome_change_title),
+            context.getString(R.string.chrome_change_msg)
+        ) { jumpNow(idx, sentence) }
+    }
+
+    // Rev/Next: nhay doan ngan ± cau trong chuong (thang, khong hoi);
+    // doi chuong → qua requestJump (hoi neu dang READ). Chuyen chuong bang TOC/scrubber.
     fun jumpSentences(delta: Int) {
         if (chapters.isEmpty() || sentences.isEmpty()) return
         val target = currentSentence + delta
@@ -333,7 +410,129 @@ fun ReaderScreen(
             else { currentSentence = 0; status = context.getString(strAtStart) }
             target >= sentences.size -> if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1, 0)
             else { currentSentence = sentences.lastIndex; status = context.getString(R.string.reader_at_end) }
-            else -> requestJump(currentChapter, target)
+            else -> jumpNow(currentChapter, target)
+        }
+    }
+
+    // F2: vào READ từ anchor đã xác nhận (không hỏi lại B3.3).
+    fun startReading() {
+        val book = selectedBook ?: return
+        readModeState = ReadMode.READ
+        audioStarted = false
+        phaseTracker.reset()
+        adPreloaded = false
+        jumpSeq.intValue++
+        playerVm.stopPlayback()
+        isReading = true
+        com.bibot.app.ui.player.KeepAwakeService.start(context)
+        // F2.3: persist anchor + fileHash cùng progress (neo sống khi move file).
+        scope.launch(Dispatchers.IO) {
+            try {
+                val a = selAnchor
+                db.book().upsert(
+                    com.bibot.app.data.db.BookProgress(
+                        bookId = book.id,
+                        path = book.localFile?.absolutePath ?: book.title,
+                        position = currentChapter * 100 + currentSentence,
+                        total = totalSentencesAll,
+                        anchorPage = a?.page ?: -1,
+                        anchorOffset = a?.offset ?: 0,
+                        readMode = "read",
+                        fileHash = fileHashState
+                    )
+                )
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun enterRead(anchor: ReadAnchor) {
+        if (selectedBook == null || chapters.isEmpty()) return
+        selAnchor = anchor
+        anchorConfirm = null
+        if (anchor.view == ReaderView.TEXT) {
+            val chap = anchor.page.coerceIn(chapters.indices)
+            currentChapter = chap
+            scope.launch {
+                val list = prepSession?.sentences(chap) ?: emptyList()
+                sentences = list
+                currentSentence = anchor.offset.coerceIn(0, (list.size - 1).coerceAtLeast(0))
+                startReading()
+            }
+        } else {
+            // PAGE: PDF prep Bibot = 1 chương → map tỉ lệ trang → câu (ghi nhận F2).
+            val total = totalSentencesAll
+            val sent = if (pageCount > 0 && total > 0) {
+                ((anchor.page + 0.5) / pageCount * total).toInt()
+                    .coerceIn(0, (total - 1).coerceAtLeast(0))
+            } else 0
+            currentChapter = 0
+            scope.launch {
+                val list = prepSession?.sentences(0) ?: emptyList()
+                sentences = list
+                currentSentence = sent.coerceIn(0, (list.size - 1).coerceAtLeast(0))
+                startReading()
+            }
+        }
+    }
+
+    // F2.2: nút Play/FAB luôn đi qua neo + xác nhận (tránh chạm nhầm khi vuốt).
+    fun startPlayFlow() {
+        if (selectedBook == null || chapters.isEmpty()) return
+        if (scanNoTts) {
+            status = context.getString(
+                if ((bookFile?.extension ?: "").equals("pdf", ignoreCase = true)) R.string.reader_pdf_scanned
+                else R.string.reader_epub_scanned
+            )
+            return
+        }
+        // Đang pause giữa chừng (đã neo, chưa đổi chỗ) → đọc tiếp ngay, không hỏi lại.
+        if (readModeState == ReadMode.READ && !isReading && selAnchor != null) {
+            audioStarted = false
+            phaseTracker.reset()
+            adPreloaded = false
+            jumpSeq.intValue++
+            playerVm.stopPlayback()
+            isReading = true
+            com.bibot.app.ui.player.KeepAwakeService.start(context)
+            return
+        }
+        val anchor = selAnchor ?: if (viewMode == ReaderView.PAGE) ReadAnchor(ReaderView.PAGE, pageIndex, 0)
+        else ReadAnchor(ReaderView.TEXT, currentChapter, currentSentence)
+        anchorConfirm = anchor
+    }
+
+    fun stopAll() {
+        isReading = false
+        readModeState = ReadMode.BROWSE
+        adBreakActive = false
+        audioStarted = false
+        anchorConfirm = null
+        pendingJump = null
+        offlineTts.stop()
+        playerVm.stopPlayback()
+        com.bibot.app.ui.player.KeepAwakeService.stop(context)
+    }
+
+    // Nút Play/FAB: pause ngay; play luôn qua neo + xác nhận (F2.2).
+    // Đang pause giữa chừng (đã neo, chưa đổi chỗ) → đọc tiếp ngay.
+    fun togglePlay() {
+        if (isReading) {
+            isReading = false
+            adBreakActive = false
+            offlineTts.stop()
+            playerVm.stopPlayback()
+            com.bibot.app.ui.player.KeepAwakeService.stop(context)
+        } else startPlayFlow()
+    }
+
+    // Mô tả anchor cho hộp xác nhận (TEXT chính xác / PAGE ước lượng tỉ lệ).
+    fun anchorText(a: ReadAnchor): String {
+        return if (a.view == ReaderView.TEXT) {
+            val t = chapters.getOrNull(a.page)?.title ?: ""
+            "C${a.page + 1} • câu ${a.offset + 1}" + if (t.isBlank()) "" else " — $t"
+        } else {
+            val pct = if (pageCount > 0) ((a.page + 0.5) / pageCount * 100).toInt().coerceIn(0, 100) else 0
+            context.getString(R.string.chrome_page_anchor, a.page + 1, pct)
         }
     }
 
@@ -368,7 +567,8 @@ fun ReaderScreen(
     }
 
     LaunchedEffect(isReading) {
-        if (!isReading || selectedBook == null || chapters.isEmpty()) {
+        // F2.1: producer TTS chỉ chạy ở mode READ (BROWSE chỉ render, không chunking).
+        if (!isReading || readModeState != ReadMode.READ || selectedBook == null || chapters.isEmpty()) {
             adPreloaded = false
             return@LaunchedEffect
         }
@@ -547,18 +747,21 @@ fun ReaderScreen(
                 }
                 if (item.pauseAfterMs > 0) delayUntilDone(item.pauseAfterMs) { item.jumpSeq != jumpSeq.intValue }
                 spokenCount++
-                if (spokenCount % READER_SAVE_EVERY == 0) {
-                    try {
-                        db.book().upsert(
-                            com.bibot.app.data.db.BookProgress(
-                                bookId = book.id,
-                                path = book.localFile?.absolutePath ?: book.title,
-                                position = item.chapIdx * 100 + (item.sentIdx + 1),
-                                total = totalSentences
-                            )
+                // B3.4: lưu mỗi câu (không còn mất ~8 câu khi đổi tab); giữ anchor/fileHash.
+                try {
+                    db.book().upsert(
+                        com.bibot.app.data.db.BookProgress(
+                            bookId = book.id,
+                            path = book.localFile?.absolutePath ?: book.title,
+                            position = item.chapIdx * 100 + (item.sentIdx + 1),
+                            total = totalSentences,
+                            anchorPage = selAnchor?.page ?: -1,
+                            anchorOffset = selAnchor?.offset ?: 0,
+                            readMode = "read",
+                            fileHash = fileHashState
                         )
-                    } catch (_: Exception) {}
-                }
+                    )
+                } catch (_: Exception) {}
                 // Tạm nghỉ mỗi câu — dài hơn nếu câu kết thúc bằng dấu phẩy
                 val spokenText = if (item is ReaderTtsItem.Direct) item.text else ""
                 val isComma = spokenText.trimEnd().endsWith(",") || spokenText.trimEnd().endsWith("，")
@@ -738,116 +941,252 @@ fun ReaderScreen(
                 try { (context as? android.app.Activity)?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) } catch (_: Exception) {}
             }
         }
-        // 12.x: thanh điều khiển nổi + nền trong suốt (dùng chung) — không trừ chiều cao,
-        // dọc & ngang đều lấy lại toàn bộ không gian đọc.
-        FloatingControlScaffold(
-            alignment = if (isLandscape) Alignment.BottomEnd else Alignment.BottomCenter,
-            info = {
-                Column {
-                    ControlInfoText(stringResource(R.string.reader_pos, currentChapter + 1, chapters.size, currentSentence + 1, sentences.size))
-                    ControlInfoText((if (uiLang == "en") "EN" else "VI") + " • " + (if (uiLang == "en") prefsState.voiceSpeed else prefsState.storySpeed).toString() + "x" + if (degradedEngine) " • offline" else "", secondary = true)
-                }
-            },
-            controls = {
-                ControlIconButton(
-                    onClick = { jumpSentences(-READER_SHORT_JUMP_SENTENCES) },
-                    imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = stringResource(R.string.reader_jump_back, READER_SHORT_JUMP_SENTENCES)
-                )
-                ControlPlayButton(
-                    isPlaying = isReading,
-                    onClick = { if (isReading) { isReading = false; adBreakActive = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context) } else { audioStarted = false; phaseTracker.reset(); adPreloaded = false; isReading = true; com.bibot.app.ui.player.KeepAwakeService.start(context) } },
-                    contentDescription = if (isReading) stringResource(R.string.reader_pause) else stringResource(strPlay)
-                )
-                ControlIconButton(
-                    onClick = { jumpSentences(READER_SHORT_JUMP_SENTENCES) },
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = stringResource(R.string.reader_jump_fwd, READER_SHORT_JUMP_SENTENCES)
-                )
-            }
-        ) {
-            // Header reader gọn 40dp (gốc TopAppBar 64dp) — tăng tối đa không gian đọc
-            Surface(color = MaterialTheme.colorScheme.surface) {
-                Row(
-                    Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { isReading = false; adBreakActive = false; audioStarted = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context); selectedBook = null },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back), modifier = Modifier.size(20.dp))
+        // B3.1: brightness trong app — trả về hệ thống khi rời màn đọc.
+        val activity = context as? android.app.Activity
+        LaunchedEffect(brightness) {
+            try {
+                val win = activity?.window ?: return@LaunchedEffect
+                val lp = win.attributes
+                lp.screenBrightness = brightness ?: -1f
+                win.attributes = lp
+            } catch (_: Exception) {}
+        }
+        DisposableEffect(Unit) {
+            onDispose {
+                try {
+                    val win = (context as? android.app.Activity)?.window
+                    if (win != null) {
+                        val lp = win.attributes
+                        lp.screenBrightness = -1f
+                        win.attributes = lp
                     }
+                } catch (_: Exception) {}
+            }
+        }
+
+        val playDesc = if (isReading) stringResource(R.string.reader_pause) else stringResource(strPlay)
+        val posText = if (viewMode == ReaderView.PAGE && pageCount > 0)
+            stringResource(R.string.chrome_page_of, pageIndex + 1, pageCount)
+        else stringResource(R.string.reader_pos, currentChapter + 1, chapters.size, currentSentence + 1, sentences.size)
+        val engineText = (if (uiLang == "en") "EN" else "VI") + " • " +
+            (if (uiLang == "en") prefsState.voiceSpeed else prefsState.storySpeed).toString() + "x" +
+            if (degradedEngine) " • offline" else ""
+
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                // B3.1: full-screen khi đọc — chrome ẩn/hiện bằng chạm giữa nội dung.
+                if (menuVisible) {
+                    ReaderTopBar(
+                        title = "${collection.headerEmoji} ${book.title}",
+                        isReading = isReading,
+                        playEnabled = !scanNoTts,
+                        pageMode = isPdfBook && !viewLockedPage,
+                        onBack = { stopAll(); selectedBook = null },
+                        onTogglePlay = { togglePlay() },
+                        onSearch = { status = context.getString(R.string.chrome_search_soon) },
+                        onToc = { tocOpen = true },
+                        onToggleView = {
+                            if (isPdfBook && !viewLockedPage) {
+                                viewMode = if (viewMode == ReaderView.TEXT) ReaderView.PAGE else ReaderView.TEXT
+                            }
+                        },
+                        playLabel = playDesc
+                    )
+                    ReaderBrightnessRow(brightness = brightness, onBrightness = { brightness = it })
+                }
+                // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
+                if (readModeState == ReadMode.BROWSE && chapters.isNotEmpty() &&
+                    (savedAnchor != null || savedPos > 0)
+                ) {
+                    TextButton(
+                        onClick = {
+                            val a = savedAnchor ?: ReadAnchor(
+                                ReaderView.TEXT,
+                                (savedPos / 100).coerceIn(chapters.indices),
+                                savedPos % 100
+                            )
+                            anchorConfirm = a
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    ) {
+                        Text(
+                            if (viewMode == ReaderView.PAGE && savedAnchor?.view == ReaderView.PAGE)
+                                stringResource(
+                                    R.string.chrome_page_of,
+                                    (savedAnchor?.page ?: 0) + 1,
+                                    pageCount.coerceAtLeast(1)
+                                )
+                            else stringResource(R.string.chrome_resume, (savedPos % 100) + 1),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                // F2.2: thanh neo sau khi chạm/long-press (tránh chạm nhầm khi vuốt).
+                if (readModeState == ReadMode.BROWSE && selAnchor != null && !isReading) {
+                    AnchorBar(
+                        label = anchorText(selAnchor!!),
+                        onConfirm = { anchorConfirm = selAnchor },
+                        onCancel = { selAnchor = null }
+                    )
+                } else if (readModeState == ReadMode.BROWSE && selAnchor == null && chapters.isNotEmpty()) {
                     Text(
-                        "${collection.headerEmoji} ${book.title}",
-                        maxLines = 1,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 4.dp)
+                        stringResource(R.string.chrome_browse_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                     )
                 }
-            }
-            if (chapters.size > 1) {
-                ScrollableTabRow(selectedTabIndex = currentChapter, modifier = Modifier.fillMaxWidth()) {
-                    chapters.forEachIndexed { idx, c ->
-                        Tab(selected = idx == currentChapter, onClick = {
-                            isReading = false; adBreakActive = false; audioStarted = false; offlineTts.stop(); playerVm.stopPlayback(); com.bibot.app.ui.player.KeepAwakeService.stop(context)
-                            switchChapter(idx)
-                        }, text = { Text(c.title.take(16), fontSize = 11.sp) })
-                    }
-                }
-            }
-            val listState = rememberLazyListState()
-            val density = LocalDensity.current
-            LaunchedEffect(currentSentence, isReading) {
-                if (isReading && sentences.isNotEmpty()) {
-                    // Gop nhip 350ms + bu header + can giua 1/3 man hinh (chung):
-                    // cau dau ngan/tieu de khong bi luot qua truoc khi mat kip nhin.
-                    delay(350)
-                    val total = listState.layoutInfo.totalItemsCount
-                    val idx = (currentSentence.coerceIn(0, sentences.lastIndex) + 1)
-                        .coerceIn(0, (total - 1).coerceAtLeast(0))
-                    try {
-                        val center = -(config.screenHeightDp * density.density / 3).toInt()
-                        listState.animateScrollToItem(idx, center)
-                    } catch (_: Exception) {}
-                }
-            }
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(top = 4.dp, start = 16.dp, end = 16.dp, bottom = contentBottomInset()),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                item(key = "head-$currentChapter") {
-                    chap?.let {
-                        Text(it.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(8.dp))
-                    }
-                }
-                itemsIndexed(sentences, key = { idx, _ -> "$currentChapter-$idx" }) { idx, s ->
-                    val isCurrent = idx == currentSentence && isReading && audioStarted
-                    val (displayText, hasPause) = com.bibot.app.core.text.TextCleaner.splitPause(s)
-                    Column {
-                        Text(
-                            if (hasPause) "$displayText ⏸2s" else displayText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            lineHeight = 22.sp,
-                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                            modifier = Modifier.padding(vertical = 3.dp)
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    val bf = bookFile
+                    if (viewMode == ReaderView.PAGE && bf != null) {
+                        PdfPageView(
+                            file = bf,
+                            initialPage = 0,
+                            selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
+                            onVisiblePage = { pageIndex = it },
+                            onPageCount = { pageCount = it },
+                            onPageTap = { menuVisible = !menuVisible },
+                            onPageLongPress = { idx ->
+                                val a = ReadAnchor(ReaderView.PAGE, idx, 0)
+                                selAnchor = a
+                                anchorConfirm = a
+                            }
                         )
-                        // Native tinh giua ky (TTS Bypass): label EN cho sach EN
-                        val adIdx = if (collection == ReaderCollection.COTICH) com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_COTICH else com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_DEFAULT
-                        if (idx == adIdx && sentences.size > adIdx) {
-                            Spacer(Modifier.height(4.dp))
-                            com.bibot.app.ui.components.ads.NativeInlineAd(lang = uiLang, isFamily = collection == ReaderCollection.COTICH)
+                    } else {
+                        val listState = rememberLazyListState()
+                        val density = LocalDensity.current
+                        LaunchedEffect(currentSentence, isReading) {
+                            if (isReading && sentences.isNotEmpty()) {
+                                // Gop nhip 350ms + bu header + can giua 1/3 man hinh (chung):
+                                // cau dau ngan/tieu de khong bi luot qua truoc khi mat kip nhin.
+                                delay(350)
+                                val total = listState.layoutInfo.totalItemsCount
+                                val idx = (currentSentence.coerceIn(0, sentences.lastIndex) + 1)
+                                    .coerceIn(0, (total - 1).coerceAtLeast(0))
+                                try {
+                                    val center = -(config.screenHeightDp * density.density / 3).toInt()
+                                    listState.animateScrollToItem(idx, center)
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 4.dp, start = 16.dp, end = 16.dp, bottom = contentBottomInset()),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            item(key = "head-$currentChapter") {
+                                chap?.let {
+                                    Text(
+                                        it.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.clickable { menuVisible = !menuVisible }
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                }
+                            }
+                            itemsIndexed(sentences, key = { idx, _ -> "$currentChapter-$idx" }) { idx, s ->
+                                val isCurrent = idx == currentSentence && isReading && audioStarted
+                                val isSel = selAnchor?.let {
+                                    it.view == ReaderView.TEXT && it.page == currentChapter && it.offset == idx
+                                } == true
+                                val (displayText, hasPause) = com.bibot.app.core.text.TextCleaner.splitPause(s)
+                                Column {
+                                    Text(
+                                        if (hasPause) "$displayText ⏸2s" else displayText,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        lineHeight = 22.sp,
+                                        color = if (isCurrent || isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = if (isCurrent || isSel) FontWeight.Bold else FontWeight.Normal,
+                                        modifier = Modifier.padding(vertical = 3.dp)
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (readModeState == ReadMode.BROWSE) {
+                                                        selAnchor = ReadAnchor(ReaderView.TEXT, currentChapter, idx)
+                                                    } else menuVisible = !menuVisible
+                                                },
+                                                onLongClick = {
+                                                    val a = ReadAnchor(ReaderView.TEXT, currentChapter, idx)
+                                                    selAnchor = a
+                                                    anchorConfirm = a
+                                                }
+                                            )
+                                    )
+                                    // Native tinh giua ky (TTS Bypass): label EN cho sach EN
+                                    val adIdx = if (collection == ReaderCollection.COTICH) com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_COTICH else com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_DEFAULT
+                                    if (idx == adIdx && sentences.size > adIdx) {
+                                        Spacer(Modifier.height(4.dp))
+                                        com.bibot.app.ui.components.ads.NativeInlineAd(lang = uiLang, isFamily = collection == ReaderCollection.COTICH)
+                                    }
+                                }
+                            }
+                            item(key = "status-$currentChapter") {
+                                status?.let { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
+                            }
                         }
                     }
                 }
-                item(key = "status-$currentChapter") {
-                    status?.let { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
+                if (menuVisible) {
+                    ReaderBottomBar(
+                        posText = posText,
+                        engineText = engineText,
+                        chapterIndex = currentChapter,
+                        chapterCount = chapters.size,
+                        onPrevChapter = {
+                            if (currentChapter > 0) requestJump(currentChapter - 1)
+                            else status = context.getString(strAtStart)
+                        },
+                        onNextChapter = {
+                            if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
+                            else status = context.getString(R.string.reader_at_end)
+                        },
+                        onScrubChapter = { if (it != currentChapter) requestJump(it) },
+                        history = history,
+                        chapterTitle = { chapters.getOrNull(it)?.title ?: "" },
+                        onHistoryBack = { idx ->
+                            history = history.dropLast(1)
+                            requestJump(idx)
+                        },
+                        onHistoryClear = { history = emptyList() }
+                    )
                 }
+            }
+            // B3.2: FAB TTS tròn thay pill che chữ.
+            FloatingActionButton(
+                onClick = { togglePlay() },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 190.dp)
+            ) {
+                Icon(
+                    if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = playDesc
+                )
+            }
+            // B3.3/F2.5: dialog đổi vị trí khi đang READ.
+            val pj = pendingJump
+            if (pj != null) {
+                JumpConfirmDialog(pj) { pendingJump = null }
+            }
+            // F2.2: hộp xác nhận neo (tránh chạm nhầm khi vuốt).
+            val ac = anchorConfirm
+            if (ac != null) {
+                JumpConfirmDialog(
+                    JumpConfirm(
+                        context.getString(if (isReading) R.string.chrome_change_title else R.string.chrome_anchor_title),
+                        if (isReading) context.getString(R.string.chrome_change_msg)
+                        else context.getString(R.string.chrome_anchor_msg, anchorText(ac)),
+                        { enterRead(ac) }
+                    )
+                ) { anchorConfirm = null }
+            }
+            if (tocOpen) {
+                ReaderTocSheet(
+                    titles = chapters.map { it.title },
+                    current = currentChapter,
+                    onPick = { tocOpen = false; requestJump(it) },
+                    onDismiss = { tocOpen = false }
+                )
             }
         }
     }

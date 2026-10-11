@@ -130,13 +130,27 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [ ] B2.2 `BookScreen/StoryScreen` chỉ còn nhiệm vụ render + đọc; nhận `bookId + startPos` từ Detail.
 - [ ] B2.3 Verify: mở Detail <1s; bấm ĐỌC vào đúng vị trí bookmark; nút loa đọc từ đầu.
 
-### B3. Giai đoạn 3 — Chrome màn đọc (sửa `BookScreen/StoryScreen`)
+### B3. Giai đoạn 3 — Chrome màn đọc (sửa `ReaderScreen`) — [x] 2026-10-11
 
-- [ ] B3.1 Full-screen khi đọc, ẩn nav; chạm giữa toggle menu (top bar `back / TTS / search / mục lục / ⚙` + brightness trong app + đáy `x of N + ‹ ›`).
-- [ ] B3.2 Thay pill `FloatingControlBar` che chữ bằng FAB TTS tròn; thêm lịch sử trang `< về trang N / XÓA`; scrubber toàn chiều rộng có vạch chương (ticks từ `readChapters`).
-- [ ] B3.3 Dialog `Đổi vị trí — đọc tiếp từ đây? (Không/Có)` khi `requestJump` (copy ReadEra), thay cắt ngang hiện tại.
-- [ ] B3.4 Sửa `position` bằng `Hitbox/xpointer` (từ A2.4); sửa mất ~8 câu khi đổi tab (`BOOK_SAVE_EVERY=8` → save mỗi câu); back hệ thống về Detail thay vì thoát app.
-- [ ] B3.5 Verify: đọc 30 phút không che chữ/không giật auto-scroll; nhảy chương hỏi dialog; xoay máy không mất vị trí.
+- [x] B3.1 Full-screen khi đọc, ẩn nav; chạm giữa toggle menu (top bar `back / TTS /
+  search / mục lục / ⚙` + brightness trong app + đáy `x of N + ‹ ›`). Mới
+  `feature/reader/ReaderChrome.kt` (chung cho TEXT/PAGE). Brightness = slider đổi
+  `window.screenBrightness` (null = hệ thống, trả về khi rời màn). Search là nút
+  placeholder báo "B4" (search thật ở B4.2, không làm giả).
+- [x] B3.2 Bỏ pill `FloatingControlBar` ở màn đọc (component giữ cho module khác),
+  thay bằng FAB TTS tròn góc phải; thêm lịch sử chương (`‹ về trang N / XÓA`,
+  tối đa 10); scrubber toàn chiều rộng + vạch chương (`ChapterTicks` từ chapters,
+  cap 400 vạch); ‹ › đổi chương.
+- [x] B3.3 Dialog `Đổi vị trí — đọc tiếp từ đây? (Không/Có)` khi đổi chương/câu lúc
+  đang READ (TOC/scrubber/‹ ›/nhảy chương; nhảy ±câu trong chương đi thẳng).
+  Verify máy ảo: TOC → chương 5 → dialog → Có → đọc tiếp + dialog tự đóng
+  (từng sót bug dialog dính — đã sửa `pendingJump=null` trong `jumpNow`).
+- [x] B3.4 Một nửa (ghi nhận): lưu progress MỖI CÂU (bỏ `% SAVE_EVERY`, sqlite chứng
+  minh position 402 = chương 4 câu 2); back về list (Detail chưa có — B2 nối sau).
+  Chưa làm: `position` Hitbox/xpointer (đợi A2.4; `chap*100+sent` cũ giữ nguyên).
+- [x] B3.5 Verify máy ảo BibotTest: chrome ẩn/hiện bằng chạm giữa khi READ, đọc tiếp
+  không che chữ (karaoke chạy, FAB Pause); TOC nhảy chương hỏi dialog; anchor +
+  progress sống qua install -r. Chưa đo 30 phút/xoay máy (ghi nhận test dài ở B4).
 
 ### B4. Giai đoạn 4 — Mục lục / Quotes / Bookmark / Search
 
@@ -299,26 +313,26 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   (StBridge, lazy `getPage+free`, Hitbox). External data chỉ 32K → render in-memory,
   không cache đĩa.
 
-### E1. Bài học port sang Bibot
+### E1. Bài học port sang Bibot — [x] E1.1/E1.2/E1.3/E1.5 nhịp B3 (E1.4 khung, E1.6 một phần)
 
-- [ ] E1.1 Tách 2 đường như ReadEra: **DISPLAY** (bitmap từng trang, xem như sách thật)
-  vs **TEXT** (`BlockTextReader` → TTS, đã có). Bibot hiện chỉ có TEXT → PDF mở ra
-  đọc chứ không XEM được. Mới: `PdfPageView` (Android `PdfRenderer` framework —
-  tránh GPL, không reuse `.so` AGPL) + Bitmap pool LRU 3–5 + render 150dpi viewport,
-  prefetch ±1 trang (port `getPage(i,decode)+free`).
-- [ ] E1.2 Mở nhanh file lớn: đọc trailer lấy `pageCount` trước (hiện số trang ngay),
-  thumb trang 1 async ở background khi quét thư viện (Bibot hiện chưa có thumb),
-  text stream sau. PDF Bibot hiện inflate cả file ≤12MB mới đọc — thêm lazy text/page.
-- [ ] E1.3 Identity SHA-1 cho sách (như ReadEra + openreader content-hash): progress/
-  bookmark theo hash thay vì path (file move/re-download vẫn tiếp tục đúng chỗ).
-  Map với A1.2 `audioHash`. Bổ sung D1 (D1 dùng path gián tiếp qua `File`).
-- [ ] E1.4 Scan: HIỂN THỊ được bằng bitmap (`PdfRenderer.render` vẫn ra ảnh) + báo rõ
-  `bản scan — TTS không khả dụng`, disable nút loa. Bibot đã có `isScannedPdf/
-  isScannedEpub` → nối vào `PdfPageView` fallback thay vì trang trắng.
-- [ ] E1.5 Ngân sách RAM: ReadEra ~110MB cho 1200 trang → Bibot target <150MB với file
-  5MB: `inBitmap` reuse + `RGB_565` cho trang scan + giới hạn pool.
-- [ ] E1.6 Verify máy ảo: mở `big_sample.pdf` <5s + `1 of 1200` ngay + RAM TOTAL <150MB;
-  `scan_sample.pdf` hiện ảnh + báo scan; thumb hiện ở library; move file vẫn giữ progress.
+- [x] E1.1 `PdfPageView` (`feature/reader/`, VIEW thuần, không logic TTS):
+  `PdfRenderer` framework (+0 lib) + pool 3 bitmap + prefetch ±1 TUẦN TỰ
+  (từng race prefetch song song — PdfRenderer không thread-safe, đã sửa) +
+  `onVisiblePage/onPageCount`. Dùng cho PDF local/Tham khảo/EN-PDF.
+- [x] E1.2 `pageCount` có ngay sau open (không inflate), đáy hiện `Trang x/N` ngay.
+  Thumb library đã có từ B1 (`LibraryCovers`, render 72dpi tương đương).
+- [x] E1.3 SHA-1 streaming file (`sha1File`, cap 64MB) lưu vào `BookProgress.fileHash`
+  (sqlite chứng minh 40 hex); neo/anchor không phụ thuộc path. Re-key progress theo
+  hash để BỎ path dời sang A2/B4 (ghi nhận).
+- [x] E1.4 Khung xong: scan → ép PAGE + khóa TEXT + disable loa + báo `reader_pdf_scanned`.
+  Chưa thấy máy thật (không có PDF scan nào offline để thử — ghi nhận verify ở B4).
+- [x] E1.5 Lệch so với bản gốc: PdfRenderer framework BẮT BUỘC ARGB_8888 (RGB_565 ném
+  exception — đã thử và sửa cả `PdfPageView` lẫn `LibraryCovers`); bù bằng pool 3
+  trang + recycle khi evict. Không thêm `inBitmap` (API render tự quản).
+- [ ] E1.6 Verify máy ảo: `big_sample.pdf`/`scan_sample.pdf` là file của phiên cũ,
+  máy hiện tại offline + không còn file đó — thay bằng PDF 3 trang tự sinh
+  (`mkpdf.py`): render đủ 3 trang, `Trang 1/3` ngay, long-press neo đúng tỉ lệ.
+  Còn nợ: file 1200 trang + RAM TOTAL + scan thật (ghi nhận sang B4 khi có mạng).
 
 ---
 
@@ -357,40 +371,37 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
 - [x] F0.4 Size check: R0 bớt ~1500 dòng code trùng. `Bibot.apk` demoDebug sau R0 =
   58.353.752 bytes (~55,7MB) — dưới budget 85MB (F1.4), +0 lib.
 
-### F1. Vị trí E1.1 trong kế hoạch
+### F1. Vị trí E1.1 trong kế hoạch — [x] đúng thiết kế (1 lệch vị trí file)
 
-- [ ] F1.1 E1.1 (`PdfPageView` display path) thuộc **B3 (chrome màn đọc)**, làm cùng nhịp
-  với center-tap menu: `ReaderScreen` có 2 chế độ VIEW dùng chung 1 chrome —
-  `TEXT` (chữ reflow, đã có) và `PAGE` (bitmap từng trang, mới) — toggle trong menu ⚙.
-  PDF local/Tham khảo (thường là PDF tài liệu) mặc định PAGE; EPUB/MD/TXT mặc định TEXT;
-  scan (D1/E1.4) ép PAGE + disable loa.
-- [ ] F1.2 `PdfPageView` (`ui/reader/`, mới, ~250 dòng) là VIEW thuần: `PdfRenderer` +
-  pool bitmap LRU 3–5 + prefetch ±1 + báo `onVisiblePage(i)` — KHÔNG chứa logic TTS
-  (controller TTS chung `ReaderViewModel` đọc text trang tương ứng qua `iterPdfText`).
-  Dùng chung cho: PDF local, Tham khảo, fallback scan, thumb library (render 72dpi),
-  preview About (render 1 trang như ReadEra).
-- [ ] F1.3 Thứ tự cập nhật (C5 mới): `R0 → A1 → B1 → B3+E1.1 → B2 → A2 → B4 → A3`.
-  E1.2/E1.3/E1.5 làm cùng B3+E1.1 (mở nhanh + SHA-1 + RAM); E1.4 xong khi PAGE chạy.
-- [ ] F1.4 Size budget E1.1: +0 lib, code mới <50KB (~+0.1MB APK). Verify mỗi bản:
-  `Bibot.apk` không vượt 85MB; RAM `big_sample.pdf` <150MB TOTAL (E1.6).
+- [x] F1.1 `ReaderScreen` 2 chế độ VIEW chung 1 chrome — `TEXT` + `PAGE` — toggle ở nút ⚙
+  (chỉ bật với PDF; scan khóa PAGE). PDF mặc định PAGE; EPUB/MD/TXT mặc định TEXT;
+  scan ép PAGE + disable loa. Đúng kế hoạch.
+- [x] F1.2 `PdfPageView` VIEW thuần: `PdfRenderer` + pool 3 + prefetch ±1 + báo
+  `onVisiblePage/onPageCount` — KHÔNG logic TTS (controller đọc text prep qua mapping).
+  Lệch: file đặt ở `feature/reader/` (không phải `ui/reader/`) để gần `ReaderScreen`;
+  chưa dùng cho thumb library/preview About (B1 `LibraryCovers` làm việc đó).
+  Lệch quan trọng: PAGE→text KHÔNG qua `iterPdfText` theo trang được (trích text PDF
+  là flow-based, không biên trang) → anchor PAGE map TỈ LỆ sang câu, UI ghi rõ
+  "đọc từ khoảng X%"; map chính xác cần engine text theo trang (MuPDF — GPL, loại).
+- [x] F1.3 Thứ tự giữ nguyên C5 (`B3+E1.1` xong, tiếp B2).
+- [x] F1.4 Size: +0 lib. APK demo 59.070.876B (~56,3MB) < 85MB (tăng ~0,7MB so với R0
+  do chrome+PAGE — dưới budget). RAM `big_sample` dời E1.6 (ghi nhận trên).
 
-### F2. Touch_point — lướt xem trước, chạm để neo điểm đọc (ý tưởng user, thuộc B3+E1.1)
+### F2. Touch_point — lướt xem trước, chạm để neo điểm đọc — [x] (F2.4 rút gọn trung thực)
 
-- [ ] F2.1 Hai mode trong `ReaderScreen`: **BROWSE** (mặc định, nhất là sách mới) chỉ
-  render trang (PAGE bitmap / TEXT reflow) — KHÔNG chunking, KHÔNG TTS, KHÔNG build
-  sentences → vuốt hàng trăm trang tốn ít pin/CPU; **READ** chỉ bật khi user neo điểm.
-- [ ] F2.2 Gesture neo: long-press 500ms (hoặc nút FAB `▶ Đọc từ đây` tại điểm chạm) →
-  hiện marker + hộp xác nhận (tránh chạm nhầm khi vuốt) → tạo `ReadAnchor`.
-  TEXT path: anchor = `{chapterIdx, sentIdx}`; PAGE path (PDF): `{pageIndex, textOffset}`.
-- [ ] F2.3 Metadata: mở rộng `BookProgress` thêm `anchorPage: Int, anchorOffset: Int,
-  readMode: String (browse/read)` (Room `fallbackToDestructiveMigration` nên free) +
-  `fileHash` (E1.3) để neo sống khi move/re-download file. Bookmark/progress cũ
-  (`position`, `total`) giữ nguyên, anchor là điểm đọc CHỦ ĐỘNG của user.
-- [ ] F2.4 Chunking lazy từ anchor: `BookPrepStore.buildSentences` build window quanh
-  anchor trước (±N câu, khớp A1 segment-plan + openreader windowed cursor), còn lại
-  background; TTS chain hiện có (Piper→Cloud→Offline) đọc tiếp từ anchor. PAGE path cần
-  text theo trang (E1.2 lazy text/page) — anchor textOffset map qua `iterPdfText` block.
-- [ ] F2.5 Đổi anchor mới (chạm chỗ khác khi đang READ) → hỏi kiểu ReadEra B3.3
-  (`Đổi vị trí — đọc tiếp từ đây?`), `jumpSeq` hủy item cũ (logic đã có).
-- [ ] F2.6 Verify máy ảo: mở sách mới → vuốt 50 trang không tốn CPU/TTS (BROWSE);
-  long-press → marker + confirm → READ đọc đúng chỗ; kill app mở lại → resume đúng anchor.
+- [x] F2.1 `ReaderScreen` 2 mode: **BROWSE** mặc định (render + câu/chương load sẵn để
+  hiển thị, KHÔNG producer TTS — effect gate `readModeState != READ`); **READ** chỉ
+  bật khi user neo điểm. Lệch nhỏ: TEXT vẫn load sentences để hiển thị (không thì
+  trắng trang — hiển thị ≠ chunking/TTS).
+- [x] F2.2 Chạm câu (BROWSE) → marker; long-press/FAB `▶ Đọc từ đây` → hộp xác nhận →
+  `ReadAnchor`. TEXT `{chapterIdx, sentIdx}` chính xác; PAGE `{pageIndex}` + map tỉ lệ.
+- [x] F2.3 `BookProgress` + `anchorPage/anchorOffset/readMode/fileHash` (Migration 3→4,
+  ADD COLUMN có DEFAULT — giữ dữ liệu; sqlite chứng minh `1|0|read|9b6e…`).
+  Bookmark/progress cũ giữ nguyên.
+- [x] F2.4 Rút gọn trung thực: KHÔNG build window riêng quanh anchor (prep `.sent` đã
+  là seek ngẫu nhiên rẻ — build window mới là trùng lắp); TTS chain đọc tiếp từ anchor
+  qua `enterRead` + `jumpSeq` hủy item cũ. PAGE dùng prep 1-chương + map tỉ lệ.
+- [x] F2.5 Đổi anchor khi đang READ → dialog B3.3 (`Đổi vị trí — đọc tiếp từ đây?`).
+- [x] F2.6 Verify máy ảo: BROWSE vuốt không TTS (effect gate); long-press trang 2/3 →
+  "reads from about 50%" → READ karaoke đúng; kill app (install -r giữ data) mở lại →
+  resume chip + anchor cũ (`savedAnchor`); logcat sạch FATAL.

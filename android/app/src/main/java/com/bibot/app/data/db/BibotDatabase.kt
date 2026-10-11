@@ -38,7 +38,14 @@ data class BookProgress(
     val path: String,
     val position: Int, // câu index
     val total: Int,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    // B3+F2 (Touch_point): điểm đọc CHỦ ĐỘNG của user + chế độ + hash file.
+    // TEXT: anchorPage=chapterIdx, anchorOffset=sentIdx.
+    // PAGE (PDF): anchorPage=pageIndex, anchorOffset=0 (map tỉ lệ → câu, xem ReadAnchor).
+    val anchorPage: Int = -1, // -1 = chưa neo
+    val anchorOffset: Int = 0,
+    val readMode: String = "browse", // browse | read
+    val fileHash: String = "" // SHA-1 file sách (E1.3) — neo sống khi move/re-download
 )
 
 @Entity(tableName = "pdf_jobs") // Port mode14_state.db
@@ -168,9 +175,9 @@ interface TtsSegmentDao {
 
 @Database(
     entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class],
-    version = 3, exportSchema = false
-    // B1.1: chỉ THÊM bảng library_meta → Migration thủ công (giữ progress/cache cũ).
-    // (AutoMigration cần exportSchema + kapt args không tương thích setup build hiện tại.)
+    version = 4, exportSchema = false
+    // B1.1: 2→3 thêm bảng library_meta. B3+F2: 3→4 thêm cột anchor vào book_progress.
+    // (AutoMigration kẹt kapt-setup nên dùng Migration thủ công.)
 )
 abstract class BibotDatabase : RoomDatabase() {
     abstract fun memoryCore(): MemoryCoreDao
@@ -202,10 +209,21 @@ abstract class BibotDatabase : RoomDatabase() {
             }
         }
 
+        // B3+F2: v3 → v4 thêm cột anchor vào book_progress (ADD COLUMN có DEFAULT
+        // nên NOT NULL an toàn, Room validate lúc mở DB).
+        val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `anchorPage` INTEGER NOT NULL DEFAULT -1")
+                db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `anchorOffset` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `readMode` TEXT NOT NULL DEFAULT 'browse'")
+                db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `fileHash` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         @Volatile private var INSTANCE: BibotDatabase? = null
         fun get(context: Context): BibotDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(context.applicationContext, BibotDatabase::class.java, "bibot.db")
-                .addMigrations(MIGRATION_2_3)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
         }
