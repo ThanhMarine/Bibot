@@ -948,6 +948,26 @@ fun ReaderScreen(
         }
         // B3.1: brightness trong app — trả về hệ thống khi rời màn đọc.
         val activity = context as? android.app.Activity
+        // TEMP (B6 test aid): nút Back hệ thống về list khi đang mở sách
+        // (ưu tiên đóng dialog/sheet trước). B2 sẽ đổi thành về Detail.
+        val backDispatcher = (context as? androidx.activity.ComponentActivity)?.onBackPressedDispatcher
+        DisposableEffect(selectedBook) {
+            if (selectedBook == null) return@DisposableEffect onDispose {}
+            val cb = object : androidx.activity.OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    when {
+                        tocOpen -> tocOpen = false
+                        anchorConfirm != null -> anchorConfirm = null
+                        pendingJump != null -> pendingJump = null
+                        settingsOpen -> settingsOpen = false
+                        hintOpen -> hintOpen = false
+                        else -> { stopAll(); selectedBook = null }
+                    }
+                }
+            }
+            backDispatcher?.addCallback(cb)
+            onDispose { cb.remove() }
+        }
         LaunchedEffect(brightness) {
             try {
                 val win = activity?.window ?: return@LaunchedEffect
@@ -1002,6 +1022,29 @@ fun ReaderScreen(
                         (currentChapter + 1).toFloat() / chapters.size
                     } else 0f
                     ReaderPositionBar(fraction = posFraction)
+                    // Điều hướng chương dời lên top (tránh vùng banner ở đáy).
+                    ReaderBottomBar(
+                        posText = posText,
+                        engineText = engineText,
+                        chapterIndex = currentChapter,
+                        chapterCount = chapters.size,
+                        onPrevChapter = {
+                            if (currentChapter > 0) requestJump(currentChapter - 1)
+                            else status = context.getString(strAtStart)
+                        },
+                        onNextChapter = {
+                            if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
+                            else status = context.getString(R.string.reader_at_end)
+                        },
+                        onScrubChapter = { if (it != currentChapter) requestJump(it) },
+                        history = history,
+                        chapterTitle = { chapters.getOrNull(it)?.title ?: "" },
+                        onHistoryBack = { idx ->
+                            history = history.dropLast(1)
+                            requestJump(idx)
+                        },
+                        onHistoryClear = { history = emptyList() }
+                    )
                 }
                 // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
                 if (readModeState == ReadMode.BROWSE && chapters.isNotEmpty() &&
@@ -1158,35 +1201,11 @@ fun ReaderScreen(
                         }
                     }
                 }
-                if (menuVisible) {
-                    ReaderBottomBar(
-                        posText = posText,
-                        engineText = engineText,
-                        chapterIndex = currentChapter,
-                        chapterCount = chapters.size,
-                        onPrevChapter = {
-                            if (currentChapter > 0) requestJump(currentChapter - 1)
-                            else status = context.getString(strAtStart)
-                        },
-                        onNextChapter = {
-                            if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
-                            else status = context.getString(R.string.reader_at_end)
-                        },
-                        onScrubChapter = { if (it != currentChapter) requestJump(it) },
-                        history = history,
-                        chapterTitle = { chapters.getOrNull(it)?.title ?: "" },
-                        onHistoryBack = { idx ->
-                            history = history.dropLast(1)
-                            requestJump(idx)
-                        },
-                        onHistoryClear = { history = emptyList() }
-                    )
-                }
             }
-            // B3.2: FAB TTS tròn thay pill che chữ.
+            // B3.2: FAB TTS tròn (đáy chỉ còn FAB — cụm chương đã dời lên top).
             FloatingActionButton(
                 onClick = { togglePlay() },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 190.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 32.dp)
             ) {
                 Icon(
                     if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,

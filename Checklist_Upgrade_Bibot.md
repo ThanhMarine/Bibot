@@ -247,6 +247,9 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B6.7 Thanh chỉ báo mảnh 3dp sát dưới top-bar (hiển thị-only, scrubber đáy giữ
   nguyên điều khiển): verify screenshot máy ảo thấy vệt xanh full-width
   (uiautomator không expose node vẽ — check bằng ảnh). +0 text, không che nội dung.
+- [x] B6.8 Dời cụm điều hướng chương lên top (dưới vệt xanh), đáy chỉ còn FAB —
+  tránh hẳn vùng banner quảng cáo: verify screenshot (top: top-bar + vệt + ‹ scrubber
+  ticks ›, đáy sạch). FAB hạ từ 190dp → 32dp.
 
 ---
 
