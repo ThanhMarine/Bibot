@@ -95,14 +95,34 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B0.4 Center-tap menu (top bar 5 nút + brightness + `< to page N/CLEAR` + scrubber vạch chương) — đã chụp `re13`.
 - [x] B0.5 Dialog đổi vị trí TTS (`NO/YES`) — đã chụp `re9`.
 
-### B1. Giai đoạn 1 — Thư viện kiểu ReadEra (thay `DocBrowserScreen`)
+### B1. Giai đoạn 1 — Thư viện kiểu ReadEra (thay `DocBrowserScreen`) — [x] 2026-10-11
 
-- [ ] B1.1 Drawer nav: `Đang đọc / Sách & tài liệu / Yêu thích / Đọc sau / Đã đọc / Tác giả / Series / Tuyển tập / Định dạng / Thư mục / Tải về / Thùng rác` (+ Settings có sẵn).
-  - Room: thêm cột `shelf` (fav/toRead/haveRead), `lastRead`, `author`, `series` vào bảng sách/progress.
-- [ ] B1.2 Row sách: bìa (Coil) + tiêu đề/tác giả/format-size + progress bar (`BookProgress`) + 4 action nhanh + 3-dot. Không mở sách vẫn quản lý được.
-- [ ] B1.3 FAB `+` mở SAF (giữ code picker hiện tại); auto-scan `Download` khi có quyền; search + empty state có hướng dẫn (hết màn trắng + `take()` cắt ngầm).
-- [ ] B1.4 Cho `PDF` vào drawer/grid chính — hết tình trạng PDF mồ côi không ai vào được.
-- [ ] B1.5 Verify: cài sách mới tự hiện; 4 action cập nhật drawer tương ứng; search ra sách.
+- [x] B1.1 Drawer nav: `Đang đọc / Sách & tài liệu / Yêu thích / Đọc sau / Đã đọc / Tuyển tập /
+  Tác giả / Series / Định dạng / Thư mục / Tải về / Thùng rác` (ModalNavigationDrawer,
+  nhóm mở rộng + badge đếm). Lệch checklist: KHÔNG thêm cột vào bảng cũ mà bảng sidecar
+  mới `library_meta (shelfFav/shelfToRead/shelfRead/trashed/lastRead/author/series)` +
+  `Migration 2→3` thủ công (giữ progress/cache; AutoMigration kẹt kapt-setup nên bỏ).
+  Tác giả/series parse từ EPUB OPF (`EpubReader.readMeta`, backfill 30/lần); chưa tải → "Chưa rõ".
+  Thùng rác mềm: chỉ ẩn ở library (reader tabs không đổi — ghi nhận).
+- [x] B1.2 Row sách: bìa (Lệch: KHÔNG thêm Coil — `LibraryCovers`: PDF render trang 0
+  ~160px RGB_565 / EPUB cover decode sampled / còn lại ô chữ+emoji; LRU RAM 24) +
+  tựa/tác giả/format-size + progress bar (`BookProgress`) + 4 action
+  (Tải/Yêu thích/Đọc sau/⋮: đánh dấu đã đọc + thùng rác) + khôi phục/xoá hẳn trong trash.
+  Không mở sách vẫn quản lý được.
+- [x] B1.3 FAB `+` mở SAF (giữ picker cũ); auto-scan khi đã có quyền (silent);
+  search debounce giữ nguyên + empty state hướng dẫn; bỏ `take(30)` cắt ngầm (43 sách
+  hiện đủ, LazyColumn).
+- [x] B1.4 Phát hiện khi verify: `BibotMode.PDF` tồn tại nhưng KHÔNG có ô nào ở Home
+  (PDF mồ côi thật) → thêm ô `📄 Documents` vào grid Home; PDF nằm chung grid thư
+  viện (lọc Định dạng > PDF).
+- [x] B1.5 Verify máy ảo BibotTest: drawer đủ mục + badge (43/1 fav/1 finished/3 tuyển
+  tập/4 định dạng); toggle fav → badge; ⋮ → trash → Books 43→42 (sqlite xác nhận
+  trashed=1+shelfFav=1) → restore sạch; migration v2→v3 không crash, progress cũ còn
+  (Finished badge từ row cũ); logcat sạch FATAL; APK demo 58.423.686B < 85MB.
+  Hạn chế trung thực (emulator offline, không tải được PDF/EPUB): đường bitmap bìa
+  PDF/EPUB + backfill author mới review-code (không crash), chưa thấy ảnh thật;
+  verify lại khi có mạng. `position=chap*100+sent` cũ khiến sách dở rơi vào Đã đọc
+  (ghi nhận, sửa ở B3.4/A2.4).
 
 ### B2. Giai đoạn 2 — Màn About sách mới (`BookDetailScreen`)
 
@@ -124,6 +144,53 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [ ] B4.2 Search trong sách: `BlockTextReader` + highlight `SearchWindow ±7 từ` (A2.4), nút Forward/Back giữa kết quả.
 - [ ] B4.3 Verify: sách 500 chương vẫn liệt kê + nhảy nhanh; quote lưu note + mở lại đúng chỗ.
 
+### B5. Giai đoạn 5 — Tóm tắt AI (Bonus/VIP, Cloud AI)
+
+> Entry ở Detail (B2) + cần hạ tầng chương (B4) nên làm sau B4; xong trước A3 để
+> export audiobook có thể kèm track tóm tắt. Tốn token Cloud thật → gating là
+> yêu cầu bắt buộc, không phải optional.
+
+- [ ] B5.1 Scope v1 (chống phình): đúng 2 mức — tóm tắt **Chương** + tóm tắt **Sách**
+  (map-reduce: tóm tắt từng chương rồi dồn thành tóm tắt sách). KHÔNG làm mức
+  "truyện trong sách", KHÔNG hỏi-đáp, KHÔNG trợ lý đọc sách.
+- [ ] B5.2 Ống LLM: reuse `core/llm/LlmBridge.kt` (Gemini `streamGenerateContent` +
+  fallback OpenRouter); key riêng `geminiApiKey` (≠ key TTS), model theo
+  `geminiModel`; prompt tóm tắt tiếng Việt versioned trong `BotPromptManager`.
+- [ ] B5.3 Cache (triết lý A1): tóm tắt theo content-hash chương + model; Room bảng
+  mới `chapter_summary (chapterHash PK, bookId, model, promptVer, text, updatedAt)`.
+  Cap input: tối đa N chương/lần + cắt ngắn ký tự/chương (chặn đốt token sách dày).
+- [ ] B5.4 Gating (reuse, không dựng hệ thứ hai): VIP mở full; non-VIP xem rewarded
+  ad lấy lượt (mirror `rewardedCloudChapters`, key riêng `rewarded_summary`, trần 9).
+  Mất key/offline → ẩn/disable nút + báo rõ (triết lý A1.4: probe trước, không mất
+  vị trí đọc). Hết lượt → chặn + mời xem ad.
+- [ ] B5.5 UI: nút `Tóm tắt` ở Detail (B2) + mục trong màn B4; đủ 4 trạng thái C2
+  (loading/empty/error+Retry/content); kết quả đọc được bằng chain TTS hiện có
+  (`Nghe tóm tắt`); tóm tắt cấp sách chạy nền bằng WorkManager.
+- [ ] B5.7 Pipeline tóm tắt dùng chung (giảm token toàn cục): key chia sẻ =
+  content-hash chương + model + promptVer (kế thừa B5.3/A1) → document ID cố định
+  trong collection PUBLIC mới `wiki_summaries/{hash}_{model}_{promptVer}`
+  (khác `bibot/{uid}/...` per-user hiện tại). Thứ tự đọc: cache local → Firestore
+  public → miss mới gọi LLM → ghi local + upload. Upload mặc định các tóm tắt do
+  máy mình sinh (ngắn, phái sinh) + nút tắt trong Settings; KHÔNG BAO GIỜ upload
+  nguyên văn sách. First-writer-wins + `updatedAt`; rules: public read, auth write,
+  giới hạn size vài KB + rate-limit theo user. Mỗi chương chỉ 1 người trả token
+  đầu tiên, N người sau đọc free (đếm `hits` để đo).
+- [ ] B5.8 Wiki book_reader tự động: từ dữ liệu chia sẻ dựng trang wiki mỗi sách —
+  metadata + mục lục chương (B4) + tóm tắt từng chương (v1 CHỈ summaries, chưa quotes).
+  Trong app trước (tab Wiki ở Detail B2), web public để sau. Đủ N% chương có summary
+  → gắn nhãn "wiki hoàn chỉnh"; thiếu → hiện tiến độ + nút "đóng góp" (sinh tóm tắt
+  chương thiếu). Ghi nhãn "AI tóm tắt, có thể sai" + nguồn model/ver; prompt mới
+  (promptVer khác) không đè bản cũ; nút báo xấu → ẩn chờ duyệt. Tuân thủ gỡ nội
+  dung khi khiếu nại bản quyền.
+- [ ] B5.6 Verify: spot-check tay 3 sách (sử Việt, cổ tích, EN) — đúng ý chính,
+  tên/sự kiện chính có mặt, không bịa; mở lại chương đã tóm tắt → hiện ngay từ
+  cache (không gọi mạng); hết key/offline → nút disable, không crash, giữ vị trí
+  đọc; non-VIP hết lượt → chặn đúng, xem ad xong được lượt; sách 500 chương không
+  đốt token cả sách một lần; máy B mở sách máy A đã tóm tắt → hiện ngay từ
+  `wiki_summaries` (0 token, check logcat/quota); tắt chia sẻ trong Settings →
+  không upload nhưng vẫn đọc được; hết key/offline vẫn đọc wiki đã cache;
+  C4 chung (2 flavor + máy ảo).
+
 ---
 
 ## PHẦN C — Chất lượng chung (áp cho mọi giai đoạn)
@@ -132,8 +199,8 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [ ] C2 Mọi màn có 4 trạng thái: loading / empty / error + Retry / content. Không ghi đè 1 chuỗi `status?`.
 - [ ] C3 Không `readText()` toàn file; mọi list dùng `LazyColumn`; tab chương dài có search.
 - [ ] C4 Mỗi giai đoạn xong: `go vet` 0 + `assembleDemoDebug + assembleCommercialDebug` pass + test máy ảo (BibotTest) với sách 1.8MB/2545 trang.
-- [ ] C5 Thứ tự làm (đã chèn R0 + E1.1, xem Phần F):
-  `R0 → A1 → B1 → B3+E1.1 → B2 → A2 → B4 → A3`.
+- [ ] C5 Thứ tự làm (đã chèn R0 + E1.1 + B5, xem Phần F):
+  `R0 → A1 → B1 → B3+E1.1 → B2 → A2 → B4 → B5 → A3`.
   Mỗi bước build được APK, không phá voice chat.
 
 ---

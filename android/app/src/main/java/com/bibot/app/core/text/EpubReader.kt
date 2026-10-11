@@ -505,4 +505,103 @@ object EpubReader {
         }
         return sb.toString()
     }
+
+    // ------------------------------------------------------------ B1.1 metadata + cover
+
+    /** Tác giả/series từ OPF (dc:creator, calibre:series) — pure regex như spinePlan. */
+    data class EpubMeta(val author: String = "", val series: String = "")
+
+    private val dcCreatorRe =
+        Regex("""<(?:\w+:)?creator\b[^>]*>(.*?)</(?:\w+:)?creator>""", RegexOption.DOT_MATCHES_ALL)
+    private val seriesMetaRe =
+        Regex("""<meta\b[^>]*?(?:name\s*=\s*["']calibre:series["'][^>]*?content\s*=\s*["']([^"']+)["']|content\s*=\s*["']([^"']+)["'][^>]*?name\s*=\s*["']calibre:series["'])""", RegexOption.IGNORE_CASE)
+    private val coverMetaRe =
+        Regex("""<meta\b[^>]*?name\s*=\s*["']cover["'][^>]*?content\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+
+    private fun opfText(zip: ZipFile): Pair<String, String>? {
+        return try {
+            val container = zip.getEntry("META-INF/container.xml") ?: return null
+            val containerXml = decodeBytes(readEntry(zip, container) ?: return null)
+            val opfPath = rootfileRe.find(containerXml)?.groupValues?.get(1) ?: return null
+            val opfEntry = zip.getEntry(opfPath) ?: return null
+            val opf = decodeBytes(readEntry(zip, opfEntry) ?: return null)
+            val base = opfPath.substringBeforeLast('/', "") + "/"
+            opf to base
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Đọc tác giả/series (rẻ: chỉ parse OPF, không đụng content). */
+    fun readMeta(file: File): EpubMeta {
+        if (!file.exists()) return EpubMeta()
+        return try {
+            ZipFile(file).use { zip ->
+                val (opf, _) = opfText(zip) ?: return EpubMeta()
+                val author = dcCreatorRe.find(opf)?.groupValues?.get(1)
+                    ?.let { stripInline(it).replace(Regex("\\s+"), " ").trim() } ?: ""
+                val sm = seriesMetaRe.find(opf)
+                val series = (sm?.groupValues?.get(1)?.ifBlank { sm.groupValues.get(2) } ?: "")
+                    .let { stripInline(it).replace(Regex("\\s+"), " ").trim() }
+                EpubMeta(author.take(120), series.take(120))
+            }
+        } catch (_: Exception) {
+            EpubMeta()
+        }
+    }
+
+    /**
+     * Đọc bytes ảnh bìa (EPUB2 `<meta name="cover">` → manifest id;
+     * fallback item properties `cover-image`; fallback item ảnh đầu có id/href
+     * chứa "cover"). Cap 2MB — caller tự decode sampled.
+     */
+    fun readCover(file: File, maxBytes: Int = 2 * 1024 * 1024): ByteArray? {
+        if (!file.exists()) return null
+        return try {
+            ZipFile(file).use { zip ->
+                val (opf, base) = opfText(zip) ?: return null
+                val idToHref = HashMap<String, String>()
+                val idToMime = HashMap<String, String>()
+                var coverImageHref: String? = null
+                var firstImageHref: String? = null
+                for (t in itemTagRe.findAll(opf)) {
+                    val a = attrs(t.value)
+                    val id = a["id"] ?: continue
+                    val href = a["href"] ?: continue
+                    val mime = (a["media-type"] ?: "").lowercase()
+                    idToHref[id] = href
+                    idToMime[id] = mime
+                    if (!mime.startsWith("image/")) continue
+                    if (firstImageHref == null) firstImageHref = href
+                    if ((a["properties"] ?: "").lowercase().split(' ').any { it == "cover-image" }) {
+                        coverImageHref = href
+                    }
+                    if (id.lowercase().contains("cover") || href.lowercase().contains("cover")) {
+                        if (coverImageHref == null || !coverImageHref.lowercase().contains("cover")) {
+                            coverImageHref = href
+                        }
+                    }
+                }
+                val metaId = coverMetaRe.find(opf)?.groupValues?.get(1)
+                val href = (metaId?.let { idToHref[it] } ?: coverImageHref ?: firstImageHref)
+                    ?.takeIf { it.isNotBlank() } ?: return null
+                val entry = zip.getEntry(resolveHref(base, href)) ?: return null
+                if (entry.isDirectory) return null
+                zip.getInputStream(entry).use { input ->
+                    val bos = ByteArrayOutputStream(64 * 1024)
+                    val buf = ByteArray(32 * 1024)
+                    var total = 0
+                    while (total < maxBytes) {
+                        val r = input.read(buf, 0, minOf(buf.size, maxBytes - total))
+                        if (r < 0) break
+                        bos.write(buf, 0, r)
+                        total += r
+                    }
+                    bos.toByteArray().takeIf { it.isNotEmpty() }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 }

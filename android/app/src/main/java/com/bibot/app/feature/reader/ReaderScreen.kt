@@ -171,6 +171,10 @@ fun ReaderScreen(
 
     fun loadBook(book: BookMeta) {
         selectedBook = book
+        // B1.1: chạm kệ "Đang đọc" (fire-and-forget, không chặn mở sách).
+        scope.launch(Dispatchers.IO) {
+            try { db.library().touchOpen(book.id) } catch (_: Exception) {}
+        }
         currentChapter = 0
         currentSentence = 0
         isReading = false

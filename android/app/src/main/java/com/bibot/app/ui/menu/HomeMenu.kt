@@ -64,6 +64,9 @@ fun HomeMenu(
         HomeItem(BibotMode.MUSIC, MaterialTheme.colorScheme.tertiaryContainer),
         HomeItem(BibotMode.WEATHER, MaterialTheme.colorScheme.primaryContainer),
         HomeItem(BibotMode.NEWS, MaterialTheme.colorScheme.secondaryContainer),
+        // B1.4: PDF/thư viện vào grid chính — hết tình trạng PDF mồ côi
+        // (BibotMode.PDF tồn tại nhưng chưa có ô nào vào được).
+        HomeItem(BibotMode.PDF, MaterialTheme.colorScheme.tertiaryContainer),
     )
     val allItems = items
 

@@ -100,7 +100,50 @@ interface ChatLogDao {
 @Dao
 interface BookProgressDao {
     @Query("SELECT * FROM book_progress WHERE bookId=:id LIMIT 1") suspend fun get(id: String): BookProgress?
+    @Query("SELECT * FROM book_progress") suspend fun all(): List<BookProgress>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(e: BookProgress)
+}
+
+// B1.1: kệ sách kiểu ReadEra — sidecar theo bookId (KHÔNG sửa bảng progress cũ).
+// shelfFav/shelfToRead/shelfRead: Yêu thích / Đọc sau / Đã đọc (thủ công).
+// trashed: Thùng rác (ẩn ở library, chưa xoá file). author/series: parse từ EPUB
+// khi đã tải (EpubReader.readMeta), sách chưa tải để trống → nhóm "Chưa rõ".
+@Entity(tableName = "library_meta")
+data class LibraryMeta(
+    @PrimaryKey val bookId: String,
+    val shelfFav: Boolean = false,
+    val shelfToRead: Boolean = false,
+    val shelfRead: Boolean = false,
+    val trashed: Boolean = false,
+    val lastRead: Long = 0L, // lần mở/tải gần nhất (ms)
+    val author: String = "",
+    val series: String = "",
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@Dao
+interface LibraryMetaDao {
+    @Query("SELECT * FROM library_meta WHERE bookId=:id LIMIT 1") suspend fun get(id: String): LibraryMeta?
+    @Query("SELECT * FROM library_meta") suspend fun all(): List<LibraryMeta>
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIfMissing(e: LibraryMeta)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(e: LibraryMeta)
+    @Query("DELETE FROM library_meta WHERE bookId=:id") suspend fun delete(id: String)
+    suspend fun touchOpen(id: String) {
+        insertIfMissing(LibraryMeta(bookId = id, lastRead = System.currentTimeMillis()))
+        stamp(id, System.currentTimeMillis())
+    }
+    @Query("UPDATE library_meta SET lastRead=:ts, updatedAt=:ts WHERE bookId=:id")
+    suspend fun stamp(id: String, ts: Long)
+    @Query("UPDATE library_meta SET shelfFav=:v, updatedAt=:ts WHERE bookId=:id")
+    suspend fun setFav(id: String, v: Boolean, ts: Long = System.currentTimeMillis())
+    @Query("UPDATE library_meta SET shelfToRead=:v, updatedAt=:ts WHERE bookId=:id")
+    suspend fun setToRead(id: String, v: Boolean, ts: Long = System.currentTimeMillis())
+    @Query("UPDATE library_meta SET shelfRead=:v, updatedAt=:ts WHERE bookId=:id")
+    suspend fun setRead(id: String, v: Boolean, ts: Long = System.currentTimeMillis())
+    @Query("UPDATE library_meta SET trashed=:v, updatedAt=:ts WHERE bookId=:id")
+    suspend fun setTrashed(id: String, v: Boolean, ts: Long = System.currentTimeMillis())
+    @Query("UPDATE library_meta SET author=:a, series=:s, updatedAt=:ts WHERE bookId=:id")
+    suspend fun setMeta(id: String, a: String, s: String, ts: Long = System.currentTimeMillis())
 }
 
 @Dao
@@ -124,8 +167,10 @@ interface TtsSegmentDao {
 }
 
 @Database(
-    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class],
-    version = 2, exportSchema = false
+    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class],
+    version = 3, exportSchema = false
+    // B1.1: chỉ THÊM bảng library_meta → Migration thủ công (giữ progress/cache cũ).
+    // (AutoMigration cần exportSchema + kapt args không tương thích setup build hiện tại.)
 )
 abstract class BibotDatabase : RoomDatabase() {
     abstract fun memoryCore(): MemoryCoreDao
@@ -134,11 +179,33 @@ abstract class BibotDatabase : RoomDatabase() {
     abstract fun book(): BookProgressDao
     abstract fun pdf(): PdfJobDao
     abstract fun ttsSegments(): TtsSegmentDao
+    abstract fun library(): LibraryMetaDao
 
     companion object {
+        // B1.1: v2 → v3 chỉ thêm bảng library_meta (DDL khớp Room codegen —
+        // TEXT NOT NULL / INTEGER NOT NULL, PK bookId; Room validate lúc mở DB).
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `library_meta` (" +
+                        "`bookId` TEXT NOT NULL, " +
+                        "`shelfFav` INTEGER NOT NULL, " +
+                        "`shelfToRead` INTEGER NOT NULL, " +
+                        "`shelfRead` INTEGER NOT NULL, " +
+                        "`trashed` INTEGER NOT NULL, " +
+                        "`lastRead` INTEGER NOT NULL, " +
+                        "`author` TEXT NOT NULL, " +
+                        "`series` TEXT NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`bookId`))"
+                )
+            }
+        }
+
         @Volatile private var INSTANCE: BibotDatabase? = null
         fun get(context: Context): BibotDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(context.applicationContext, BibotDatabase::class.java, "bibot.db")
+                .addMigrations(MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
         }
