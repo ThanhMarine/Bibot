@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup rules — khai rõ cache + no_backup không backup lên Drive
+  Tham chiếu: https://developer.android.com/guide/topics/data/autobackup
+-->
+<full-backup-content>
+    <!-- Exclude temp chunks (TTL 24h, LRU 200MB) — không cần backup -->
+    <exclude domain="file" path="bibot/cache/" />
+    <exclude domain="cache" />
+    <exclude domain="external" />
+    <!-- Exclude offline models lớn (40-63MB) — user tải lại khi cần, tiết kiệm quota -->
+    <exclude domain="file" path="bibot/models/" />
+    <!-- Exclude no_backup entirely (đã có noBackupFilesDir) -->
+    <exclude domain="root" path="no_backup/" />
+
+    <!--
+      Dữ liệu ứng dụng KHÔNG backup → cài lại bản mới bắt đầu sạch,
+      không "hồi sinh" kho sách lỗi thời / API key / prompt cũ.
+      (gỡ app vẫn xoá bình thường; rule này chặn auto-restore khi cài lại)
+    -->
+    <exclude domain="file" path="bibot/" />       <!-- pdfs/inbox, books, music, state, outbox -->
+    <exclude domain="file" path="datastore/" />   <!-- Jetpack DataStore: keys, prompt, cài đặt -->
+    <exclude domain="database" path="bibot.db" /> <!-- nhật ký hội thoại -->
+</full-backup-content>

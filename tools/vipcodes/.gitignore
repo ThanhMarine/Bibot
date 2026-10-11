@@ -1,0 +1,4 @@
+# Danh sach ma VIP da phat hanh — KHONG commit (ma la bearer token).
+*.csv
+*.txt
+__pycache__/

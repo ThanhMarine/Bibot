@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ data extraction rules.
+  device-transfer = clone/chuyển máy OFFLINE (MIUI Clone, Smart Switch, HiSuite…)
+  → phải exclude sách + cài đặt ở đây, không thì bản mới vẫn mang dữ liệu lỗi thời.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="bibot/cache/" />
+        <exclude domain="cache" />
+        <exclude domain="external" />
+        <exclude domain="file" path="bibot/models/" />
+        <exclude domain="root" path="no_backup/" />
+        <!-- Dữ liệu app: không backup/restore -->
+        <exclude domain="file" path="bibot/" />
+        <exclude domain="file" path="datastore/" />
+        <exclude domain="database" path="bibot.db" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="bibot/cache/" />
+        <exclude domain="cache" />
+        <!-- Dữ liệu app: không chép sang máy mới/cài lại -->
+        <exclude domain="file" path="bibot/" />
+        <exclude domain="file" path="datastore/" />
+        <exclude domain="database" path="bibot.db" />
+    </device-transfer>
+</data-extraction-rules>

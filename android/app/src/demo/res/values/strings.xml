@@ -1,0 +1,4 @@
+<resources>
+    <!-- Ban chinh thuc mien phi (co quang cao) — giong ten cu de user quen -->
+    <string name="app_name">Bibot</string>
+</resources>

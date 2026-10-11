@@ -1,0 +1,49 @@
+# Baseline Bibot android_app — loại reference nặng, build output và secret.
+# Thứ tự R0 refactor (SESSION_HANDOFF_2026-10-11.md) code từ commit baseline này.
+
+# --- Reference clones (nested git, clone lại được, xem SESSION_HANDOFF) ---
+/OpenReadEra/
+/openreader/
+
+# --- Model packs nặng (tải lại bằng download_*.ps1 / file picker) ---
+/Gói ngôn ngữ Piper/
+
+# --- Screenshot máy ảo ---
+/screen/
+
+# --- Android build outputs & caches ---
+**/build/
+android/.gradle/
+android/.kotlin/
+android/.artifacts/
+android/captures/
+*.apk
+*.aab
+*.apks
+*.log
+a.log
+b.log
+c.log
+c2.log
+build_err.txt
+build_out.txt
+gradle_output.txt
+temp.txt
+
+# --- IDE (mỗi máy tự sinh) ---
+.idea/
+.vscode/
+*.iml
+
+# --- Secrets: keystore release + env + local sdk/keys ---
+*-release.keystore
+.env
+android/local.properties
+local.properties
+*.jks
+inst_user_settings.tmp
+
+# --- OS / tạm ---
+Thumbs.db
+.DS_Store
+*~

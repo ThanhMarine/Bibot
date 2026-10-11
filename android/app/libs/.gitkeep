@@ -1,0 +1,3 @@
+# Place generated bibot.aar here from:
+# gomobile bind -target android -o android/app/libs/bibot.aar ./cmd/mobile
+

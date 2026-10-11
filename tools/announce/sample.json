@@ -1,0 +1,31 @@
+{
+  "announcements": [
+    {
+      "id": "upgrade-001",
+      "title": "Da co ban 1.1.0: doc nen + ma VIP",
+      "body": "Ban moi giu truyen doc tiep khi tat man hinh, tu doc tiep sau quang cao, them muc nhap ma VIP o Cai dat.",
+      "type": "upgrade",
+      "minVersion": "1.1.0",
+      "url": "",
+      "publishedAt": "2026-10-05"
+    },
+    {
+      "id": "book-001",
+      "title": "Kho Co tich them 10 truyen moi",
+      "body": "Da bo sung 10 truyen co tich. Mo Kho sach -> Lam moi de thay.",
+      "type": "bookstore",
+      "minVersion": "",
+      "url": "",
+      "publishedAt": "2026-10-05"
+    },
+    {
+      "id": "promo-001",
+      "title": "Tang 30 ma VIP thang cho doc gia moi",
+      "body": "Nhap ma o Cai dat -> Ma VIP de xoa quang cao + mo giong Cloud. Nhanh tay, het dot se khoa.",
+      "type": "promo",
+      "minVersion": "",
+      "url": "",
+      "publishedAt": "2026-10-05"
+    }
+  ]
+}

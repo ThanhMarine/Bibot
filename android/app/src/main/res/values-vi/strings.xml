@@ -1,0 +1,459 @@
+<resources>
+    <!-- Tieng Viet: ban dich cua values/strings.xml -->
+    <string name="app_name">Bibot</string>
+    <string name="persona">Em là Bi</string>
+    <string name="language_title">Ngôn ngữ / Language</string>
+    <string name="language_system">Theo máy</string>
+    <string name="language_vi">Tiếng Việt</string>
+    <string name="language_en">English</string>
+
+    <!-- Nav / che do -->
+    <string name="nav_home">Trang chủ</string>
+    <string name="nav_voice">Trò chuyện</string>
+    <string name="nav_book">EN Books</string>
+    <string name="nav_story">Kể chuyện</string>
+    <string name="nav_cotich">Cổ tích</string>
+    <string name="nav_music">Nhạc</string>
+    <string name="nav_weather">Thời tiết</string>
+    <string name="nav_news">Điểm tin</string>
+    <string name="nav_pdf">Tài liệu</string>
+    <string name="nav_settings">Cài đặt</string>
+    <string name="nav_back_home">Về trang chủ</string>
+    <string name="nav_author_note">Lời tác giả</string>
+    <string name="dialog_close">Đóng</string>
+
+    <!-- Danh sach Home -->
+    <string name="home_story_count">Hiện có %1$d truyện</string>
+    <string name="home_story_empty">Chưa có truyện. Đồng bộ kho sách trong ⚙️ hoặc nhập URL public.</string>
+    <string name="home_cotich_empty">Chưa có truyện cổ tích. Thêm file .txt/.md vào folder Cổ tích trên Drive rồi bấm Làm mới.</string>
+
+    <!-- Khung doc -->
+    <string name="reader_back">Quay lại</string>
+    <string name="reader_play_tell">Kể</string>
+    <string name="reader_play_read">Đọc</string>
+    <string name="reader_pause">Tạm dừng</string>
+    <string name="reader_jump_back">Lùi %1$d câu</string>
+    <string name="reader_jump_fwd">Tới %1$d câu</string>
+    <string name="reader_pos">Chương %1$d/%2$d • Câu %3$d/%4$d</string>
+    <string name="reader_status_telling">Đang kể: %1$s — %2$d/%3$d</string>
+    <string name="reader_status_reading">Đang đọc: %1$s — %2$d/%3$d</string>
+    <string name="reader_done_telling">Đã kể xong %1$s</string>
+    <string name="reader_done_reading">Đã đọc xong %1$s</string>
+    <string name="reader_jump_chapter">Nhảy tới chương %1$d/%2$d — %3$s</string>
+    <string name="reader_jump_sentence">Nhảy tới câu %1$d</string>
+    <string name="reader_at_start_story">Đang ở đầu truyện</string>
+    <string name="reader_at_start_book">Đang ở đầu sách</string>
+    <string name="reader_at_end">Đã ở chương cuối</string>
+    <string name="reader_loading_story">Đang nạp truyện...</string>
+    <string name="reader_loading_book">Đang nạp sách...</string>
+    <string name="reader_downloading">Đang tải file...</string>
+    <string name="reader_checking_progress">Đang kiểm tra tiến độ...</string>
+    <string name="reader_cleaning">Đang đọc &amp; làm sạch văn bản...</string>
+    <string name="reader_loaded">Đã tải %1$d chương • %2$d câu</string>
+    <string name="reader_error">Lỗi: %1$s</string>
+    <string name="reader_pdf_scanned">PDF này là bản scan/ảnh, không có text để đọc (app chưa hỗ trợ OCR). Hãy convert sang .md/.txt trên máy tính rồi chép vào app.</string>
+    <string name="reader_epub_scanned">EPUB này chỉ chứa ảnh scan, không có text để đọc (app chưa hỗ trợ OCR). Hãy convert sang .md/.txt trên máy tính rồi chép vào app.</string>
+
+    <!-- Danh sach sach -->
+    <string name="home_book_count">Có %1$d sách trong Thư viện</string>
+    <string name="book_section_en">Tiếng Anh (%1$d)</string>
+    <string name="book_section_local">Đã tải / link (%1$d)</string>
+    <string name="book_refresh">Làm mới</string>
+    <string name="book_scan_local">Quét local</string>
+    <string name="book_url_label">Dán link PDF/MD/EPUB</string>
+    <string name="book_download">Tải</string>
+    <string name="book_read">Đọc</string>
+    <string name="book_enter_url_first">Nhập URL trước</string>
+    <string name="book_downloading">Đang tải...</string>
+    <string name="book_downloaded">Đã tải: %1$s</string>
+    <string name="book_download_done">Đã tải %1$s</string>
+    <string name="book_download_fail">Lỗi tải: %1$s</string>
+    <string name="book_refreshed">Đã làm mới danh sách: %1$d sách</string>
+    <string name="book_scanned">Đã quét local: %1$d file</string>
+    <string name="reader_loading_url">Đang tải...</string>
+    <string name="book_is_downloaded">Đã tải</string>
+    <string name="book_not_downloaded">Chưa tải</string>
+    <string name="book_delete">Xóa</string>
+    <string name="set_hint">Chạm để mở từng nhóm — mặc định thu gọn cho gọn.</string>
+    <string name="sec_ai">🤖 AI Trò chuyện</string>
+    <string name="sec_api">🔑 API &amp; Model AI</string>
+    <string name="sec_voice">🔉 Giọng đọc</string>
+    <string name="sec_models">📦 Mô hình offline</string>
+    <string name="sec_books">📚 Kho sách</string>
+    <string name="sec_data">🧹 Dữ liệu ứng dụng</string>
+    <string name="sec_ads">🏷️ Quảng cáo &amp; Premium</string>
+    <string name="sec_vip">⭐ Mã VIP</string>
+    <string name="sec_announce">📢 Thông báo</string>
+    <string name="data_reset_sub">Đặt lại cài đặt về mặc định</string>
+    <string name="books_sub_default">Sách nói &amp; truyện</string>
+    <string name="books_sub_count">%1$d sách</string>
+    <string name="models_sub">%1$d/%2$d đã cài • trống %3$d MB</string>
+    <string name="ai_sub">%1$s • %2$s • %3$d từ</string>
+    <string name="api_sub_key">%1$s • đã có key</string>
+    <string name="api_sub_free">%1$s • Bibot Free</string>
+    <string name="common_save">Lưu</string>
+    <string name="common_add">Thêm</string>
+    <string name="common_download">Tải</string>
+    <string name="common_delete">Xóa</string>
+    <string name="common_retry">Thử lại</string>
+    <string name="common_refresh">Làm mới</string>
+    <string name="common_cancel">Bỏ</string>
+    <string name="common_default">Mặc định</string>
+    <string name="common_collapse">Thu gọn</string>
+    <string name="common_expand">Mở rộng</string>
+    <string name="common_preview">Xem trước:</string>
+    <string name="common_view_all">Xem tất cả</string>
+    <string name="common_install_file">Cài từ file</string>
+    <string name="common_install_now">Cài luôn</string>
+    <string name="common_opening">Đang mở...</string>
+    <string name="common_checking">Đang kiểm tra...</string>
+    <string name="common_deleting">Đang xoá…</string>
+    <string name="common_vip_code">Mã VIP</string>
+    <string name="common_redeem">Kích hoạt mã</string>
+    <string name="common_installed">Đã cài</string>
+    <string name="common_not_installed">Chưa cài</string>
+    <string name="common_advanced">Tùy chọn nâng cao</string>
+    <string name="common_hide_advanced">Ẩn tùy chọn nâng cao</string>
+    <string name="common_hide_singles">Ẩn file lẻ</string>
+    <string name="api_gemini">Gemini API Key (tùy chọn)</string>
+    <string name="api_openrouter">OpenRouter Key (tùy chọn)</string>
+    <string name="api_cloud_key">Cloud TTS Key (tùy chọn)</string>
+    <string name="api_hint_relay">Trống = Free via relay</string>
+    <string name="api_empty_offline">Trống = Piper/offline</string>
+    <string name="api_save">Lưu API Key</string>
+    <string name="api_saved">✓ Đã lưu API Key</string>
+    <string name="api_removed">✓ Đã xoá key — dùng Bibot Free</string>
+    <string name="set_tts_auto">Tự động (khuyên dùng)</string>
+    <string name="set_tts_offline">Ưu tiên Offline</string>
+    <string name="set_tts_online">Ưu tiên Cloud</string>
+    <string name="voice_priority">Ưu tiên giọng đọc</string>
+    <string name="voice_speed">Tốc độ nói: %1$sx</string>
+    <string name="voice_stt">STT offline (không cần mạng)</string>
+    <string name="voice_barge">Ngắt lời real-talk</string>
+    <string name="voice_piper">Đọc sách ưu tiên Piper</string>
+    <string name="voice_piper_dl">Tải giọng Piper</string>
+    <string name="voice_engine_ok">Engine đã sẵn sàng.</string>
+    <string name="voice_engine_fail">Cài engine thất bại.</string>
+    <string name="voice_engine_fail_net">Cài engine thất bại (kiểm tra mạng).</string>
+    <string name="voice_install_engine">Đang cài engine...</string>
+    <string name="voice_install_engine_file">Đang cài engine từ file...</string>
+    <string name="voice_vi_ok">Giọng Việt đã sẵn sàng.</string>
+    <string name="voice_vi_ok_json">Giọng Việt đã sẵn sàng. (tự tải json mạng)</string>
+    <string name="voice_vi_fail">Cài giọng Việt thất bại.</string>
+    <string name="voice_installing_vi">Đang cài giọng Việt...</string>
+    <string name="voice_installing_vi_file">Đang cài giọng Việt từ file...</string>
+    <string name="voice_en_ok">Giọng Anh đã sẵn sàng.</string>
+    <string name="voice_en_ok_json">Giọng Anh đã sẵn sàng. (tự tải json mạng)</string>
+    <string name="voice_en_fail">Cài giọng Anh thất bại.</string>
+    <string name="voice_installing_en">Đang cài giọng Anh...</string>
+    <string name="voice_installing_en_file">Đang cài giọng Anh từ file...</string>
+    <string name="voice_partial">Xong một phần (VI=%1$b, EN=%2$b).</string>
+    <string name="voice_both_ok">Xong — Piper VI+EN sẵn sàng.</string>
+    <string name="voice_installing_piper">Đang cài Piper...</string>
+    <string name="voice_installing_piper_pct">Đang cài Piper... %1$d%%</string>
+    <string name="voice_pick_engine">Engine (.tar.bz2)</string>
+    <string name="voice_pick_vi">Giọng VI (.onnx)</string>
+    <string name="voice_pick_en">Giọng EN (.onnx)</string>
+    <string name="voice_pick_espeak">Cài espeak-ng-data (.zip)</string>
+    <string name="voice_espeak_ok">espeak-ng-data đã sẵn sàng.</string>
+    <string name="voice_espeak_fail">Cài espeak-ng-data thất bại.</string>
+    <string name="voice_installing_espeak">Đang cài espeak-ng-data...</string>
+    <string name="voice_installing_espeak_file">Đang cài espeak-ng-data từ file...</string>
+    <string name="voice_need_file">Cần file: %1$s</string>
+    <string name="voice_used_mb">Đã dùng: %1$d MB</string>
+    <string name="voice_pick_tip">Mẹo: file tải về nằm ở Download. Nếu picker không thấy file, bấm ⋮ → Hiện bộ nhớ trong / Tất cả file. Chọn đúng đuôi file (.tar.bz2 / .onnx / .zip).</string>
+    <string name="voice_pick_from_file">Chọn ’Cài từ file’ để cài model từ bộ nhớ máy.</string>
+    <string name="voice_step2_optional">Bước 2 (file .json) tùy chọn — hủy vẫn cài được.</string>
+    <string name="voice_picked_vi">Đã chọn VI: %1$s</string>
+    <string name="voice_picked_en">Đã chọn EN: %1$s</string>
+    <string name="voice_picked_onnx">đã chọn file .onnx</string>
+    <string name="voice_no_file">không tìm thấy file</string>
+    <string name="voice_err_piper">Lỗi cài Piper: %1$s</string>
+    <string name="books_empty">Chưa có sách. Nhấn ⟳ Đồng bộ hoặc dán link để thêm.</string>
+    <string name="books_search">Tìm trong kho</string>
+    <string name="books_group_vi">🇻🇳 Kể chuyện (VI)</string>
+    <string name="books_add_link">Thêm sách từ link</string>
+    <string name="books_sync">⟳ Đồng bộ kho sách</string>
+    <string name="books_syncing">Đang đồng bộ kho sách…</string>
+    <string name="books_synced">✓ Đồng bộ xong — %1$d sách</string>
+    <string name="books_sync_fail">Lỗi đồng bộ: %1$s</string>
+    <string name="books_no_catalog">⚠ Không tải được danh mục (kiểm tra mạng)</string>
+    <string name="books_delete_dl">🗑 Xoá sách đã tải</string>
+    <string name="books_deleting_dl">Đang xoá sách tải về…</string>
+    <string name="books_deleted_dl">✓ Đã xoá %1$d mục tải về</string>
+    <string name="books_dl_one">✓ Đã tải %1$s</string>
+    <string name="books_del_one">✓ Đã xóa %1$s</string>
+    <string name="books_downloading">Đang tải: %1$s…</string>
+    <string name="books_del_progress">Đang xóa: %1$s…</string>
+    <string name="books_fail_prefix">Lỗi: %1$s</string>
+    <string name="books_del_fail">Lỗi xoá: %1$s</string>
+    <string name="books_drive_folder">Folder Drive riêng (tùy chọn)</string>
+    <string name="books_drive_saved">✓ Đã lưu Folder Drive</string>
+    <string name="books_drive_save_fail">Lỗi lưu folder: %1$s</string>
+    <string name="books_signin">Đăng nhập Google</string>
+    <string name="books_signed_in">✓ Đã đăng nhập %1$s</string>
+    <string name="books_signin_fail">Đăng nhập thất bại hoặc đã huỷ</string>
+    <string name="books_signin_err">Lỗi đăng nhập: %1$s</string>
+    <string name="data_reset_all">Đặt lại toàn bộ cài đặt</string>
+    <string name="data_confirm">Xác nhận đặt lại?</string>
+    <string name="data_confirm_hint">Nhấn lần nữa để xác nhận — mọi cài đặt sẽ về mặc định</string>
+    <string name="data_reset_done">✓ Đã đặt lại cài đặt</string>
+    <string name="data_restored">Đã khôi phục mặc định — nhấn Lưu để áp dụng</string>
+    <string name="data_nobackup">Bản cài lại không tự khôi phục sách/cài đặt cũ (đã tắt backup).</string>
+    <string name="ads_sub">Xem QC mở giọng Cloud • VIP xóa ads</string>
+    <string name="ads_cloud_left">Giọng Cloud còn: %1$d chương (tối đa 9). Mặc định nghe giọng máy miễn phí.</string>
+    <string name="ads_no_ad">Không mở được quảng cáo trên thiết bị này.</string>
+    <string name="ads_cooldown">Quảng cáo vừa hiện, quay lại sau 30 phút.</string>
+    <string name="ads_loading">Đang tải quảng cáo, bấm lại sau vài giây.</string>
+    <string name="ads_watch_btn">Xem QC 15s → mở 3 chương giọng Cloud</string>
+    <string name="ads_reward_ok">Đã mở 3 chương giọng Cloud cao cấp.</string>
+    <string name="ads_reward_fail">Lỗi ghi nhận thưởng, thử lại sau.</string>
+    <string name="ads_vip_on">VIP đang bật — đã mở giọng Cloud, không cần xem QC.</string>
+    <string name="vip_sub">Nhập mã để xóa ads + mở giọng Cloud</string>
+    <string name="vip_free_hint">Bản miễn phí có quảng cáo. Nhập mã VIP để xóa ads + mở giọng Cloud (cần key Cloud đã nhập).</string>
+    <string name="vip_life_on">VIP vĩnh viễn đang bật — không quảng cáo + mở giọng Cloud (cần key).</string>
+    <string name="vip_month_on">VIP tháng đang bật đến %1$s — không quảng cáo + mở giọng Cloud (cần key). Nhập thêm mã để cộng dồn.</string>
+    <string name="vip_month_on_days">VIP tháng đến %1$s (còn %2$d ngày) — không quảng cáo + mở giọng Cloud (cần key). Nhập thêm mã để cộng dồn.</string>
+    <string name="vip_used">Mã này đã được đổi trên máy này rồi.</string>
+    <string name="vip_expired_back">VIP đã hết hạn — đã về bản miễn phí (có quảng cáo).</string>
+    <string name="vip_invalid">Mã không hợp lệ: %1$s.</string>
+    <string name="vip_month_ok">Kích hoạt VIP %1$d tháng thành công — hạn đến %2$s.</string>
+    <string name="vip_life_ok">Kích hoạt VIP vĩnh viễn thành công.</string>
+    <string name="vip_redeem_fail">Lỗi đổi mã, thử lại sau.</string>
+    <string name="vip_checking">Đang kiểm tra...</string>
+    <string name="vip_placeholder">BIBOT-XXXXXX-XXXXXX-…</string>
+    <string name="announce_sub">Tin mới từ nhà phát triển</string>
+    <string name="announce_empty">Chưa có thông báo nào.</string>
+    <string name="api_use_free">Dùng Bibot Free</string>
+    <string name="set_persona">Xưng danh (Persona)</string>
+    <string name="set_template">Mẫu prompt</string>
+    <string name="set_template_hint">Nhập template…</string>
+    <string name="set_style">Phong cách</string>
+    <string name="set_tone">Giọng điệu</string>
+    <string name="set_prompt_saved">✓ Đã lưu prompt</string>
+    <string name="set_restored">Đã khôi phục mặc định — nhấn Lưu để áp dụng</string>
+    <string name="set_downloading">Đang tải %1$d%%</string>
+    <string name="set_unzipping">Đang giải nén %1$d%%</string>
+    <string name="common_error">Lỗi: %1$s</string>
+    <string name="voice_picked_lang">Đã chọn %1$s: %2$s</string>
+    <string name="books_not_found">Không tìm thấy \"%1$s\".</string>
+    <string name="books_group_en">🇺🋸 English books</string>
+    <string name="books_group_other">🌐 Khác</string>
+    <string name="books_downloading_link">Đang tải từ link…</string>
+    <string name="books_added">✓ Đã thêm %1$s</string>
+    <string name="books_link_fail">Lỗi tải link: %1$s</string>
+    <string name="books_syncing_short">Đang đồng bộ…</string>
+    <string name="reader_ad_resume">%1$s — hết QC tự đọc tiếp.</string>
+    <string name="nav_author_sign">— Tác giả Bibot —</string>
+    <string name="announce_dismiss">Tắt thông báo</string>
+    <string name="news_hint">Chạm từng tin để đọc riêng • nút ⟳ đọc liền mạch tất cả (nguồn chỉ hiện trên thẻ, không đọc).</string>
+    <string name="news_fallback">⚠ %1$s tạm gián đoạn — đang dùng nguồn dự phòng %2$s.</string>
+    <string name="news_pos_reading">Đang đọc tin %1$d/%2$d</string>
+    <string name="news_pos">Tin %1$d/%2$d</string>
+    <string name="news_check_net">Kiểm tra kết nối Internet, thử nguồn khác hoặc nhấn Làm mới.</string>
+    <string name="news_empty">Chưa có tin. Nhấn ‘Làm mới’ hoặc chọn nguồn khác.</string>
+    <string name="news_cd_stop_all">Đang đọc tất cả (bấm để dừng)</string>
+    <string name="news_cd_read_one">Đọc tin này</string>
+    <string name="news_cd_stop">Dừng đọc</string>
+    <string name="news_cd_read_all">Đọc tất cả tin</string>
+    <string name="news_prev">Tin trước</string>
+    <string name="news_next">Tin sau</string>
+    <string name="news_badge">Đang đọc</string>
+    <string name="news_unknown_err">Lỗi không xác định</string>
+    <string name="news_source">Nguồn: %1$s%2$s</string>
+    <string name="news_load_fail">Không tải được tin từ %1$s: %2$s</string>
+    <string name="news_cat_latest">Mới nhất</string>
+    <string name="news_cat_current">Thời sự</string>
+    <string name="news_cat_world">Thế giới</string>
+    <string name="news_cat_business">Kinh doanh</string>
+    <string name="news_cat_tech">Công nghệ</string>
+    <string name="news_cat_ent">Giải trí</string>
+    <string name="news_cat_sports">Thể thao</string>
+    <string name="news_cat_law">Pháp luật</string>
+    <string name="news_cat_edu">Giáo dục</string>
+    <string name="news_cat_health">Sức khỏe</string>
+    <string name="wx_read">Đọc thời tiết</string>
+    <string name="wx_check_net">Kiểm tra kết nối Internet rồi nhấn Làm mới.</string>
+    <string name="wx_feels">%1$s • Cảm giác %2$d°C</string>
+    <string name="wx_details">Chi tiết</string>
+    <string name="wx_forecast_days">📅 Dự báo %1$d ngày</string>
+    <string name="wx_precip">Mưa %1$d%%</string>
+    <string name="wx_tap_refresh">Nhấn ‘Làm mới’ để tải thời tiết.</string>
+    <string name="wx_dow_mon">Thứ 2</string>
+    <string name="wx_dow_tue">Thứ 3</string>
+    <string name="wx_dow_wed">Thứ 4</string>
+    <string name="wx_dow_thu">Thứ 5</string>
+    <string name="wx_dow_fri">Thứ 6</string>
+    <string name="wx_dow_sat">Thứ 7</string>
+    <string name="wx_dow_sun">Chủ Nhật</string>
+    <string name="wx_err_noconn">Không có kết nối Internet</string>
+    <string name="wx_err_noreach">Không thể kết nối máy chủ thời tiết</string>
+    <string name="wx_err_slow">Máy chủ thời tiết phản hồi quá chậm</string>
+    <string name="wx_err_invalid">Dữ liệu thời tiết không hợp lệ</string>
+    <string name="wx_err_server">Lỗi máy chủ thời tiết: %1$s</string>
+    <string name="mus_granted">Đã cấp quyền — nạp lại thư viện nhạc.</string>
+    <string name="mus_no_perm">Chưa cấp quyền đọc thư viện nhạc: chỉ thấy file trong thư mục Bibot.</string>
+    <string name="mus_playing_track">Đang phát trong app: %1$s</string>
+    <string name="mus_own_file">File riêng của Bibot (app ngoài không đọc được) → phát trong app: %1$s</string>
+    <string name="mus_opening">Đang mở “%1$s” bằng app nhạc mặc định.</string>
+    <string name="mus_open_fail">Không mở được app nhạc mặc định → phát trong app: %1$s</string>
+    <string name="mus_opened">Đã mở ứng dụng nhạc mặc định.</string>
+    <string name="mus_no_app">Máy chưa có app nhạc mặc định — hãy cài YouTube Music / Samsung Music / Spotify.</string>
+    <string name="mus_type_first">Gõ tên bài hát trước.</string>
+    <string name="mus_no_perm_search">Chưa có quyền đọc thư viện nhạc — bấm “Cho phép” hoặc tìm trên app nhạc mặc định.</string>
+    <string name="mus_not_found">Không thấy trên máy — gửi cho app nhạc mặc định tìm giúp.</string>
+    <string name="mus_found">Tìm thấy %1$d bản.</string>
+    <string name="mus_search_fail">Lỗi tìm: %1$s</string>
+    <string name="mus_sent">Đã gửi “%1$s” cho app nhạc mặc định.</string>
+    <string name="mus_no_handler">Không có app nhạc nào nhận lệnh tìm trên máy.</string>
+    <string name="mus_play">Phát</string>
+    <string name="mus_find">Tìm</string>
+    <string name="mus_default_app">App nhạc mặc định</string>
+    <string name="mus_tap_plays">Bấm phát là mở app nhạc của máy</string>
+    <string name="mus_inapp_player">Đang phát bằng player trong app Bibot</string>
+    <string name="mus_open_app">Mở ứng dụng nhạc mặc định</string>
+    <string name="mus_search_title">🔎 Tìm bài hát</string>
+    <string name="mus_title_author">Tên bài / tác giả</string>
+    <string name="mus_library">📱 Thư viện nhạc (%1$d)</string>
+    <string name="mus_need_perm">Cần quyền đọc thư viện nhạc</string>
+    <string name="mus_perm_hint">Để tìm bài hát có sẵn trên máy (MediaStore). Không cấp vẫn nghe được file trong thư mục Bibot.</string>
+    <string name="mus_allow">Cho phép truy cập nhạc</string>
+    <string name="mus_empty">Chưa có nhạc trên máy. Chép file .mp3/.m4a vào files/bibot/music/ hoặc dùng app nhạc mặc định ngoài.</string>
+    <string name="mus_about">🎧 Bài có trên máy phát bằng app nhạc mặc định; file riêng của Bibot phát bằng ExoPlayer (dùng chung với TTS).</string>
+    <string name="mus_cd_default">Phát bằng app nhạc mặc định</string>
+    <string name="mus_cd_inapp">Phát trong app Bibot</string>
+    <string name="mus_match"> • khớp %1$d%%</string>
+    <string name="mus_on_device"> • trên máy</string>
+    <string name="doc_sub">Thêm/Xoá tài liệu vào bookstore, làm mới kho sách. SAF + permission.</string>
+    <string name="doc_status">Bookstore: %1$d sách | Storage: %2$d mục</string>
+    <string name="doc_refresh_fail">Lỗi refresh: %1$s</string>
+    <string name="doc_scanned_tree">Đã quét %1$d mục từ %2$s</string>
+    <string name="doc_scan_fail">Lỗi quét: %1$s</string>
+    <string name="doc_scanned_storage">Đã quét %1$d mục từ bộ nhớ</string>
+    <string name="doc_added">Đã thêm %1$s</string>
+    <string name="doc_added_to_books">✅ Đã thêm %1$s vào Sách</string>
+    <string name="doc_add_fail">Lỗi thêm: %1$s</string>
+    <string name="doc_removed">Đã xoá %1$s</string>
+    <string name="doc_adding">Đang thêm vào Sách...</string>
+    <string name="doc_granted">Đã cấp quyền: %1$s</string>
+    <string name="doc_perm_granted_scan">Đã cấp permission. Quét...</string>
+    <string name="doc_need_perm">Cần permission hoặc dùng SAF.</string>
+    <string name="doc_search_storage">Tìm kiếm storage...</string>
+    <string name="doc_search_hint">Tên file, mime type...</string>
+    <string name="doc_folder_saf">Thư mục (SAF)</string>
+    <string name="doc_pick_file">Chọn file</string>
+    <string name="doc_no_folder">Chưa chọn thư mục</string>
+    <string name="doc_books_title">📦 SÁCH (%1$d)</string>
+    <string name="doc_books_empty">Sách trống. Thêm file từ bộ nhớ bên dưới.</string>
+    <string name="doc_book_dl">✅ Đã tải</string>
+    <string name="doc_book_not">⏳ Chưa tải</string>
+    <string name="doc_delete">Xoá</string>
+    <string name="doc_open">Mở</string>
+    <string name="doc_more">... và %1$d sách nữa</string>
+    <string name="doc_storage_title">📂 BỘ NHỚ (%1$d)</string>
+    <string name="doc_dirs">Thư mục (%1$d)</string>
+    <string name="doc_files">Tệp (%1$d)</string>
+    <string name="doc_in_books">✅ Đã trong Sách</string>
+    <string name="doc_add_to_books">Add→Sách</string>
+    <string name="doc_no_search">Không tìm kiếm “%1$s” trong storage.</string>
+    <string name="doc_browse_hint">Chọn thư mục (SAF) để duyệt bộ nhớ.</string>
+    <string name="pdf_hint_top">Chọn PDF từ máy hoặc dùng 3 PDF demo trong Sách EN. Demo dùng ML Kit on-device (không cần key).</string>
+    <string name="pdf_copying">Đang sao chép PDF...</string>
+    <string name="pdf_added">Đã thêm %1$s (%2$d KB)</string>
+    <string name="pdf_picker_fail">Lỗi picker: %1$s</string>
+    <string name="pdf_converting">Đang chuyển %1$s...</string>
+    <string name="pdf_converted">Đã chuyển %1$s → %2$s (%3$d KB)</string>
+    <string name="pdf_convert_fail">Lỗi chuyển: %1$s</string>
+    <string name="pdf_build9">Build 9: ML Kit on-device cho demo (không cần key), Document AI REST cho official. Lưu files/bibot/pdfs/outbox/*.md + Room PdfJob.</string>
+    <string name="pdf_pick">Chọn PDF từ máy</string>
+    <string name="pdf_refreshed">Đã làm mới %1$d PDF</string>
+    <string name="pdf_available">📥 PDF có sẵn (%1$d)</string>
+    <string name="pdf_source">Nguồn: files/bibot/pdfs/inbox + books/en (3 demo). Chạm Chuyển để sang Markdown.</string>
+    <string name="pdf_empty">Chưa có PDF. Dùng 3 demo EN hoặc Chọn PDF từ máy.</string>
+    <string name="pdf_demo_files">Demo: alice_adventures.pdf, pride_prejudice.pdf, sherlock.pdf (bundle &lt;10KB mỗi)</string>
+    <string name="pdf_convert_btn">Chuyển</string>
+    <string name="pdf_md_done">📝 Markdown đã chuyển (%1$d)</string>
+    <string name="pdf_md_saved">Lưu tại files/bibot/pdfs/outbox/*.md (chuẩn Android, không cần quyền).</string>
+    <string name="pdf_preview">Xem trước Markdown (4000 ký tự):</string>
+    <string name="pdf_tip">Gợi ý: Sau khi chuyển, mở file .md trong 📚 Sách hoặc chia sẻ qua exports/ (SAF). Document AI REST sẽ thêm khi có GCP project ID (Build 9 official).</string>
+<string name="mus_default_search">nhạc</string>
+    <string name="mus_placeholder_example">VD: Diễm Xưa Trịnh Công Sơn</string>
+    <string name="mus_search_default_app">Tìm &amp; phát trên app nhạc mặc định</string>
+
+    <!-- Help/Guide section -->
+    <string name="sec_help">Trợ giúp &amp; Hướng dẫn</string>
+    <string name="help_sub">Cài đặt STT/TTS offline, API Keys, FAQ</string>
+    <string name="help_title_offline_stt">Cài đặt Offline STT (Sherpa)</string>
+    <string name="help_offline_stt"><![CDATA[
+    <b>Offline STT (Sherpa Zipformer)</b>\n
+    1. Vào Cài đặt → Mô hình offline → Sherpa STT VI Zipformer 30M\n
+    2. Bấm "Cài đặt" → Chờ tải (~30MB)\n
+    3. Chờ giải nén và xác nhận "Đã sẵn sàng"\n
+    4. Test: Vào màn Trò chuyện → Bấm mic → Nói thử\n\n
+    <b>Lưu ý:</b> Yêu cầu Android 8.0+. Mô hình ~30MB, chạy hoàn toàn offline.
+    ]]>
+    </string>
+    <string name="help_title_offline_tts">Cài đặt Offline TTS (Piper)</string>
+    <string name="help_offline_tts"><![CDATA[
+    <b>Offline TTS (Piper)</b>\n
+    1. Vào Cài đặt → Mô hình offline → Piper TTS VI/EN\n
+    2. Bấm "Cài đặt" → Tải model (~50-100MB tùy giọng)\n
+    3. Chờ giải nén → Kiểm tra "Đã sẵn sàng"\n
+    4. Vào Cài đặt → Giọng đọc → Chọn "Ưu tiên Offline"\n\n
+    <b>Giọng khuyến nghị:</b> VI (vi_VN), EN (en_US Lessac)
+    ]]>
+    </string>
+    <string name="help_title_cloud_api">Cloud API Keys (Gemini / OpenRouter / Cloud TTS)</string>
+    <string name="help_cloud_api"><![CDATA[
+    <b>Cách tạo API Key miễn phí:</b>\n\n
+    <b>Gemini (Google AI Studio):</b>\n
+    1. Truy cập <a href="https://aistudio.google.com">aistudio.google.com</a>\n
+    2. Đăng nhập bằng tài khoản Google\n
+    3. Get API Key → Create API key → Copy\n
+    4. Dán vào Cài đặt → API & Model → Gemini API Key\n\n
+    <b>OpenRouter (Free models):</b>\n
+    1. Đăng ký <a href="https://openrouter.ai">openrouter.ai</a>\n
+    2. Keys → Create Key → Copy\n
+    3. Dán vào Cài đặt → API & Model → OpenRouter Key\n\n
+    <b>Cloud TTS (Google Cloud):</b>\n
+    1. Tạo project trên <a href="https://console.cloud.google.com">Google Cloud Console</a>\n
+    2. Enable "Cloud Text-to-Speech API"\n
+    3. IAM → Service Accounts → Create Key (JSON)\n
+    4. Dán nội dung JSON vào Cài đặt → API & Model → Cloud TTS Key\n\n
+    <b>Lưu ý:</b> Free tier có giới hạn. Khuyến nghị dùng Offline TTS (Piper) để tiết kiệm.
+    ]]>
+    </string>
+    <string name="help_title_offline_model">Mô hình Offline (Sherpa STT / Piper TTS)</string>
+    <string name="help_offline_model"><![CDATA[
+    <b>Cài đặt mô hình offline:</b>\n
+    1. Cài đặt → Mô hình offline\n
+    2. Chọn mô hình cần cài → Bấm "Cài đặt"\n
+    3. Chờ tải xuống + giải nén (có thể vài phút)\n
+    4. Kiểm tra: Mô hình hiển thị "Đã sẵn sàng" hoặc ✓\n\n
+    <b>Mẹo:</b> Dùng WiFi, đảm bảo dung lượng trống > 2GB
+    ]]>
+    </string>
+    <string name="help_title_faq">Câu hỏi thường gặp (FAQ)</string>
+    <string name="help_faq"><![CDATA[
+    <b>Q: TTS offline không phát được?</b>\n
+    A: Kiểm tra Cài đặt → Giọng đọc → Đã chọn "Ưu tiên Offline"? Model đã "Đã sẵn sàng"?\n\n
+    <b>Q: STT không nhận diện giọng?</b>\n
+    A: Kiểm tra mic có quyền, nói to rõ ràng, thử Offline STT (Sherpa).\n\n
+    <b>Q: App bị đóng khi đọc sách dài?</b>\n
+    A: Bật "Giữ màn hình sáng" trong Cài đặt → Dữ liệu. Tắt tối ưu pin cho Bibot.\n\n
+    <b>Q: Không thấy sách vừa tải?</b>\n
+    A: Bấm "Làm mới" ở màn hình Kho sách. Kiểm tra folder Drive có public.\n\n
+    <b>Q: Muốn đổi ngôn ngữ giao diện?</b>\n
+    A: Cài đặt → Ngôn ngữ → Chọn Tiếng Việt / English / Theo máy.
+    ]]>
+    </string>
+    <string name="help_title_contact">Liên hệ &amp; Phản hồi</string>
+    <string name="help_contact"><![CDATA[
+        <b>Góp ý / Báo lỗi:</b>\n\n
+        Aden Nguyen (admin)\n\n
+        Email: <a href="mailto:bibotvadmin@gmail.com">bibotvadmin@gmail.com</a>
+        ]]>
+    </string>
+    <string name="help_section_title">Hướng dẫn sử dụng</string>
+    <string name="help_section_sub">Cài đặt Offline STT/TTS, API Keys, FAQ</string>
+</resources>

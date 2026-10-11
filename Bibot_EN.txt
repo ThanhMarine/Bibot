@@ -1,0 +1,86 @@
+📝 **Short Description (max 80 chars)**
+
+> Vietnamese reading & audio assistant: stories, books, AI chat, news — offline ready.
+> *(79 characters)*
+
+---
+
+📖 **Full Description (max 4000 chars)**
+
+**Bibot** — Smart Vietnamese Reading & Storytelling App, your companion anywhere, anytime.
+
+🌟 **KEY FEATURES**
+
+📚 **CUSTOMIZABLE BOOK & STORY LIBRARY**
+
+* **Storytelling:** Hundreds of great Vietnamese stories — folklore, historical tales, novels, and children's books. Read offline with sentence-by-sentence karaoke highlighting.
+* **Fairy Tales:** Family-friendly interface, gentle storytelling voice, "Family Friendly" badge. Continuous playback or selective chapter listening.
+* **English Books:** Free public domain library (Project Gutenberg, etc.) with natural en-US voice output. Learn vocabulary and practice listening and speaking simultaneously.
+
+🎙️ **VOICE CHAT WITH AI (Using your own AI API)**
+
+* **Real-Talk Voice Chat:** Supports interruptions, quick input, and responsive replies (< 500ms).
+* **Offline STT (Vosk):** No internet required, ensuring complete privacy.
+* **Multi-engine TTS:** Piper (offline, high quality), Sherpa-ONNX (streaming), and Cloud TTS (Gemini/Google — most natural voices).
+* **Custom AI Persona:** Personalize the name, tone, and prompt for "Bi" — your personal AI companion.
+
+🌤️ **DAILY UTILITIES**
+
+* **Weather:** 3-day forecast, feels-like temperature, and rain probability — spoken aloud.
+* **News Digest:** Audio updates from top news sources (VnExpress, Tuổi Trẻ, Dân Trí, Google News...). Listen hands-free without looking at the screen.
+* **Music Player:** Scans local music library, lets you search and play via default music app or internal player.
+
+⚙️ **ADVANCED FEATURES**
+
+* **Background & Lock Screen Playback:** Foreground service media playback — keeps reading with screen off, fully controllable from the notification bar.
+* **Progress Sync:** Automatically saves reading positions (chapter, sentence) to resume instantly upon reopening.
+* **Voice Customization:** Adjust speed (0.5–2.0x), sentence pauses, and engine preferences.
+* **Offline Models:** Download Piper VI/EN, Vosk STT, and Sherpa Zipformer models for lifetime offline use.
+* **Tablet Support:** Responsive grid and landscape Navigation Rail.
+
+💎 **VERSIONS: FREE & VIP**
+
+* **Bibot (Free):** Full access to all features, supported by banner ads, mode-switch interstitial ads (1 per 3 switches), and interval ads (between 16–24 min of reading). Watch a 15-second rewarded ad to unlock 3 premium Cloud voice chapters.
+* **Bibot VIP (Commercial):** Ad-free experience, full access to Cloud voices (requires your API key), and priority support.
+
+🔐 **PRIVACY & SAFETY**
+
+* **Fully Offline STT:** Your voice data never leaves your device.
+* **No mandatory login**, no personal data collection.
+* **Google Play Families Policy Compliant:** Child-directed Fairy Tales section with G rating and disabled personalized ads.
+
+🇻🇳 **TAILORED FOR VIETNAMESE USERS**
+
+* Pure Vietnamese and multilingual interface with full diacritics support (Roboto/Inter fonts).
+* Specialized Vietnamese text processing: smart sentence splitting, marker removal, and punctuation normalization.
+* Free access to public collections: "Viet Books" and Vietnamese Fairy Tales — instant download without account setup.
+
+---
+
+✨ **Feature Highlights (Play Console Bullet Points)**
+
+| Feature | Short Description |
+| --- | --- |
+| **Audience** | Perfect for language learners and Vietnamese history enthusiasts. |
+| 🎧 **Offline Storytelling** | Integrated Viet library (Vietnamese History, Fairy Tales), karaoke text highlighting, background audio. |
+| 🧚 **Family Fairy Tales** | Child-safe UI, gentle voice narration, family-friendly badge. |
+| 📖 **English Books** | Free book catalog integrated with custom sources and natural en-US voices. |
+| 🤖 **AI Voice Chat** | Real-time conversations, offline STT, multi-engine TTS. |
+| 🌤️ **Weather & News** | Voice-narrated daily updates — no screen reading required. |
+| 🎵 **Music Player** | Local library scanning, search, and in-app playback. |
+| ⚡ **Multi-Engine TTS** | Piper (offline), Sherpa-ONNX, and Cloud (Gemini/Google). |
+| 🔄 **Progress Sync** | Auto-saves reading location; resume instantly. |
+| 📱 **Phone + Tablet** | Responsive design with landscape Navigation Rail. |
+| 🔐 **Total Privacy** | Offline STT, zero data collection, Families Policy compliant. |
+
+---
+
+🔑 **Keywords for ASO (App Store Optimization)**
+
+**Vietnamese (Primary):**
+
+> Việt Sử, lịch sử Việt Nam, kể chuyện, đọc sách, audiobook, truyện cổ tích, sách tiếng Anh, AI chat, trợ lý âm thanh, text to speech, TTS tiếng Việt, offline reader, đọc tin tức, thời tiết giọng nói
+
+**English (Secondary):**
+
+> audiobook, storyteller, text to speech, Vietnamese TTS, AI voice chat, offline reader, fairy tales, English books, news reader, weather voice

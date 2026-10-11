@@ -1,0 +1,4 @@
+<resources>
+    <!-- Ban dac biet VIP (vip_only, khong quang cao) — ten rieng de phan biet khi cai song song -->
+    <string name="app_name">Bibot VIP</string>
+</resources>

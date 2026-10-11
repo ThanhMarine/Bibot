@@ -1,0 +1,11 @@
+# May dev / secret — KHONG commit
+local.properties
+*.keystore
+# Build outputs
+build/
+app/build/
+.gradle/
+captures/
+# VIP: secret + batch ma (chi giu ban sao ngoai repo)
+vip_*.csv
+vip_*.txt

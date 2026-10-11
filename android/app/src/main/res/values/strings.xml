@@ -1,0 +1,464 @@
+<resources>
+    <!-- Default locale = English (convention). Vietnamese lives in values-vi/. -->
+    <string name="app_name">Bibot</string>
+    <string name="persona">I\’m Bi</string>
+    <string name="language_title">Language / Ngôn ngữ</string>
+    <string name="language_system">Follow system</string>
+    <string name="language_vi">Tiếng Việt</string>
+    <string name="language_en">English</string>
+
+    <!-- Nav / modes -->
+    <string name="nav_home">Home</string>
+    <string name="nav_voice">Chat</string>
+    <string name="nav_book">EN Books</string>
+    <string name="nav_story">Storytelling</string>
+    <string name="nav_cotich">Fairy Tales</string>
+    <string name="nav_music">Music</string>
+    <string name="nav_weather">Weather</string>
+    <string name="nav_news">News</string>
+    <string name="nav_pdf">Documents</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_back_home">Back to home</string>
+    <string name="nav_author_note">Author\’s note</string>
+    <string name="dialog_close">Close</string>
+
+    <!-- Home lists -->
+    <string name="home_story_count">%1$d stories available</string>
+    <string name="home_story_empty">No stories yet. Sync the library in Settings or import a public URL.</string>
+    <string name="home_cotich_empty">No fairy tales yet. Add .txt/.md files to the Fairy Tales Drive folder, then Refresh.</string>
+
+    <!-- Reader chrome -->
+    <string name="reader_back">Back</string>
+    <string name="reader_play_tell">Tell</string>
+    <string name="reader_play_read">Read</string>
+    <string name="reader_pause">Pause</string>
+    <string name="reader_jump_back">Back %1$d sentences</string>
+    <string name="reader_jump_fwd">Forward %1$d sentences</string>
+    <string name="reader_pos">Chapter %1$d/%2$d • Sentence %3$d/%4$d</string>
+    <string name="reader_status_telling">Telling: %1$s — %2$d/%3$d</string>
+    <string name="reader_status_reading">Reading: %1$s — %2$d/%3$d</string>
+    <string name="reader_done_telling">Finished %1$s</string>
+    <string name="reader_done_reading">Finished reading %1$s</string>
+    <string name="reader_jump_chapter">Jump to chapter %1$d/%2$d — %3$s</string>
+    <string name="reader_jump_sentence">Jump to sentence %1$d</string>
+    <string name="reader_at_start_story">At the beginning of the story</string>
+    <string name="reader_at_start_book">At the beginning of the book</string>
+    <string name="reader_at_end">Already at the last chapter</string>
+    <string name="reader_loading_story">Loading story…</string>
+    <string name="reader_loading_book">Loading book…</string>
+    <string name="reader_downloading">Downloading file…</string>
+    <string name="reader_checking_progress">Checking progress…</string>
+    <string name="reader_cleaning">Reading &amp; cleaning text…</string>
+    <string name="reader_loaded">Loaded %1$d chapters • %2$d sentences</string>
+    <string name="reader_error">Error: %1$s</string>
+    <string name="reader_pdf_scanned">This PDF is a scanned/image file with no readable text (OCR not supported yet). Convert it to .md/.txt on PC to read it here.</string>
+    <string name="reader_epub_scanned">This EPUB contains only scanned images with no readable text (OCR not supported yet). Convert it to .md/.txt on PC to read it here.</string>
+
+    <!-- Book list -->
+    <string name="home_book_count">There are %1$d books in the Library</string>
+    <string name="book_section_en">English (%1$d)</string>
+    <string name="book_section_local">Downloaded / links (%1$d)</string>
+    <string name="book_refresh">Refresh</string>
+    <string name="book_scan_local">Scan local</string>
+    <string name="book_url_label">Paste PDF/MD/EPUB link</string>
+    <string name="book_download">Download</string>
+    <string name="book_read">Read</string>
+    <string name="book_enter_url_first">Enter a URL first</string>
+    <string name="book_downloading">Downloading…</string>
+    <string name="book_downloaded">Downloaded: %1$s</string>
+    <string name="book_download_done">Downloaded %1$s</string>
+    <string name="book_download_fail">Download failed: %1$s</string>
+    <string name="book_refreshed">Refreshed list: %1$d books</string>
+    <string name="book_scanned">Scanned local: %1$d files</string>
+    <string name="reader_loading_url">Loading…</string>
+    <string name="book_is_downloaded">Downloaded</string>
+    <string name="book_not_downloaded">Not downloaded</string>
+    <string name="book_delete">Delete</string>
+    <string name="set_hint">Tap to expand each group — collapsed by default.</string>
+    <string name="sec_ai">🤖 AI Chat</string>
+    <string name="sec_api">🔑 AI API &amp; Model</string>
+    <string name="sec_voice">🔉 Voice</string>
+    <string name="sec_models">📦 Offline models</string>
+    <string name="sec_books">📚 Library</string>
+    <string name="sec_data">🧹 App data</string>
+    <string name="sec_ads">🏷️ Ads &amp; Premium</string>
+    <string name="sec_vip">⭐ VIP Code</string>
+    <string name="sec_announce">📢 Announcements</string>
+    <string name="data_reset_sub">Reset settings to defaults</string>
+    <string name="books_sub_default">Audiobooks &amp; stories</string>
+    <string name="books_sub_count">%1$d books</string>
+    <string name="models_sub">%1$d/%2$d installed • %3$d MB free</string>
+    <string name="ai_sub">%1$s • %2$s • %3$d words</string>
+    <string name="api_sub_key">%1$s • key saved</string>
+    <string name="api_sub_free">%1$s • Bibot Free</string>
+    <string name="common_save">Save</string>
+    <string name="common_add">Add</string>
+    <string name="common_download">Download</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_default">Default</string>
+    <string name="common_collapse">Collapse</string>
+    <string name="common_expand">Expand</string>
+    <string name="common_preview">Preview:</string>
+    <string name="common_view_all">View all</string>
+    <string name="common_install_file">Install from file</string>
+    <string name="common_install_now">Install now</string>
+    <string name="common_opening">Opening…</string>
+    <string name="common_checking">Checking…</string>
+    <string name="common_deleting">Deleting…</string>
+    <string name="common_vip_code">VIP code</string>
+    <string name="common_redeem">Redeem code</string>
+    <string name="common_installed">Installed</string>
+    <string name="common_not_installed">Not installed</string>
+    <string name="common_advanced">Advanced options</string>
+    <string name="common_hide_advanced">Hide advanced options</string>
+    <string name="common_hide_singles">Hide single files</string>
+    <string name="api_gemini">Gemini API key (optional)</string>
+    <string name="api_openrouter">OpenRouter key (optional)</string>
+    <string name="api_cloud_key">Cloud TTS key (optional)</string>
+    <string name="api_hint_relay">Empty = free via relay</string>
+    <string name="api_empty_offline">Empty = Piper/offline</string>
+    <string name="api_save">Save API key</string>
+    <string name="api_saved">✓ API key saved</string>
+    <string name="api_removed">✓ Key removed — using Bibot Free</string>
+    <string name="set_tts_auto">Automatic (recommended)</string>
+    <string name="set_tts_offline">Prefer offline</string>
+    <string name="set_tts_online">Prefer cloud</string>
+    <string name="voice_priority">Voice priority</string>
+    <string name="voice_speed">Speech rate: %1$sx</string>
+    <string name="voice_stt">Offline STT (no network needed)</string>
+    <string name="voice_barge">Real-talk interruption</string>
+    <string name="voice_piper">Prefer Piper for books</string>
+    <string name="voice_piper_dl">Download Piper voice</string>
+    <string name="voice_engine_ok">Engine is ready.</string>
+    <string name="voice_engine_fail">Engine install failed.</string>
+    <string name="voice_engine_fail_net">Engine install failed (check network).</string>
+    <string name="voice_install_engine">Installing engine…</string>
+    <string name="voice_install_engine_file">Installing engine from file…</string>
+    <string name="voice_vi_ok">Vietnamese voice is ready.</string>
+    <string name="voice_vi_ok_json">Vietnamese voice is ready. (auto-fetches json)</string>
+    <string name="voice_vi_fail">Vietnamese voice install failed.</string>
+    <string name="voice_installing_vi">Installing Vietnamese voice…</string>
+    <string name="voice_installing_vi_file">Installing Vietnamese voice from file…</string>
+    <string name="voice_en_ok">English voice is ready.</string>
+    <string name="voice_en_ok_json">English voice is ready. (auto-fetches json)</string>
+    <string name="voice_en_fail">English voice install failed.</string>
+    <string name="voice_installing_en">Installing English voice…</string>
+    <string name="voice_installing_en_file">Installing English voice from file…</string>
+    <string name="voice_partial">Partially done (VI=%1$b, EN=%2$b).</string>
+    <string name="voice_both_ok">Done — Piper VI+EN ready.</string>
+    <string name="voice_installing_piper">Installing Piper…</string>
+    <string name="voice_installing_piper_pct">Installing Piper… %1$d%%</string>
+    <string name="voice_pick_engine">Engine (.tar.bz2)</string>
+    <string name="voice_pick_vi">VI voice (.onnx)</string>
+    <string name="voice_pick_en">EN voice (.onnx)</string>
+    <string name="voice_pick_espeak">Install espeak-ng-data (.zip)</string>
+    <string name="voice_espeak_ok">espeak-ng-data is ready.</string>
+    <string name="voice_espeak_fail">espeak-ng-data install failed.</string>
+    <string name="voice_installing_espeak">Installing espeak-ng-data…</string>
+    <string name="voice_installing_espeak_file">Installing espeak-ng-data from file…</string>
+    <string name="voice_need_file">Need file: %1$s</string>
+    <string name="voice_used_mb">Used: %1$d MB</string>
+    <string name="voice_pick_tip">Tip: downloads live in Download. If the picker hides files, tap ⋮ → Show internal storage / All files. Pick the right extension (.tar.bz2 / .onnx / .zip).</string>
+    <string name="voice_pick_from_file">Pick ’Install from file’ to install a model from device storage.</string>
+    <string name="voice_step2_optional">Step 2 (.json file) is optional — cancelling still installs.</string>
+    <string name="voice_picked_vi">Picked VI: %1$s</string>
+    <string name="voice_picked_en">Picked EN: %1$s</string>
+    <string name="voice_picked_onnx">picked .onnx file</string>
+    <string name="voice_no_file">file not found</string>
+    <string name="voice_err_piper">Piper install error: %1$s</string>
+    <string name="books_empty">No books. Tap ⟳ Sync or paste a link to add.</string>
+    <string name="books_search">Search library</string>
+    <string name="books_group_vi">🇻🇳 Stories (VI)</string>
+    <string name="books_add_link">Add book from link</string>
+    <string name="books_sync">⟳ Sync library</string>
+    <string name="books_syncing">Syncing library…</string>
+    <string name="books_synced">✓ Synced — %1$d books</string>
+    <string name="books_sync_fail">Sync failed: %1$s</string>
+    <string name="books_no_catalog">⚠ Could not load catalog (check network)</string>
+    <string name="books_delete_dl">🗑 Delete downloads</string>
+    <string name="books_deleting_dl">Deleting downloads…</string>
+    <string name="books_deleted_dl">✓ Removed %1$d downloads</string>
+    <string name="books_dl_one">✓ Downloaded %1$s</string>
+    <string name="books_del_one">✓ Deleted %1$s</string>
+    <string name="books_downloading">Downloading: %1$s…</string>
+    <string name="books_del_progress">Deleting: %1$s…</string>
+    <string name="books_fail_prefix">Failed: %1$s</string>
+    <string name="books_del_fail">Delete failed: %1$s</string>
+    <string name="books_drive_folder">Private Drive folder (optional)</string>
+    <string name="books_drive_saved">✓ Drive folder saved</string>
+    <string name="books_drive_save_fail">Could not save folder: %1$s</string>
+    <string name="books_signin">Sign in with Google</string>
+    <string name="books_signed_in">✓ Signed in as %1$s</string>
+    <string name="books_signin_fail">Sign-in failed or cancelled</string>
+    <string name="books_signin_err">Sign-in error: %1$s</string>
+    <string name="data_reset_all">Reset all settings</string>
+    <string name="data_confirm">Confirm reset?</string>
+    <string name="data_confirm_hint">Tap again to confirm — all settings return to defaults</string>
+    <string name="data_reset_done">✓ Settings reset</string>
+    <string name="data_restored">Defaults restored — tap Save to apply</string>
+    <string name="data_nobackup">Reinstalls do not restore old books/settings (backup is off).</string>
+    <string name="ads_sub">Watch ads for Cloud voice • VIP removes ads</string>
+    <string name="ads_cloud_left">Cloud voice left: %1$d chapters (max 9). Default: free machine voice.</string>
+    <string name="ads_no_ad">Cannot open ads on this device.</string>
+    <string name="ads_cooldown">An ad just played, come back in 30 minutes.</string>
+    <string name="ads_loading">Loading ad, tap again in a few seconds.</string>
+    <string name="ads_watch_btn">Watch 15s → 3 premium-voice chapters</string>
+    <string name="ads_reward_ok">Opened 3 premium-voice chapters.</string>
+    <string name="ads_reward_fail">Reward error, try again later.</string>
+    <string name="ads_vip_on">VIP is on — Cloud voice open, no ads needed.</string>
+    <string name="vip_sub">Enter a code to remove ads + open Cloud voice</string>
+    <string name="vip_free_hint">Free version has ads. Enter a VIP code to remove ads + open Cloud voice (needs your Cloud key).</string>
+    <string name="vip_life_on">Lifetime VIP is on — no ads + Cloud voice (needs key).</string>
+    <string name="vip_month_on">Monthly VIP active until %1$s — no ads + Cloud voice (needs key). Enter more codes to extend.</string>
+    <string name="vip_month_on_days">Monthly VIP until %1$s (%2$d days left) — no ads + Cloud voice (needs key). Enter more codes to extend.</string>
+    <string name="vip_used">This code was already redeemed on this device.</string>
+    <string name="vip_expired_back">VIP expired — back to Free version (ads on).</string>
+    <string name="vip_invalid">Invalid code: %1$s.</string>
+    <string name="vip_month_ok">Activated %1$d-month VIP — valid until %2$s.</string>
+    <string name="vip_life_ok">Lifetime VIP activated.</string>
+    <string name="vip_redeem_fail">Redemption failed, try again later.</string>
+    <string name="vip_checking">Checking…</string>
+    <string name="vip_placeholder">BIBOT-XXXXXX-XXXXXX-…</string>
+    <string name="announce_sub">News from the developer</string>
+    <string name="announce_empty">No announcements yet.</string>
+    <string name="api_use_free">Use Bibot Free</string>
+    <string name="set_persona">Persona</string>
+    <string name="set_template">Prompt template</string>
+    <string name="set_template_hint">Enter template…</string>
+    <string name="set_style">Style</string>
+    <string name="set_tone">Tone</string>
+    <string name="set_prompt_saved">✓ Prompt saved</string>
+    <string name="set_restored">Defaults restored — tap Save to apply</string>
+    <string name="set_downloading">Downloading %1$d%%</string>
+    <string name="set_unzipping">Extracting %1$d%%</string>
+    <string name="common_error">Error: %1$s</string>
+    <string name="voice_picked_lang">Picked %1$s: %2$s</string>
+    <string name="books_not_found">No \"%1$s\" found.</string>
+    <string name="books_group_en">🇺🋸 English books</string>
+    <string name="books_group_other">🌐 Others</string>
+    <string name="books_downloading_link">Downloading from link…</string>
+    <string name="books_added">✓ Added %1$s</string>
+    <string name="books_link_fail">Link failed: %1$s</string>
+    <string name="books_syncing_short">Syncing…</string>
+    <string name="reader_ad_resume">%1$s — reading resumes when the ad closes.</string>
+    <string name="nav_author_sign">— Bibot Author —</string>
+    <string name="announce_dismiss">Dismiss announcement</string>
+    <string name="news_hint">Tap a story to read it • ⟳ reads everything continuously (source shown on card only).</string>
+    <string name="news_fallback">⚠ %1$s is down — using backup source %2$s.</string>
+    <string name="news_pos_reading">Reading story %1$d/%2$d</string>
+    <string name="news_pos">Story %1$d/%2$d</string>
+    <string name="news_check_net">Check your connection, try another source or hit Refresh.</string>
+    <string name="news_empty">No news yet. Hit ‘Refresh’ or pick another source.</string>
+    <string name="news_cd_stop_all">Reading everything (tap to stop)</string>
+    <string name="news_cd_read_one">Read this story</string>
+    <string name="news_cd_stop">Stop reading</string>
+    <string name="news_cd_read_all">Read all stories</string>
+    <string name="news_prev">Previous story</string>
+    <string name="news_next">Next story</string>
+    <string name="news_badge">Reading</string>
+    <string name="news_unknown_err">Unknown error</string>
+    <string name="news_source">Source: %1$s%2$s</string>
+    <string name="news_load_fail">Could not load news from %1$s: %2$s</string>
+    <string name="news_cat_latest">Latest</string>
+    <string name="news_cat_current">Current affairs</string>
+    <string name="news_cat_world">World</string>
+    <string name="news_cat_business">Business</string>
+    <string name="news_cat_tech">Tech</string>
+    <string name="news_cat_ent">Entertainment</string>
+    <string name="news_cat_sports">Sports</string>
+    <string name="news_cat_law">Law</string>
+    <string name="news_cat_edu">Education</string>
+    <string name="news_cat_health">Health</string>
+    <string name="wx_read">Read weather</string>
+    <string name="wx_check_net">Check connection, then tap Refresh.</string>
+    <string name="wx_feels">%1$s • Feels like %2$d°C</string>
+    <string name="wx_details">Details</string>
+    <string name="wx_forecast_days">📅 %1$d-day forecast</string>
+    <string name="wx_precip">Rain %1$d%%</string>
+    <string name="wx_tap_refresh">Tap ‘Refresh’ to load weather.</string>
+    <string name="wx_dow_mon">Mon</string>
+    <string name="wx_dow_tue">Tue</string>
+    <string name="wx_dow_wed">Wed</string>
+    <string name="wx_dow_thu">Thu</string>
+    <string name="wx_dow_fri">Fri</string>
+    <string name="wx_dow_sat">Sat</string>
+    <string name="wx_dow_sun">Sun</string>
+    <string name="wx_err_noconn">No internet connection</string>
+    <string name="wx_err_noreach">Can’t reach the weather server</string>
+    <string name="wx_err_slow">Weather server is too slow</string>
+    <string name="wx_err_invalid">Invalid weather data</string>
+    <string name="wx_err_server">Weather server error: %1$s</string>
+    <string name="mus_granted">Permission granted — reloading the music library.</string>
+    <string name="mus_no_perm">No permission to read the music library: only files in the Bibot folder are visible.</string>
+    <string name="mus_playing_track">Playing in-app: %1$s</string>
+    <string name="mus_own_file">Bibot’s own file (outside apps can’t read it) → playing in-app: %1$s</string>
+    <string name="mus_opening">Opening “%1$s” in the default music app.</string>
+    <string name="mus_open_fail">Couldn’t open the default music app → playing in-app: %1$s</string>
+    <string name="mus_opened">Opened the default music app.</string>
+    <string name="mus_no_app">No default music app on this device — install YouTube Music / Samsung Music / Spotify.</string>
+    <string name="mus_type_first">Type a song name first.</string>
+    <string name="mus_no_perm_search">No permission to read the music library — tap “Allow” or search in the default music app.</string>
+    <string name="mus_not_found">Not found on this device — asking the default music app to search.</string>
+    <string name="mus_found">Found %1$d matches.</string>
+    <string name="mus_search_fail">Search failed: %1$s</string>
+    <string name="mus_sent">Sent “%1$s” to the default music app.</string>
+    <string name="mus_no_handler">No music app handles on-device search.</string>
+    <string name="mus_play">Play</string>
+    <string name="mus_find">Find</string>
+    <string name="mus_default_app">Default music app</string>
+    <string name="mus_tap_plays">Tapping play opens the device music app</string>
+    <string name="mus_inapp_player">Playing with Bibot’s in-app player</string>
+    <string name="mus_open_app">Open default music app</string>
+    <string name="mus_search_title">🔎 Find songs</string>
+    <string name="mus_title_author">Song / artist</string>
+    <string name="mus_library">📱 Music library (%1$d)</string>
+    <string name="mus_need_perm">Music library permission needed</string>
+    <string name="mus_perm_hint">To find songs on this device (MediaStore). Without it you can still hear files in the Bibot folder.</string>
+    <string name="mus_allow">Allow music access</string>
+    <string name="mus_empty">No music on this device. Copy .mp3/.m4a into files/bibot/music/ or use the outside default music app.</string>
+    <string name="mus_about">🎧 Songs on this device play in the default music app; Bibot’s own files play with ExoPlayer (shared with TTS).</string>
+    <string name="mus_cd_default">Play in default music app</string>
+    <string name="mus_cd_inapp">Play in Bibot app</string>
+    <string name="mus_match"> • matches %1$d%%</string>
+    <string name="mus_on_device"> • on device</string>
+    <string name="doc_sub">Add/remove documents to the bookstore, refresh the library. SAF + permission.</string>
+    <string name="doc_status">Bookstore: %1$d books | Storage: %2$d items</string>
+    <string name="doc_refresh_fail">Refresh failed: %1$s</string>
+    <string name="doc_scanned_tree">Scanned %1$d items from %2$s</string>
+    <string name="doc_scan_fail">Scan failed: %1$s</string>
+    <string name="doc_scanned_storage">Scanned %1$d items from storage</string>
+    <string name="doc_added">Added %1$s</string>
+    <string name="doc_added_to_books">✅ Added %1$s to Books</string>
+    <string name="doc_add_fail">Add failed: %1$s</string>
+    <string name="doc_removed">Deleted %1$s</string>
+    <string name="doc_adding">Adding to Books…</string>
+    <string name="doc_granted">Permission granted: %1$s</string>
+    <string name="doc_perm_granted_scan">Permission granted. Scanning…</string>
+    <string name="doc_need_perm">Need permission or use SAF.</string>
+    <string name="doc_search_storage">Search storage…</string>
+    <string name="doc_search_hint">File name, mime type…</string>
+    <string name="doc_folder_saf">Folder (SAF)</string>
+    <string name="doc_pick_file">Pick file</string>
+    <string name="doc_no_folder">No folder selected</string>
+    <string name="doc_books_title">📦 BOOKS (%1$d)</string>
+    <string name="doc_books_empty">Empty. Add files from storage below.</string>
+    <string name="doc_book_dl">✅ Downloaded</string>
+    <string name="doc_book_not">⏳ Not downloaded</string>
+    <string name="doc_delete">Delete</string>
+    <string name="doc_open">Open</string>
+    <string name="doc_more">…and %1$d more books</string>
+    <string name="doc_storage_title">📂 STORAGE (%1$d)</string>
+    <string name="doc_dirs">Folders (%1$d)</string>
+    <string name="doc_files">Files (%1$d)</string>
+    <string name="doc_in_books">✅ In Books</string>
+    <string name="doc_add_to_books">Add→Books</string>
+    <string name="doc_no_search">No “%1$s” in storage.</string>
+    <string name="doc_browse_hint">Pick an (SAF) folder to browse storage.</string>
+    <string name="pdf_hint_top">Pick a PDF on this device or use the 3 demo PDFs in EN Books. Demo uses on-device ML Kit (no key needed).</string>
+    <string name="pdf_copying">Copying PDF…</string>
+    <string name="pdf_added">Added %1$s (%2$d KB)</string>
+    <string name="pdf_picker_fail">Picker failed: %1$s</string>
+    <string name="pdf_converting">Converting %1$s…</string>
+    <string name="pdf_converted">Converted %1$s → %2$s (%3$d KB)</string>
+    <string name="pdf_convert_fail">Convert failed: %1$s</string>
+    <string name="pdf_build9">Build 9: on-device ML Kit for demo (no key), Document AI REST for official. Saves files/bibot/pdfs/outbox/*.md + Room PdfJob.</string>
+    <string name="pdf_pick">Pick PDF on device</string>
+    <string name="pdf_refreshed">Refreshed %1$d PDFs</string>
+    <string name="pdf_available">📥 Available PDFs (%1$d)</string>
+    <string name="pdf_source">Source: files/bibot/pdfs/inbox + books/en (3 demos). Tap Convert for Markdown.</string>
+    <string name="pdf_empty">No PDFs. Use the 3 EN demos or Pick PDF on device.</string>
+    <string name="pdf_demo_files">Demo: alice_adventures.pdf, pride_prejudice.pdf, sherlock.pdf (bundled &lt;10KB each)</string>
+    <string name="pdf_convert_btn">Convert</string>
+    <string name="pdf_md_done">📝 Converted Markdown (%1$d)</string>
+    <string name="pdf_md_saved">Saved at files/bibot/pdfs/outbox/*.md (standard Android, no permission needed).</string>
+    <string name="pdf_preview">Markdown preview (4000 chars):</string>
+    <string name="pdf_tip">Tip: after converting, open the .md in 📚 Books or share via exports/ (SAF). Document AI REST comes with a GCP project ID (Build 9 official).</string>
+<string name="mus_default_search">music</string>
+    <string name="mus_placeholder_example">Ex: Diễm Xưa Trịnh Công Sơn</string>
+    <string name="mus_search_default_app">Search &amp; play on default music app</string>
+
+    <!-- Help/Guide section -->
+    <string name="sec_help">Help &amp; Guide</string>
+    <string name="help_sub">STT/TTS offline setup, Google API keys, FAQ</string>
+    <string name="help_title_offline_stt">Offline STT Setup (Sherpa)</string>
+    <string name="help_offline_stt">
+        <![CDATA[
+        <b>Offline STT (Sherpa Zipformer)</b>\n
+        1. Vào Cài đặt → Mô hình offline → Sherpa STT VI Zipformer 30M\n
+        2. Bấm "Cài đặt" → Chờ tải (~30MB)\n
+        3. Chờ giải nén và xác nhận "Đã sẵn sàng"\n
+        4. Test: Vào màn Trò chuyện → Bấm mic → Nói thử\n\n
+        <b>Lưu ý:</b> Yêu cầu Android 8.0+. Mô hình ~30MB, chạy hoàn toàn offline.
+        ]]>
+    </string>
+    <string name="help_title_offline_tts">Offline TTS Setup (Piper)</string>
+    <string name="help_offline_tts">
+        <![CDATA[
+        <b>Offline TTS (Piper)</b>\n
+        1. Vào Cài đặt → Mô hình offline → Piper TTS VI/EN\n
+        2. Bấm "Cài đặt" → Tải model (~50-100MB tùy giọng)\n
+        3. Chờ giải nén → Kiểm tra "Đã sẵn sàng"\n
+        4. Vào Cài đặt → Giọng đọc → Chọn "Ưu tiên Offline"\n\n
+        <b>Giọng khuyến nghị:</b> VI (vi_VN), EN (en_US Lessac)
+        ]]>
+    </string>
+    <string name="help_title_cloud_api">Cloud API Keys (Gemini / OpenRouter / Cloud TTS)</string>
+    <string name="help_cloud_api">
+        <![CDATA[
+        <b>Cách tạo API Key miễn phí:</b>\n\n
+        <b>Gemini (Google AI Studio):</b>\n
+        1. Truy cập <a href="https://aistudio.google.com">aistudio.google.com</a>\n
+        2. Đăng nhập bằng tài khoản Google\n
+        3. Get API Key → Create API key → Copy\n
+        4. Dán vào Cài đặt → API & Model → Gemini API Key\n\n
+        <b>OpenRouter (Free models):</b>\n
+        1. Đăng ký <a href="https://openrouter.ai">openrouter.ai</a>\n
+        2. Keys → Create Key → Copy\n
+        3. Dán vào Cài đặt → API & Model → OpenRouter Key\n\n
+        <b>Cloud TTS (Google Cloud):</b>\n
+        1. Tạo project trên <a href="https://console.cloud.google.com">Google Cloud Console</a>\n
+        2. Enable "Cloud Text-to-Speech API"\n
+        3. IAM → Service Accounts → Create Key (JSON)\n
+        4. Dán nội dung JSON vào Cài đặt → API & Model → Cloud TTS Key\n\n
+        <b>Lưu ý:</b> Free tier có giới hạn. Khuyến nghị dùng Offline TTS (Piper) để tiết kiệm.
+        ]]>
+    </string>
+    <string name="help_title_offline_model">Offline Models (Sherpa STT / Piper TTS)</string>
+    <string name="help_offline_model">
+        <![CDATA[
+        <b>Cài đặt mô hình offline:</b>\n
+        1. Cài đặt → Mô hình offline\n
+        2. Chọn mô hình cần cài → Bấm "Cài đặt"\n
+        3. Chờ tải xuống + giải nén (có thể vài phút)\n
+        4. Kiểm tra: Mô hình hiển thị "Đã sẵn sàng" hoặc ✓\n\n
+        <b>Mẹo:</b> Dùng WiFi, đảm bảo dung lượng trống > 2GB
+        ]]>
+    </string>
+    <string name="help_title_faq">Câu hỏi thường gặp (FAQ)</string>
+    <string name="help_faq">
+        <![CDATA[
+        <b>Q: TTS offline không phát được?</b>\n
+        A: Kiểm tra Cài đặt → Giọng đọc → Đã chọn "Ưu tiên Offline"? Model đã "Đã sẵn sàng"?\n\n
+        <b>Q: STT không nhận diện giọng?</b>\n
+        A: Kiểm tra mic có quyền, nói to rõ ràng, thử Offline STT (Sherpa).\n\n
+        <b>Q: App bị đóng khi đọc sách dài?</b>\n
+        A: Bật "Giữ màn hình sáng" trong Cài đặt → Dữ liệu. Tắt tối ưu pin cho Bibot.\n\n
+        <b>Q: Không thấy sách vừa tải?</b>\n
+        A: Bấm "Làm mới" ở màn hình Kho sách. Kiểm tra folder Drive có public.\n\n
+        <b>Q: Muốn đổi ngôn ngữ giao diện?</b>\n
+        A: Cài đặt → Ngôn ngữ → Chọn Tiếng Việt / English / Theo máy.
+        ]]>
+    </string>
+    <string name="help_title_contact">Liên hệ &amp; Phản hồi</string>
+    <string name="help_contact"><![CDATA[
+        <b>Feedback / Bug reports:</b>\n\n
+        Aden Nguyen (admin)\n\n
+        Email: <a href="mailto:bibotvadmin@gmail.com">bibotvadmin@gmail.com</a>
+        ]]>
+    </string>
+    <string name="help_section_title">Hướng dẫn sử dụng</string>
+    <string name="help_section_sub">Cài đặt Offline STT/TTS, API Keys, FAQ</string>
+</resources>

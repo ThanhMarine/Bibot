@@ -1,0 +1,50 @@
+# bibot-relay — 2.6.4 (phía bạn: deploy 1 lần)
+
+Relay free cho user không `GEMINI_API_KEY`. Key nằm ở Secret Manager,
+không bao giờ vào APK.
+
+## 1. Deploy lên Cloud Run (free tier)
+
+```bash
+cd relay
+# Build + push (thay PROJECT_ID)
+gcloud builds submit --tag gcr.io/PROJECT_ID/bibot-relay .
+gcloud run deploy bibot-relay \
+  --image gcr.io/PROJECT_ID/bibot-relay \
+  --platform managed --region asia-southeast1 \
+  --allow-unauthenticated \
+  --set-secrets GEMINI_API_KEY=bibot-gemini-key:latest \
+  --max-instances 1 --memory 256Mi
+```
+
+Tạo secret trước 1 lần:
+
+```bash
+echo -n "AIza..." | gcloud secrets create bibot-gemini-key --data-file=-
+```
+
+## 2. Test
+
+```bash
+curl -N -X POST https://bibot-relay-xxx.a.run.app/v1/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"mấy giờ rồi?","system":"Em là Bi","deviceId":"test-1"}'
+curl https://bibot-relay-xxx.a.run.app/healthz
+```
+
+## 3. Nối app
+
+Điền URL vào `android/app/build.gradle.kts`:
+
+```kotlin
+buildConfigField("String", "BIBOT_LLM_PROXY_URL", "\"https://bibot-relay-xxx.a.run.app\"")
+```
+
+Build lại 2 flavor → user để trống key sẽ thấy
+“Dùng Bibot Free (20 tin/ngày via relay)”.
+
+## 4. Giới hạn bản này
+
+- Rate-limit in-memory (restart container reset đếm) — quota tập trung
+  `2.5-flash-lite` free cao nên đủ dùng; production thay bằng Firestore/Redis.
+- Phạm vi relay: **LLM chat**. TTS key vẫn nằm trên máy theo `ttsPriority`.

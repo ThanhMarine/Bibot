@@ -1,0 +1,33 @@
+Đã tạo thành công đơn vị quảng cáo
+Các đơn vị quảng cáo mới có thể mất tới 1 giờ để bắt đầu hiển thị quảng cáo. Bạn muốn kiểm tra bằng đơn vị quảng cáo mẫu trong khi chờ đợi?
+Tiếp theo, hãy đặt đơn vị quảng cáo bên trong ứng dụng của bạn
+Hãy thực hiện theo các hướng dẫn sau:
+Hoàn thành hướng dẫn trong hướng dẫn SDK quảng cáo trên thiết bị di động của Google bằng cách sử dụng ID ứng dụng này:
+com.bibot.appca-app-pub-2478233272401556~3883137708
+Thực hiện theo hướng dẫn triển khai cho biểu ngữ để tích hợp SDK. Bạn sẽ chỉ định loại quảng cáo, kích thước và vị trí đặt khi tích hợp mã bằng cách sử dụng ID đơn vị quảng cáo này:
+Bibot Bannerca-app-pub-2478233272401556/2757758291
+Xem lại chính sách AdMob để đảm bảo việc triển khai của bạn tuân thủ chính sách.
+
+------------------
+
+Đã tạo thành công đơn vị quảng cáo
+Các đơn vị quảng cáo mới có thể mất tới 1 giờ để bắt đầu hiển thị quảng cáo. Bạn muốn kiểm tra bằng đơn vị quảng cáo mẫu trong khi chờ đợi?
+Tiếp theo, hãy đặt đơn vị quảng cáo bên trong ứng dụng của bạn
+Hãy thực hiện theo các hướng dẫn sau:
+Hoàn thành hướng dẫn trong hướng dẫn SDK quảng cáo trên thiết bị di động của Google bằng cách sử dụng ID ứng dụng này:
+com.bibot.appca-app-pub-2478233272401556~3883137708
+Thực hiện theo hướng dẫn triển khai cho quảng cáo xen kẽ để tích hợp SDK. Bạn sẽ chỉ định loại quảng cáo và vị trí đặt khi tích hợp mã bằng cách sử dụng ID đơn vị quảng cáo này:
+Bibot Ngat phaca-app-pub-2478233272401556/7543181110
+Xem lại chính sách AdMob để đảm bảo việc triển khai của bạn tuân thủ chính sách.
+
+-----------------------
+
+Đã tạo thành công đơn vị quảng cáo
+Các đơn vị quảng cáo mới có thể mất tới 1 giờ để bắt đầu hiển thị quảng cáo. Bạn muốn kiểm tra bằng đơn vị quảng cáo mẫu trong khi chờ đợi?
+Tiếp theo, hãy đặt đơn vị quảng cáo bên trong ứng dụng của bạn
+Hãy thực hiện theo các hướng dẫn sau:
+Hoàn thành hướng dẫn trong hướng dẫn SDK quảng cáo trên thiết bị di động của Google bằng cách sử dụng ID ứng dụng này:
+com.bibot.appca-app-pub-2478233272401556~3883137708
+Thực hiện theo hướng dẫn triển khai cho quảng cáo có tặng thưởng để tích hợp SDK. Bạn sẽ chỉ định loại quảng cáo và vị trí đặt khi tích hợp mã bằng cách sử dụng ID đơn vị quảng cáo này:
+Bibot Doi thuongca-app-pub-2478233272401556/5171420211
+Xem lại chính sách AdMob để đảm bảo việc triển khai của bạn tuân thủ chính sách.
