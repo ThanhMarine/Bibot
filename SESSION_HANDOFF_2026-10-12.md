@@ -47,7 +47,7 @@
 - G1 (giả thuyết race sai — nguyên nhân thật ở B3.6), G2/G3.1 (xong ở D6/D7, giữ nợ nhỏ),
   A2.1/A2.3/F0.1/H0/H1/D5.2/D6.4/B6.6/D4.1 (refs file đã xóa + số liệu mới).
 
-## 2. Trạng thái repo (CHƯA COMMIT — engineered, đừng commit bừa)
+## 2. Trạng thái repo (ĐÃ COMMIT `15c8911` cuối phiên — tree sạch)
 
 - Thay đổi của phiên này: `Checklist`, `tools/rules/*` (ruler/json/authoring),
   `internal/rules/*`, `internal/tts/tts.go`, `core/text/{ReadingRules,TextCleaner,
