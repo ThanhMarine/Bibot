@@ -21,7 +21,7 @@ object PrefKeys {
     val PERSONA = stringPreferencesKey("persona") // "Em là Bi"
     val BOT_PROMPT = stringPreferencesKey("bot_prompt") // template tuỳ biến, chứa {{persona}} {{datetime}}
     val BOT_STYLE = stringPreferencesKey("bot_style") // friendly/formal/humorous/concise
-    val BOT_TONE = stringPreferencesKey("bot_tone") // warm/professional/playful
+    val BOT_TONE = stringPreferencesKey("bot_tone") // warm/professional/playful/concise
     val BOT_MAX_WORDS = intPreferencesKey("bot_max_words") // 30
     val GEMINI_MODEL = stringPreferencesKey("gemini_model")
     val TTS_PRIORITY = stringPreferencesKey("tts_priority") // auto/offline/online
@@ -44,7 +44,16 @@ object PrefKeys {
     val SEEN_ANNOUNCE_IDS = stringPreferencesKey("seen_announce_ids")
     // B6.3: popup hint điều hướng chạm ở màn đọc — hiện 1 lần mỗi máy
     val READER_HINT_SEEN = booleanPreferencesKey("reader_hint_seen")
+    // A2.3: Snap config — font size, interline, paragraph margin (ReadEra eraepub values)
+    val READER_FONT_SIZE_SP = floatPreferencesKey("reader_font_size_sp") // 16sp default
+    val READER_INTERLINE = floatPreferencesKey("reader_interline") // 1.2 default
+    val READER_PARAGRAPH_MARGIN = floatPreferencesKey("reader_paragraph_margin") // 8dp default
 }
+
+// A2.3: Allowed values from ReadEra eraepub
+val ALLOWED_FONT_SIZES = floatArrayOf(10f, 11f, 12f, 13f, 14f, 15f, 16f, 17f, 18f, 19f, 20f, 22f, 24f, 26f, 28f, 30f)
+val ALLOWED_INTERLINES = floatArrayOf(1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.8f, 2.0f)
+val ALLOWED_PARAGRAPH_MARGINS = floatArrayOf(0f, 2f, 4f, 6f, 8f, 10f, 12f, 14f, 16f, 18f, 20f, 24f)
 
 data class BibotPrefs(
     val persona: String = "Em là Bi",
@@ -65,7 +74,11 @@ data class BibotPrefs(
     val ttsOfflineFallback: Boolean = true,
     val theme: String = "system",
     val language: String = "system",
-    val readerHintSeen: Boolean = false
+    val readerHintSeen: Boolean = false,
+    // A2.3: Snap config
+    val readerFontSizeSp: Float = 16f,
+    val readerInterline: Float = 1.2f,
+    val readerParagraphMargin: Float = 8f
 )
 
 class BibotPreferences(private val context: Context) {
@@ -89,7 +102,11 @@ class BibotPreferences(private val context: Context) {
             ttsOfflineFallback = p[PrefKeys.TTS_OFFLINE_FALLBACK] ?: true,
             theme = p[PrefKeys.THEME] ?: "system",
             language = p[PrefKeys.LANGUAGE] ?: "system",
-            readerHintSeen = p[PrefKeys.READER_HINT_SEEN] ?: false
+            readerHintSeen = p[PrefKeys.READER_HINT_SEEN] ?: false,
+            // A2.3: Snap config
+            readerFontSizeSp = p[PrefKeys.READER_FONT_SIZE_SP] ?: 16f,
+            readerInterline = p[PrefKeys.READER_INTERLINE] ?: 1.2f,
+            readerParagraphMargin = p[PrefKeys.READER_PARAGRAPH_MARGIN] ?: 8f
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }
@@ -110,6 +127,9 @@ class BibotPreferences(private val context: Context) {
     suspend fun setLanguage(v: String) { context.bibotDataStore.edit { it[PrefKeys.LANGUAGE] = v } }
     // B6.3: đã hiện popup hint điều hướng chạm (1 lần mỗi máy)
     suspend fun setReaderHintSeen() { context.bibotDataStore.edit { it[PrefKeys.READER_HINT_SEEN] = true } }
+    suspend fun setReaderFontSizeSp(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_FONT_SIZE_SP] = v } }
+    suspend fun setReaderInterline(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_INTERLINE] = v } }
+    suspend fun setReaderParagraphMargin(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_PARAGRAPH_MARGIN] = v } }
 
     // API keys lưu EncryptedSharedPreferences nếu cần; ở đây lưu DataStore + backupRules exclude
     suspend fun setGeminiKey(v: String) { context.bibotDataStore.edit { it[PrefKeys.GEMINI_API_KEY] = v } }

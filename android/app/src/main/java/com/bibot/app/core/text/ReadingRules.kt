@@ -1,11 +1,12 @@
 package com.bibot.app.core.text
 
 import android.content.Context
-import org.json.JSONObject
 
 /**
- * H0/H1 Reading Rules — rulepack `tools/rules/reading-rules.json` (sinh từ `.ruler`,
- * KHÔNG sửa tay). Engine chạy rewrite theo priority + drop_line/start_marker theo dòng.
+ * H0/H1/H2 Reading Rules — rulepack `tools/rules/reading-rules.json` (sinh từ `.ruler`,
+ * KHÔNG sửa tay). Engine chạy rewrite theo priority + drop_line/start_marker theo dòng
+ * + split_guard params cho chunker. Entry reuse duy nhất: `init()` 1 lần ở Application,
+ * rồi `applyIfReady/isDropLineReady/isStartMarkerReady/chunkGuard()` ở mọi caller.
  *
  * 0 lib mới (org.json có sẵn). Ngữ nghĩa hook/template Y HỆT `compile_rules.py`:
  * `{N}` nguyên văn | `{day:N}` (1-10 có "mùng") | `{month:N}` | `{year:N}` |
@@ -20,13 +21,25 @@ object ReadingRules {
         val lang: List<String>,
         val priority: Int,
         val patterns: List<Regex>,
-        val template: String = ""
+        val template: String = "",
+        /** Tham số flat string cho kind split_guard (không regex) — 0 dep. */
+        val params: Map<String, String> = emptyMap()
+    )
+
+    /** Guard chunker đọc từ rule split_guard (fallback = hành vi cứng VietnameseChunker). */
+    data class ChunkGuard(
+        val bracketsOpen: String = "([{",
+        val bracketsClose: String = ")]}",
+        val quotes: String = "\"“”",
+        val citeAbbrev: Set<String> = emptySet(),
+        val overrunWords: Int = 8,
+        val overrunCharsMult: Int = 2
     )
 
     @Volatile
     private var cached: List<Rule>? = null
 
-    /** Nạp 1 lần từ assets, cache RAM (JSON pilot ~1KB, trần 30KB). */
+    /** Nạp 1 lần từ assets, cache RAM (JSON v2 ~5KB, trần 30KB). */
     fun load(context: Context): List<Rule> {
         cached?.let { return it }
         val rules = try {
@@ -39,40 +52,234 @@ object ReadingRules {
         return rules
     }
 
-    /** Parse thuần (không cần Context) — để test + preview. */
+    /** Entry reuse duy nhất: gọi 1 lần ở Application.onCreate (rẻ, ~ms, try/catch). */
+    fun init(context: Context): List<Rule> = load(context)
+
+    /** True nếu rulepack đã nạp xong (sẵn sàng reuse). */
+    fun isReady(): Boolean = cached != null
+
+    /** Rewrite qua ruler nếu đã init, chưa thì trả nguyên (caller chạy code cứng tiếp). */
+    fun applyIfReady(text: String, lang: String = "vi"): String {
+        val rules = cached ?: return text
+        if (text.isEmpty()) return text
+        return try { apply(text, lang, rules) } catch (_: Exception) { text }
+    }
+
+    /** Bỏ dòng qua ruler nếu đã init, chưa thì null (caller fallback code cứng). */
+    fun isDropLineReady(line: String, lang: String = "vi"): Boolean? {
+        val rules = cached ?: return null
+        return try { isDropLine(line, lang, rules) } catch (_: Exception) { null }
+    }
+
+    /** Mốc vào sách qua ruler nếu đã init, chưa thì null (caller fallback code cứng). */
+    fun isStartMarkerReady(text: String, lang: String = "vi"): Boolean? {
+        val rules = cached ?: return null
+        return try { isStartMarker(text, lang, rules) } catch (_: Exception) { null }
+    }
+
+    /** Guard chunker từ rule split_guard (chưa init → default hành vi cứng). */
+    fun chunkGuard(): ChunkGuard {
+        val rules = cached ?: return ChunkGuard()
+        val r = rules.firstOrNull { it.kind == "split_guard" } ?: return ChunkGuard()
+        val p = r.params
+        return ChunkGuard(
+            bracketsOpen = p["brackets_open"] ?: "([{",
+            bracketsClose = p["brackets_close"] ?: ")]}",
+            quotes = p["quotes"] ?: "\"“”",
+            citeAbbrev = p["cite_abbrev"]?.split(Regex("\\s+"))?.filter { it.isNotEmpty() }?.toSet() ?: emptySet(),
+            overrunWords = p["overrun_words"]?.toIntOrNull() ?: 8,
+            overrunCharsMult = p["overrun_chars_mult"]?.toIntOrNull() ?: 2
+        )
+    }
+
+    /**
+     * Parse thuần (không cần Context) — để test + preview. KHÔNG dùng org.json
+     * (stub Android crash trên JVM thường) mà parser tối thiểu dưới đây — đủ cho
+     * schema cố định do compile_rules.py sinh (object/array/string/int), 0 dep.
+     */
     fun parse(json: String): List<Rule> {
         val out = ArrayList<Rule>()
-        val arr = JSONObject(json).optJSONArray("rules") ?: return emptyList()
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
+        val root = try { MiniJson.parse(json) as? Map<*, *> } catch (_: Exception) { return emptyList() }
+            ?: return emptyList()
+        val arr = root["rules"] as? List<*> ?: return emptyList()
+        for ((i, item) in arr.withIndex()) {
+            val o = item as? Map<*, *> ?: continue
+            fun str(key: String): String = o[key] as? String ?: ""
             val patterns = ArrayList<Regex>()
-            o.optString("pattern", "").ifBlank { null }?.let {
+            str("pattern").ifBlank { null }?.let {
                 try { patterns.add(Regex(it)) } catch (_: Exception) { /* pattern hỏng → bỏ rule */ }
             }
-            val pa = o.optJSONArray("patterns")
-            if (pa != null) {
-                for (j in 0 until pa.length()) {
-                    try { patterns.add(Regex(pa.getString(j))) } catch (_: Exception) { }
+            (o["patterns"] as? List<*>)?.forEach { p ->
+                (p as? String)?.let {
+                    try { patterns.add(Regex(it)) } catch (_: Exception) { }
                 }
             }
-            if (patterns.isEmpty()) continue
-            fun strs(key: String): List<String> {
-                val a = o.optJSONArray(key) ?: return emptyList()
-                return (0 until a.length()).mapNotNull { runCatching { a.getString(it) }.getOrNull() }
-            }
+            val kind = str("kind")
+            // split_guard không có pattern (chỉ params) — vẫn giữ rule.
+            if (patterns.isEmpty() && kind != "split_guard") continue
+            fun strs(key: String): List<String> =
+                ((o[key] as? List<*>) ?: emptyList<Any>())
+                    .mapNotNull { it as? String }
+            val params = try {
+                ((o["params"] as? Map<*, *>) ?: emptyMap<Any, Any>())
+                    .mapNotNull { (k, v) ->
+                        val ks = k as? String ?: return@mapNotNull null
+                        val vs = v as? String ?: return@mapNotNull null
+                        ks to vs
+                    }.toMap()
+            } catch (_: Exception) { emptyMap<String, String>() }
             out.add(
                 Rule(
-                    id = o.optString("id", "rule-$i"),
-                    kind = o.optString("kind", ""),
+                    id = str("id").ifBlank { "rule-$i" },
+                    kind = kind,
                     scope = strs("scope"),
                     lang = strs("lang"),
-                    priority = o.optInt("priority", 0),
+                    priority = (o["priority"] as? Long)?.toInt() ?: 0,
                     patterns = patterns,
-                    template = o.optString("template", "")
+                    template = str("template"),
+                    params = params
                 )
             )
         }
         return out.sortedWith(compareBy({ it.priority }, { it.id }))
+    }
+
+    /**
+     * Parser JSON tối thiểu cho schema rulepack (object/array/string/số nguyên/
+     * true/false/null). Không thay thế parser tổng quát — chỉ đủ cho file do
+     * compile_rules.py sinh. Lỗi cú pháp → IllegalArgumentException.
+     */
+    internal object MiniJson {
+        fun parse(s: String): Any? {
+            val p = Parser(s)
+            p.ws()
+            val v = p.value()
+            p.ws()
+            if (p.pos != s.length) throw IllegalArgumentException("trailing at ${p.pos}")
+            return v
+        }
+
+        private class Parser(val s: String) {
+            var pos = 0
+            fun ws() { while (pos < s.length && s[pos] in " \t\r\n") pos++ }
+            fun value(): Any? {
+                if (pos >= s.length) throw IllegalArgumentException("eof")
+                return when (s[pos]) {
+                    '{' -> obj()
+                    '[' -> arr()
+                    '"' -> str()
+                    't' -> lit("true", true)
+                    'f' -> lit("false", false)
+                    'n' -> lit("null", null)
+                    else -> num()
+                }
+            }
+            fun lit(word: String, v: Any?): Any? {
+                if (!s.startsWith(word, pos)) throw IllegalArgumentException("bad literal at $pos")
+                pos += word.length
+                return v
+            }
+            fun obj(): Map<String, Any?> {
+                pos++ // {
+                val m = LinkedHashMap<String, Any?>()
+                ws()
+                if (pos < s.length && s[pos] == '}') { pos++; return m }
+                while (true) {
+                    ws()
+                    if (pos >= s.length || s[pos] != '"') throw IllegalArgumentException("key at $pos")
+                    val k = str()
+                    ws()
+                    if (pos >= s.length || s[pos] != ':') throw IllegalArgumentException("colon at $pos")
+                    pos++
+                    ws()
+                    m[k] = value()
+                    ws()
+                    if (pos >= s.length) throw IllegalArgumentException("eof in obj")
+                    if (s[pos] == '}') { pos++; return m }
+                    if (s[pos] != ',') throw IllegalArgumentException("comma at $pos")
+                    pos++
+                }
+            }
+            fun arr(): List<Any?> {
+                pos++ // [
+                val l = ArrayList<Any?>()
+                ws()
+                if (pos < s.length && s[pos] == ']') { pos++; return l }
+                while (true) {
+                    ws()
+                    l.add(value())
+                    ws()
+                    if (pos >= s.length) throw IllegalArgumentException("eof in arr")
+                    if (s[pos] == ']') { pos++; return l }
+                    if (s[pos] != ',') throw IllegalArgumentException("comma at $pos")
+                    pos++
+                }
+            }
+            fun str(): String {
+                pos++ // "
+                val sb = StringBuilder()
+                while (true) {
+                    if (pos >= s.length) throw IllegalArgumentException("eof in str")
+                    val c = s[pos++]
+                    if (c == '"') return sb.toString()
+                    if (c != '\\') { sb.append(c); continue }
+                    if (pos >= s.length) throw IllegalArgumentException("eof in esc")
+                    when (val e = s[pos++]) {
+                        '"', '\\', '/' -> sb.append(e)
+                        'b' -> sb.append('\b')
+                        'f' -> sb.append('\u000C')
+                        'n' -> sb.append('\n')
+                        'r' -> sb.append('\r')
+                        't' -> sb.append('\t')
+                        'u' -> {
+                            if (pos + 4 > s.length) throw IllegalArgumentException("bad \\u at $pos")
+                            var cp = s.substring(pos, pos + 4).toInt(16)
+                            pos += 4
+                            // Cặp surrogate UTF-16 → 1 codepoint.
+                            if (cp in 0xD800..0xDBFF && pos + 6 <= s.length &&
+                                s[pos] == '\\' && s[pos + 1] == 'u'
+                            ) {
+                                val lo = s.substring(pos + 2, pos + 6).toInt(16)
+                                if (lo in 0xDC00..0xDFFF) {
+                                    cp = 0x10000 + ((cp - 0xD800) shl 10) + (lo - 0xDC00)
+                                    pos += 6
+                                }
+                            }
+                            sb.appendCodePoint(cp)
+                        }
+                        else -> throw IllegalArgumentException("bad escape \\$e")
+                    }
+                }
+            }
+            fun num(): Long {
+                val start = pos
+                if (pos < s.length && s[pos] == '-') pos++
+                while (pos < s.length && s[pos].isDigit()) pos++
+                if (pos < s.length && s[pos] == '.') {
+                    pos++
+                    while (pos < s.length && s[pos].isDigit()) pos++
+                }
+                if (pos < s.length && (s[pos] == 'e' || s[pos] == 'E')) {
+                    pos++
+                    if (pos < s.length && (s[pos] == '+' || s[pos] == '-')) pos++
+                    while (pos < s.length && s[pos].isDigit()) pos++
+                }
+                val raw = s.substring(start, pos)
+                // Schema chỉ dùng số nguyên (version/priority) — phần thập phân cắt bỏ.
+                return raw.substringBefore('.').substringBefore('e').substringBefore('E')
+                    .toLongOrNull() ?: throw IllegalArgumentException("bad num $raw")
+            }
+        }
+
+        private fun StringBuilder.appendCodePoint(cp: Int): StringBuilder {
+            if (cp < 0x10000) { append(cp.toChar()); return this }
+            var v = cp - 0x10000
+            val lo = (v and 0x3FF) + 0xDC00
+            val hi = (v ushr 10) + 0xD800
+            append(hi.toChar())
+            append(lo.toChar())
+            return this
+        }
     }
 
     private fun matchLang(r: Rule, lang: String) = r.lang.isEmpty() || lang in r.lang

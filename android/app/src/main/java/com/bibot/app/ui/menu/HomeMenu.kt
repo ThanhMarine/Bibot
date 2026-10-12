@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -77,10 +79,29 @@ fun HomeMenu(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
     ) {
-        // Header gọn: chỉ giữ khoảng đệm trên, không còn Hero "Trò chuyện cùng AI"
-        // vì foot bar đã đảm nhiệm (tránh nút to trùng nhiệm vụ).
+        // Header Home: tên app + Mic (voice) + Settings — thay bottom-bar ở Home
+        // (B6: Home không cần nút Home; Mic/Setting tích hợp ở đây).
         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                if (BuildConfig.ENABLE_VOICE) {
+                    IconButton(onClick = { onModeSelected(BibotMode.VOICE) }, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.nav_voice))
+                    }
+                }
+                IconButton(onClick = { onModeSelected(BibotMode.SETTINGS) }, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
+                }
+            }
         }
 
         // Banner thong bao NPT (pull JSON, co badge tin chua xem) — tu an khi khong co tin

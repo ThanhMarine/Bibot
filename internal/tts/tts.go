@@ -37,7 +37,9 @@ var (
 	degreeLoneRe = regexp.MustCompile(`°`)
 	digitDegreeRe = regexp.MustCompile(`(?i)(\d)\s*(độ)`)
 	// Số La Mã sau từ khóa (Go giữ chữ số cho engine đọc: "Chương X" -> "Chương 10").
-	romanSingleRe = regexp.MustCompile(`(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)\b`)
+	// Đuôi ([^...]|$) thay \b trần (parity ruler roman.single): chặn tái-match "m"
+	// trong output của range ("mười…" — \b ASCII coi "m|ư" là biên). Giữ sub[3] nguyên.
+	romanSingleRe = regexp.MustCompile(`(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)([^A-Za-z0-9À-ɏḀ-ỹ]|$)`)
 	romanRangeRe  = regexp.MustCompile(`(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)\s*[-–—_]\s*([IVXLCDM]+)\b`)
 	validRomanRe  = regexp.MustCompile(`^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$`)
 	splitUpperLowerRe = regexp.MustCompile("\\b([A-ZÀÁẠẢÃĂẰẮẶẲẴẦẤẬẨẪÈÉẸẺẼỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨỪỨỰỬỮỲÝỴỶỸĐ]) ([a-zàáạảãăằắặẳẵầấậẩẫèéẹẻẽềếệểễìíịỉĩòóọỏõồốộổỗơờớợởỡùúụủũừứựửữỳýỵỷỹđ])")
@@ -253,14 +255,14 @@ func readRomanGo(s string) string {
 	})
 	return romanSingleRe.ReplaceAllStringFunc(s, func(m string) string {
 		sub := romanSingleRe.FindStringSubmatch(m)
-		if len(sub) < 3 {
+		if len(sub) < 4 {
 			return m
 		}
 		v := romanToIntGo(sub[2])
 		if v < 0 {
 			return m
 		}
-		return fmt.Sprintf("%s %d", sub[1], v)
+		return fmt.Sprintf("%s %d%s", sub[1], v, sub[3])
 	})
 }
 

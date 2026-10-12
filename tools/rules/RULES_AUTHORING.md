@@ -49,3 +49,22 @@ Commit cả 2 file `.ruler` + `.json` (JSON là artifact có version, review đ�
 - Không nhét logic locale vào ruler; cần tính toán mới thì thêm **hook tên sẵn**
   (cài 1 lần ở 3 engine, tài liệu ở đây) thay vì regex mẹo.
 - `version` tăng mỗi lần đổi hành vi; `checksum` do script tự tính — không sửa tay file `.json`.
+- Params của `split_guard` để **flat string** (VD `cite_abbrev: 'fig no ...'`,
+  số cũng viết dạng string `'8'`) để loader Kotlin/Go nhẹ (0 dep, chỉ Map).
+- Cái gì KHÔNG ép được vào giao 3 engine (VD lookahead như `readPageNumbers`,
+  vòng khối chỉ-bỏ-số-trang) thì GIỮ code + ghi `note:` lý do — không ép.
+
+## 4. Quy trình publish 1 bản rule mới (v2+)
+
+1. Sửa `.ruler` (tăng `version` nếu đổi hành vi) → chạy
+   `python tools/rules/compile_rules.py` (phải `tests pass`, JSON sinh lại +
+   mirror sang `internal/rules/`).
+2. Copy JSON sang assets Android:
+   `Copy-Item tools/rules/reading-rules.json android/app/src/main/assets/reading-rules.json`
+   (JSON ~5KB, trần 30KB — kiểm tra size khi thêm rule).
+3. Chạy test 3 nơi: `compile_rules.py` (chuẩn), `:app:testDemoDebugUnitTest`
+   (`ReadingRulesTest` đọc JSON thật, chống drift), `go test ./internal/rules/`.
+4. Nếu đổi pipeline clean (TextCleaner/BlockTextReader/chunker): bump
+   `PREP_VERSION` (`BookPrepStore`) để cache `.prep` cũ build lại — rulepack đổi
+   mà `PREP_VERSION` giữ nguyên thì sách mở từ cache vẫn là text clean cũ.
+5. Commit cả `.ruler` + 3 bản `.json` (tools, internal, assets).

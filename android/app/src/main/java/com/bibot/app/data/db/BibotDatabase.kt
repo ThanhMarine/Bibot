@@ -59,6 +59,38 @@ data class PdfJob(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+// B4.1: Bookmark entity — gom 1 chỗ như ReadEra (bookmark + quote + note)
+@Entity(
+    tableName = "book_bookmark",
+    indices = [Index(value = ["bookId", "chapterIdx", "sentenceIdx"]), Index("updatedAt")]
+)
+data class BookBookmark(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: String,
+    val chapterIdx: Int,
+    val sentenceIdx: Int,
+    val text: String, // nội dung câu được bookmark/quote
+    val note: String = "", // ghi chú tùy chọn (quote + note)
+    val type: String = "bookmark", // "bookmark" | "quote"
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+// TOC entry từ heading parse
+@Entity(
+    tableName = "book_toc",
+    indices = [Index("bookId"), Index("chapterIdx")]
+)
+data class BookTocEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: String,
+    val chapterIdx: Int,
+    val title: String,
+    val level: Int = 1, // 1=h1, 2=h2, 3=h3
+    val startSentenceIdx: Int,
+    val wordOffset: Int = 0
+)
+
 // A1.2: sidecar per-segment cho audio cache content-addressed (port openreader
 // sidecar per-ordinal duration/align/audioKey/status). audioHash = identity duy
 // nhất (dedup cùng text ở nhiều vị trí); settingsHash tách theo voice/speed.
@@ -154,6 +186,25 @@ interface LibraryMetaDao {
 }
 
 @Dao
+interface BookTocDao {
+    @Query("SELECT * FROM book_toc WHERE bookId=:bookId ORDER BY chapterIdx") suspend fun getByBook(bookId: String): List<BookTocEntry>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAll(entries: List<BookTocEntry>)
+    @Query("DELETE FROM book_toc WHERE bookId=:bookId") suspend fun deleteByBook(bookId: String)
+}
+
+@Dao
+interface BookBookmarkDao {
+    @Query("SELECT * FROM book_bookmark WHERE bookId=:bookId ORDER BY updatedAt DESC") suspend fun getByBook(bookId: String): List<BookBookmark>
+    @Query("SELECT * FROM book_bookmark WHERE bookId=:bookId AND type=:type ORDER BY updatedAt DESC") suspend fun getByBookAndType(bookId: String, type: String): List<BookBookmark>
+    @Query("SELECT * FROM book_bookmark WHERE id=:id") suspend fun getById(id: Long): BookBookmark?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(bookmark: BookBookmark)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAll(bookmarks: List<BookBookmark>)
+    @Update suspend fun update(bookmark: BookBookmark)
+    @Delete suspend fun delete(bookmark: BookBookmark)
+    @Query("DELETE FROM book_bookmark WHERE id=:id") suspend fun deleteById(id: Long)
+}
+
+@Dao
 interface PdfJobDao {
     @Query("SELECT * FROM pdf_jobs ORDER BY updatedAt DESC") suspend fun all(): List<PdfJob>
     @Query("SELECT * FROM pdf_jobs WHERE pdfHash=:h LIMIT 1") suspend fun get(h: String): PdfJob?
@@ -174,9 +225,10 @@ interface TtsSegmentDao {
 }
 
 @Database(
-    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class],
-    version = 4, exportSchema = false
+    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class, BookBookmark::class, BookTocEntry::class],
+    version = 5, exportSchema = false
     // B1.1: 2→3 thêm bảng library_meta. B3+F2: 3→4 thêm cột anchor vào book_progress.
+    // B4.1: 4→5 thêm bảng book_bookmark + book_toc.
     // (AutoMigration kẹt kapt-setup nên dùng Migration thủ công.)
 )
 abstract class BibotDatabase : RoomDatabase() {
@@ -187,6 +239,8 @@ abstract class BibotDatabase : RoomDatabase() {
     abstract fun pdf(): PdfJobDao
     abstract fun ttsSegments(): TtsSegmentDao
     abstract fun library(): LibraryMetaDao
+    abstract fun bookmark(): BookBookmarkDao
+    abstract fun toc(): BookTocDao
 
     companion object {
         // B1.1: v2 → v3 chỉ thêm bảng library_meta (DDL khớp Room codegen —
@@ -220,10 +274,45 @@ abstract class BibotDatabase : RoomDatabase() {
             }
         }
 
+        // B4.1: v4 → v5 thêm bảng book_bookmark + book_toc
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `book_bookmark` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "`bookId` TEXT NOT NULL, " +
+                        "`chapterIdx` INTEGER NOT NULL, " +
+                        "`sentenceIdx` INTEGER NOT NULL, " +
+                        "`text` TEXT NOT NULL, " +
+                        "`note` TEXT NOT NULL DEFAULT '', " +
+                        "`type` TEXT NOT NULL DEFAULT 'bookmark', " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL" +
+                        ")"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_book_bookmark_bookId_chapterIdx_sentenceIdx` ON `book_bookmark`(`bookId`, `chapterIdx`, `sentenceIdx`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_book_bookmark_updatedAt` ON `book_bookmark`(`updatedAt`)")
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `book_toc` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "`bookId` TEXT NOT NULL, " +
+                        "`chapterIdx` INTEGER NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`level` INTEGER NOT NULL DEFAULT 1, " +
+                        "`startSentenceIdx` INTEGER NOT NULL, " +
+                        "`wordOffset` INTEGER NOT NULL DEFAULT 0" +
+                        ")"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_book_toc_bookId` ON `book_toc`(`bookId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_book_toc_chapterIdx` ON `book_toc`(`chapterIdx`)")
+            }
+        }
+
         @Volatile private var INSTANCE: BibotDatabase? = null
         fun get(context: Context): BibotDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(context.applicationContext, BibotDatabase::class.java, "bibot.db")
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
         }

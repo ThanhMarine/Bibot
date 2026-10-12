@@ -95,7 +95,7 @@ android_app/
 │   ├── stt/stt.go | memory/ | pdf/ | player/
 ├── android/                        # Kotlin + Compose
 │   ├── gradle/libs.versions.toml   # AGP 8.5.2, Kotlin 2.0.0, Compose BOM 2024.06, media3 1.3.1, room 2.6.1, datastore 1.1.1, vosk 0.3.45, drive v3, work-runtime, leakcanary (debug)
-│   ├── app/build.gradle.kts        # namespace com.bibot.app, minSdk 26, target 34, kapt room; flavors demo (ENABLE_DRIVE=false, Bibot-demo.apk 60.73MB) / commercial (ENABLE_DRIVE=true, Bibot.apk 62.06MB); google-drive/api-client chỉ commercialImplementation; release minify+shrink
+│   ├── app/build.gradle.kts        # namespace com.bibot.app, minSdk 26, target 34, kapt room; flavors demo (ENABLE_DRIVE=false, Bibot.apk) / commercial (ENABLE_DRIVE=true, BibotV.apk); google-drive/api-client chỉ commercialImplementation; release minify+shrink
 │   ├── app/src/main/assets/demo_books/  # Demo bundle (không cần Drive)
 │   │   ├── en/{Learn English.pdf 2.8MB (%PDF-1.4), Learn English Now.pdf 3.2MB (%PDF-1.7)}
 │   │   └── vi/{Dai-viet-su-ky-toan-thu.md 3.2MB, Linh Nam Chich Quai 353KB}
@@ -273,7 +273,7 @@ ls -lh android/app/libs/bibot.aar
 cd android
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew :app:assembleDebug
-# → android/app/build/outputs/apk/debug/Bibot-debug.apk (đổi tên Bibot.apk via applicationVariants)
+# → android/app/build/outputs/apk/demo/debug/Bibot.apk (đổi tên sẵn via applicationVariants)
 ./gradlew :app:assembleRelease \
   -Pandroid.injected.signing.store.file=./bibot.keystore \
   -Pandroid.injected.signing.store.password=$STORE_PASS \

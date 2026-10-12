@@ -3,7 +3,9 @@
 > Single source cho đợt nâng cấp đọc sách Bibot.
 > Nguồn: (1) so sánh `OpenReadEra/` + `openreader/` đã clone về repo,
 > (2) screenshot thật ReadEra `org.readera 26.05.20+2300` chạy trên AVD `BibotTest`.
-> Ngày lập: 2026-10-10. Bibot hiện tại: `com.bibot.app`, APK ~83.5MB, Compose + Go core.
+> Ngày lập: 2026-10-10. Bibot hiện tại: `com.bibot.app`, Compose + Go core.
+> APK (cập nhật 2026-10-12): demoDebug ~58,9MB; release `Bibot.apk` 33,7MB /
+> `BibotV.apk` 34MB (xem Phần J). Số ~83,5MB lúc lập là bản debug cũ.
 
 Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị chạm.
 
@@ -62,14 +64,26 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 
 ### A2. P1 — Reader engine (lazy page + convert + snap config)
 
-- [ ] A2.1 Lazy page kiểu `EraPdfBridge.getPage(i,decode)+free + LRU 3–5 trang + store cap 64MB`:
-  - File chạm: `core/text/BlockTextReader.kt` (đã có block 16KB/CARRY 256 — thêm `free` tường minh), `PdfToMarkdownHelper.kt`, `BookRepository.kt` (bỏ chỗ còn `readText()/readBytes()` toàn file).
-- [ ] A2.2 MOBI → EPUB rồi reuse renderer (port `eramobi/EraMobiConvert.cpp` bằng `libmobi-java + java.util.zip` gói `mimetype+container.xml+part*.html`).
-  - File chạm: `data/books/BookRepository.kt`, `DriveBookSource.kt`.
-- [ ] A2.3 Snap config + `RenderIfDirty` (copy `ALLOWED_FONT_SIZES/INTERLINE/PARAGRAPH_MARGINS` của `eraepub`): chỉ relayout khi setting đổi, hết jank khi đổi font sách dày.
-  - File chạm: `feature/book/BookScreen.kt`, `feature/story/StoryScreen.kt`.
-- [ ] A2.4 Đơn vị vạn năng `Hitbox + SearchWindow ±7 từ` (clone `orebridge/StSearchUtils.h`): dùng chung cho highlight/bookmark/TTS word-sync/search preview/tap-to-define.
-  - File chạm: `core/text/TextCleaner.kt`, `BookScreen/StoryScreen`; thay `position=chap*100+sent` (sai khi chương >100 câu).
+- [x] A2.1 Lazy page kiểu `EraPdfBridge.getPage(i,decode)+free + LRU 3–5 trang + store cap 64MB`:
+  - File chạm: `core/text/BlockTextReader.kt` (block 16KB/CARRY 256 + `free()` tường minh),
+    `core/text/PdfTextCleaner.kt` (đính chính: không tồn tại file `PdfToMarkdownHelper.kt`),
+    `BookRepository.kt` (đã hết `readText()/readBytes()` toàn file — verify 2026-10-12).
+- [ ] A2.2 MOBI → EPUB rồi reuse renderer (HẠ từ [x] xuống 2026-10-12 — đối chiếu code:
+  `core/text/MobiReader.kt` mới là draft CHƯA COMMIT (untracked) + 0 caller;
+  `BookRepository`/`PublicDriveSource` không nhắc gì tới mobi → sách .mobi chưa convert được).
+  Xong phần khung parser; còn: wire vào `BookRepository` (detect `.mobi/.azw` → convert
+  rồi reuse luồng EPUB) + test + commit file.
+- [x] A2.3 Snap config + `RenderIfDirty` (copy `ALLOWED_FONT_SIZES/INTERLINE/PARAGRAPH_MARGINS` của `eraepub`): chỉ relayout khi setting đổi, hết jank khi đổi font sách dày.
+  - File chạm (đính chính 2026-10-12: `BookScreen/StoryScreen` đã xóa ở R0):
+    `data/store/BibotPreferences.kt` (`ALLOWED_FONT_SIZES` + `readerFontSizeSp/...`),
+    `feature/reader/ReaderScreen.kt` (`renderKey = derivedStateOf{...}`), UI slider ở
+    `feature/settings/SettingsScreen.kt`.
+- [ ] A2.4 Đơn vị vạn năng `Hitbox + SearchWindow ±7 từ` (HẠ từ [x] xuống 2026-10-12):
+  struct `Hitbox/SearchWindow` + `hitboxFromCharOffset/searchWindow` đã có trong
+  `core/text/TextCleaner.kt` và search toàn sách (`runSearchFullBook`) đã dùng —
+  NHƯNG progress vẫn `position = chap*100+sent` (`ReaderScreen` + `BookDetailScreen`
+  còn `/100`, `%100` khắp nơi; sai khi chương >100 câu như B1.5/B3.4 đã ghi nhận).
+  File cũ `BookScreen/StoryScreen` đã xóa ở R0. Còn: migrate progress sang Hitbox/xpointer.
 - [ ] A2.5 Verify: mở sách 3–5MB không đơ; đổi font không relayout liên tục; resume nhảy đúng chương >100 câu.
 
 ### A3. P2 — Export + Player polish (học openreader)
@@ -124,11 +138,36 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   verify lại khi có mạng. `position=chap*100+sent` cũ khiến sách dở rơi vào Đã đọc
   (ghi nhận, sửa ở B3.4/A2.4).
 
-### B2. Giai đoạn 2 — Màn About sách mới (`BookDetailScreen`)
+### B2. Giai đoạn 2 — Màn About sách mới (`BookDetailScreen`) — [x] 2026-10-11
 
-- [ ] B2.1 Tách khỏi `BookScreen` (~770 dòng ôm đồm): màn mới hiện bìa lớn + nút `ĐỌC` nổi + nút loa (đọc từ đầu bằng pipeline hiện tại) + dãy 7 action + metadata dòng (`Tác giả / Thể loại / Ngôn ngữ / Bookmark + giờ đọc / format-size-files`).
-- [ ] B2.2 `BookScreen/StoryScreen` chỉ còn nhiệm vụ render + đọc; nhận `bookId + startPos` từ Detail.
+- [x] B2.1 Tách khỏi `BookScreen` (~770 dòng ôm đồm): màn mới hiện bìa lớn + nút `ĐỌC` nổi + nút loa (đọc từ đầu bằng pipeline hiện tại) + dãy 7 action + metadata dòng (`Tác giả / Thể loại / Ngôn ngữ / Bookmark + giờ đọc / format-size-files`).
+- [x] B2.2 `BookScreen/StoryScreen` chỉ còn nhiệm vụ render + đọc; nhận `bookId + startPos` từ Detail.
 - [ ] B2.3 Verify: mở Detail <1s; bấm ĐỌC vào đúng vị trí bookmark; nút loa đọc từ đầu.
+- [x] B2.4 Add `BibotMode.ABOUT` to navigation + `BookDetailScreen.kt` creation + `nav_about` strings (EN/VN) + wire in `BibotNavSuite.kt`.
+
+### PHẦN MỚI — 2 Chế Độ Đọc (đính chính 2026-10-12: bản cũ ghi quá tay, đã đối chiếu code)
+
+#### Mode 1: Text Documents (.md, .txt) — [x] đọc + TTS thật (ruler v2, xem Phần H)
+- **Engine**: `BlockTextReader` (16KB blocks) + `TextCleaner.cleanForTts` (+ `ReadingRules.applyIfReady` từ H2.0).
+- **TTS**: producer `ReaderScreen` (Piper/Cloud/Offline + `TtsVoiceResolve`) — LƯU Ý: `TtsSegments` (A1)
+  làm identity/cache audio, KHÔNG gọi `ReadingRules.apply()` (bản cũ ghi nhầm).
+- **Rules**: `assets/reading-rules.json` **v2, 16 rules** (bản cũ ghi "3 rules" là v1):
+  drop số trang + TOC chấm, start-marker Lời giới thiệu/Chương 1, ngày (có/không năm),
+  nhiệt độ, La Mã (đơn + khoảng, có đuôi chống tái-match), Fig/No theo lang, params chunker.
+- **Wire thật**: `ReadingRules.init()` ở `BibotApp.onCreate` → `applyIfReady` trong
+  `cleanForTts` + vòng dòng `BlockTextReader` thử ruler trước (fallback code cứng).
+- **Status**: ✅ Đọc EN/VN (Drive, local, demo).
+
+#### Mode 2: "Xem" View Mode — [ ] MỚI LÀ MOCK (bản cũ ghi "[x] Hoàn thành" là sai)
+- **EPUB/PDF engine**: có thật (`EpubReader` spine-order + detect scan; `PdfTextCleaner` +
+  font-kind SIMPLE/TCVN3/Type3/ToUnicode) và `ReaderScreen` đã có VIEW TEXT/PAGE (F1.1).
+- **UI**: `ViewScreen.kt` HIỆN CHỈ LÀ MOCK TĨNH — bìa chữ + list "Chương $i" giả x10 +
+  nút play/pause/loa `onClick = {}` rỗng + "© Unknown"; KHÔNG đọc file thật, KHÔNG gọi
+  `ReadingRules`, nav `VIEW` không truyền sách (luôn preview stub).
+- **Việc còn lại**: hoặc wire `ViewScreen` vào sách thật (EpubReader/PdfPageView +
+  prepSession), hoặc gỡ khỏi nav để khỏi gây hiểu lầm. Chưa làm.
+
+#### Ruler là engine dùng chung cho text đã-clean (không phải renderer ảnh) — không cần repo ngoài
 
 ### B3. Giai đoạn 3 — Chrome màn đọc (sửa `ReaderScreen`) — [x] 2026-10-11
 
@@ -160,8 +199,8 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 
 ### B4. Giai đoạn 4 — Mục lục / Quotes / Bookmark / Search
 
-- [ ] B4.1 Mục lục từ heading đã parse (`##/Chương`); quotes/bookmark bảng Room mới, gom 1 chỗ như ReadEra.
-- [ ] B4.2 Search trong sách: `BlockTextReader` + highlight `SearchWindow ±7 từ` (A2.4), nút Forward/Back giữa kết quả.
+- [x] B4.1 Mục lục từ heading đã parse (`##/Chương`); quotes/bookmark bảng Room mới, gom 1 chỗ như ReadEra.
+- [x] B4.2 Search trong sách: `BlockTextReader` + highlight `SearchWindow ±7 từ` (A2.4), nút Forward/Back giữa kết quả.
 - [ ] B4.3 Verify: sách 500 chương vẫn liệt kê + nhảy nhanh; quote lưu note + mở lại đúng chỗ.
 
 ### B5. Giai đoạn 5 — Tóm tắt AI (Bonus/VIP, Cloud AI)
@@ -219,11 +258,8 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 > chunk ngắn + tin bị cắt 200 ký tự.
 
 - [x] B6.1 Ẩn chrome app trong mode đọc: `BibotNavSuite` ẩn topBar/bottomBar/Rail khi
-  `BOOK/STORY/COTICH/PDF` (back bằng nút reader) + ẩn `AdsBanner` trong 4 mode này
-  (true full-screen kiểu ReadEra; đánh đổi doanh thu banner lúc đọc — giữ
-  interstitial/rewarded). Thêm nút back cho `DocBrowserScreen` (kẻo kẹt thư viện).
-  Verify máy ảo: reader top-bar bắt đầu y=168 sát status bar, hết nav/banner;
-  về Home hiện lại; logcat sạch FATAL.
+  `BOOK/STORY/COTICH/PDF` (back bằng nút reader) + **khôi phục `AdsBanner` ở mode đọc** (không ẩn banner, vẫn hiển thị banner ở đáy màn đọc) + **giữ `AdsRewarded` bonus cho Cloud TTS** + **xoá hoàn toàn phase-based interstitial ads** (xoá `PhaseTracker`, `phaseTracker.reset()`, `adBreakActive`, logic ngắt 8-10' + interstitial + bonus trước ad). Giữ `AdsRewarded` bonus cho Cloud TTS chapter (demo) + VIP bypass. Thêm nút back cho `DocBrowserScreen` (kẻo kẹt thư viện).
+  Verify máy ảo: reader top-bar bắt đầu y=168 sát status bar, hết nav; banner hiển thị ở đáy; không còn ngắt quảng cáo interstitial giữa chừng khi đọc; logcat sạch FATAL.
 - [x] B6.2 Gọn menu reader: brightness vào popup nút ⚙ (bỏ hàng cố định);
   popup gồm toggle Xem chữ/Xem trang + slider + Auto. Giữ 5 nút top-bar theo ReadEra.
   (Popup mới, không bấm thử từng control — slider/window-attr là API chuẩn; ghi nhận.)
@@ -244,6 +280,8 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   (B3.3 đã cover khi READ), hint 1 lần, prep rebuild, tin full + expand,
   2 flavor BUILD SUCCESSFUL + JVM 18/18 (9 TextRules + 9 TtsSegments) + Go PASS,
   logcat sạch FATAL. APK demo 58.534.751B (~55,8MB) < 85MB.
+  (Cập nhật 2026-10-12 sau H2.0: JVM 23/23 = 5 ReadingRules + 9 TextRules + 9 TtsSegments;
+  APK demoDebug 58.881.939B, vẫn < 85MB.)
 - [x] B6.7 Thanh chỉ báo mảnh 3dp sát dưới top-bar (hiển thị-only, scrubber đáy giữ
   nguyên điều khiển): verify screenshot máy ảo thấy vệt xanh full-width
   (uiautomator không expose node vẽ — check bằng ảnh). +0 text, không che nội dung.
@@ -264,10 +302,21 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   ↑ ↓ + đếm `n/m`, highlight câu trúng + tự cuộn (verify máy ảo: `trong` → 1/1).
   B4.2 mở rộng toàn sách + SearchWindow sau. Nút Contents đã link TOC sheet
   (verify từ B3, dùng lại).
+- [x] B6.14 Xoá phase-based interstitial ad system (code 2026-10-12): xoá `ReadingPhaseTracker` class
+  (xóa file `PhaseTracker.kt`), xoá `phaseTracker` instance + `phaseTracker.reset()` calls,
+  xoá `adBreakActive` state, xoá logic ngắt 8-10' + `phaseTracker.shouldBreakAtBoundary()` +
+  `showInterstitial()`/`loadInterstitial()` trong reader + bonus trước ad +
+  `adBreakActive`/`adPreloaded`/`lastAdBreakMs`/`lastAdBreakChap` state (+ `bonusChapter`
+  trong `AdCopy`, giờ không caller). Giữ `AdsRewarded` bonus cho Cloud TTS chapter (demo) +
+  VIP bypass. Giữ `AdsInterstitialHelper` cho các màn khác (Home, Settings, etc.).
+  Verify code+build: grep 0 còn reference phase trong reader; `compileDemoDebugKotlin`
+  + `assembleDemoDebug` SUCCESS (APK 58.881.939B). Cài máy ảo BibotTest thành công
+  (`install -r`, `com.bibot.app` v1.0.2). Còn nợ: walkthrough UI trên máy ảo cho đúng
+  bản này (đọc liền mạch không ngắt + rewarded Cloud TTS + interstitial màn khác).
 - [x] B6.11 Hint 1 lần: bấm ngoài dialog cũng lưu cờ (trước đây chạm trượt → nag-loop).
-  Đính chính (2026-10-11): `backup_rules` LOẠI TRỪ toàn bộ `datastore/` + `bibot.db` +
-  `bibot/` — gỡ app là sạch thật, KHÔNG cần xóa backup (ghi nhận cũ "backup khôi phục
-  prefs" là sai — lần đó do bấm trượt nút). Không đổi backup_rules (vướng VIP grace).
+  Đính chính: `backup_rules` LOẠI TRỪ HẾT (`datastore/` + `bibot.db` + `bibot/`) —
+  gỡ app là sạch thật, không còn gì để khôi phục. Ghi nhận cũ "backup khôi phục prefs"
+  là sai (lần đó do bấm trượt nút). Không đổi `backup_rules` (vướng VIP grace).
   Hack time +40d (`date 112012002025`, `auto_time 0` rồi khôi phục): Drive chết
   (SSL, dự kiến) nhưng sách local vẫn liệt kê/đọc/neo/karaoke bình thường, FAB →
   confirm → READ + persist anchor, không FATAL EXCEPTION nào của app (1 SIGSEGV là
@@ -341,6 +390,8 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
 
 - [x] D4.1 Thêm từ khóa `phụ lục`: `Phụ lục VII` → `phụ lục bảy`.
   Có sẵn: `Chương X` → 10, `thế kỷ XX` → 20, khoảng `XI-XIX`.
+  (Vá H2.0: đuôi single `([^A-Za-z0-9À-ɏḀ-ỹ]|$)` chặn tái-match "m" trong output
+  của range — xem chi tiết ở H2.0.)
 - [x] D4.2 Phi chuẩn sách cũ `Phần IIX` → `phần tám` (map `IIX→8`; sai khác như
   `IIII` vẫn giữ nguyên). Go giữ chữ số (`Phần 8`).
 - [x] D4.3 Chỉ sau từ khóa nên `Louis XIV`, `I` đứng riêng giữ nguyên.
@@ -350,7 +401,9 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
 
 - [x] D5.1 `go vet ./internal/... ./cmd/...` 0 + `go build` pass +
   `go test ./internal/tts/` 4/4 PASS (`internal/tts/tts_test.go` mới).
-- [x] D5.2 40/40 pattern check cho regex Kotlin (mirror Python, kotlinc chưa có).
+- [x] D5.2 Pattern check cho regex Kotlin (mirror Python).
+  (Cập nhật 2026-10-12: kotlinc/gradle build đã chạy local bình thường;
+  thay bằng `compile_rules.py` 61/61 + JVM `ReadingRulesTest` 5/5 đọc JSON thật.)
 - [x] D5.3 Lưu ý build: `go build ./...` từ gốc hiện fail ở `OpenReadEra/libwebp/swig`
   (code clone third-party, có từ trước — build theo package `internal/... cmd/...`).
 - [x] D5.4 Chạy `./gradlew :app:assembleDemoDebug` khi có máy build (Kotlin chưa biên dịch local).
@@ -371,9 +424,10 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
   `cleanForTts` thêm param `lang="vi"` (tương thích caller cũ);
   `ReaderScreen` truyền `readLang`; Go `Synthesize` suy lang từ prefix voice.
 - [x] D6.4 Verify: Go `TestEndsWithCiteAbbrev/InsideBracketsOrQuote/FeedKeepsParenthetical/
-  ReadFigureRefsGo` PASS; JVM `TextRulesTest` (chunk whole/quote/abbrev/fig vi-en) 8/8
+  ReadFigureRefsGo` PASS; JVM `TextRulesTest` (chunk whole/quote/abbrev/fig vi-en) 9/9
   cùng `TtsSegmentsTest` 9/9 PASS; máy ảo đọc Ngưu Lang có `(1989...)`/`mùng bảy`
   tự nhiên (spot-check dòng `(âm lịch)` không bị chẻ).
+  (Cập nhật 2026-10-12: TextRules 8/8 cũ giờ là 9/9 sau thêm `bookChunking_60words`.)
 
 ### D7. Đề mục dòng ngắn không keyword (2026-10-11) — [x]
 
@@ -451,12 +505,12 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
 ### F0. R0 — Gộp màn đọc trước mọi thứ (điều kiện để E1.1 không phải wire 3 lần)
 
 - [x] F0.1 Mới `feature/reader/ReaderScreen(book: BookMeta, collection: ReaderCollection)`
-  (tổng quát hóa từ `BookScreen`, giữ nguyên luồng producer `Channel(2)` + PrepSession +
-  phase ads; heading regex chuyển về `feature/reader/ReaderHeadings.kt` — xóa import
-  chéo `feature.story`). Xong 2026-10-11: `ReaderScreen.kt` 821 dòng (sinh bằng
-  script `gen_reader.py`, 44 điểm thay thế đều khớp count + check leftover).
-  NOTE: state vẫn `remember` trong composable như cũ (không regression) — hoist sang
-  `ReaderViewModel` dời sang nhịp B3 cùng Touch_point/anchor (F2 cần anchor + readMode).
+  (tổng quát hóa từ `BookScreen`, giữ nguyên luồng producer `Channel(2)` + PrepSession;
+  heading chuyển về `feature/reader/ReaderHeadings.kt` — xóa import chéo `feature.story`).
+  Xong 2026-10-11: sinh bằng script `gen_reader.py` (44 điểm thay thế đều khớp count +
+  check leftover). (Đính chính 2026-10-12: "phase ads" trong luồng đã XÓA ở B6.14;
+  state vẫn `remember` trong composable — hoist sang `ReaderViewModel` hẹn ở B3/G1.2
+  CHƯA làm, không tồn tại file `ReaderViewModel.kt`.)
 - [x] F0.2 Mới `enum ReaderCollection { EN, STORY_VI, COTICH, THAMKHAO, LOCAL_PDF }`:
   mỗi loại chỉ là config `{headerEmoji, fixedLang, adsEnabled, allowManage,
   useStoryStrings, fallbackTitle, audioPrefix}` + `filter()` giữ đúng hành vi cũ
@@ -511,44 +565,43 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
 
 ## PHẦN G — Crash xoay màn hình + chunking ngoặc + đọc đề mục (mới)
 
-### G1. Khắc phục crash khi xoay ngang–dọc
+### G1. Crash xoay màn hình + hoist ViewModel (đính chính 2026-10-12)
 
-- [ ] G1.1 Nguyên nhân (đã xác định từ code): state đọc sách vẫn `remember` trong
-  composable (F0.1 NOTE — hoist sang `ReaderViewModel` dời sang B3); xoay màn hình →
-  Activity recreate → `DisposableEffect.onDispose` đóng `prepSession` trong khi producer
-  `Channel(2)` + scope cũ vẫn synth → race dùng session đã đóng + ExoPlayer surface
-  recreate → crash. KHÔNG dùng `android:configChanges` (phá resources/locale).
-- [ ] G1.2 Fix đúng: hoist toàn bộ state đọc (`prepSession`, `jumpSeq`, producer job,
-  `currentChapter/Sentence`) vào `ReaderViewModel` + `SavedStateHandle` (giữ
-  chapter/sent/anchor qua recreate); `PlayerViewModel` (AndroidViewModel) giữ ExoPlayer
-  sống sót; `DisposableEffect` chỉ đóng khi rời màn hình thật (không phải config change).
-  Làm cùng B3 (đúng chỗ F0.1 đã hẹn).
+- [x] G1.1 Nguyên nhân THẬT đã tìm ra ở B3.6 (giả thuyết race `prepSession`/`Channel(2)` ở
+  đây là SAI): FATAL nằm trong `AdsBannerComposable` (`update` gọi `setAdSize` sau
+  `loadAd`, AdMob cấm) — đã sửa bằng key `AndroidView` theo (widthDp, landscape).
+  KHÔNG dùng `android:configChanges` (phá resources/locale).
+- [ ] G1.2 Hoist state đọc (`prepSession`, `jumpSeq`, producer job, `currentChapter/Sentence`)
+  vào `ReaderViewModel` + `SavedStateHandle` (CHƯA làm — không tồn tại file này; state vẫn
+  `remember`, B3.6 đã đủ để hết crash nên hoist thành hardening, không còn là fix crash).
 - [ ] G1.3 Verify máy ảo (ma trận xoay): xoay khi IDLE / đang READ TTS / đang BROWSE /
-  giữa dialog đổi anchor / khi QC interstitial → không FATAL, đọc tiếp đúng câu
-  (logcat + `dumpsys meminfo` không leak ExoPlayer).
+  giữa dialog đổi anchor → không FATAL, đọc tiếp đúng câu
+  (logcat + `dumpsys meminfo` không leak ExoPlayer). (Bỏ case "khi QC interstitial" —
+  interstitial trong reader đã xóa ở B6.14.)
 
-### G2. Nguyên tắc gom chunk cho đoạn trong ngoặc (...)/{...}/[...]/"..." (ghi chú, trích dẫn)
+### G2. Nguyên tắc gom chunk cho đoạn trong ngoặc (...)/{...}/[...]/"..." (XONG lõi ở D6 — đính chính 2026-10-12)
 
-- [ ] G2.1 Bug đã xác định: `DELIM` của `VietnameseChunker.kt:114` tách ở `.` `;` `:` `,`
-  nên `(at Fig. 5)` bị chẻ ngay sau `Fig.` (`SENT_END` khớp → yield giữa ngoặc).
-  Fix: theo dõi **bracket-depth** trong `feed()` — DELIM nằm trong ngoặc (depth>0,
-  kể cả `"..."` toggle) thì không yield/không tách; ngoặc đóng xong mới xét yield.
-- [ ] G2.2 Chuẩn hoá đọc trong `TextCleaner` (trước chunker, theo `fixedLang` của
-  `ReaderCollection` F0.2): VI — `Fig.`→`hình`, `e.g.`→`ví dụ`, `i.e.`→`nghĩa là`,
-  `vs.`→`so với`, `etc.`→`vân vân`; EN — `Fig.`→`figure`, `e.g.`→`for example`…;
-  số trong ngoặc theo D2 (`1989`→`một nghìn chín trăm tám mươi chín`,
-  `from 1989 to 2011` giữ nguyên từ, chỉ đổi số). Vỏ ngoặc ngoài → dấu phẩy
-  (`, … ,`) để TTS ngắt tự nhiên; bỏ ngoặc rỗng `()`.
-- [ ] G2.3 Mirror Go (`tts.go`): guard tương đương cho `ChunkerSplit` + expand tối thiểu
-  (`Fig.`→`hình`/`figure` theo tham số lang) + `go test` case mới.
+- [x] G2.1 Bug `DELIM` tách `(at Fig. 5)` ngay sau `Fig.` — ĐÃ FIX ở D6.1
+  (`insideBracketsOrQuote` depth + quote-toggle + ép yield khi quá dài, cả 2 phía).
+- [x] G2.2 Chuẩn hoá đọc — XONG 1 PHẦN ở D6.3 + H2.0 (`Fig.`→`hình`/`figure`,
+  `No.`→`số`/`number` theo `fixedLang`, rule `fig.vi/en + no.vi/en` trong ruler).
+  CÒN LẠI (chưa làm): `e.g.`→`ví dụ`, `i.e.`→`nghĩa là`, `vs.`→`so với`,
+  `etc.`→`vân vân` (+EN); vỏ ngoặc ngoài → dấu phẩy; bỏ ngoặc rỗng `()`.
+- [x] G2.3 Mirror Go — XONG ở D6 (`internal/chunker`: `insideBracketsOrQuote` +
+  `endsWithCiteAbbrev`; `readFigureRefsGo` theo lang) + `go test` case mới.
+  Params chunker đã khai báo ở rule `chunk.brackets` (H2.0); cắm `chunkGuard()` vào
+  chunker còn ở H2.3.
 - [ ] G2.4 Verify: `(from 1989 to 2011)`, `(see Fig. 5)`, `"trích dẫn dài..."` không bao giờ
-  bị chẻ làm đôi; nghe VI/EN mỗi loại 3 câu ngoặc; `go test` + 40-case regex pass.
+  bị chẻ làm đôi (unit đã cover parenthetical/quote/Fig ở cả 2 phía); nghe VI/EN mỗi loại
+  3 câu ngoặc (còn nợ verify tai nghe); `go test` + `compile_rules.py` pass.
 
 ### G3. Nhận diện đề mục + đọc có ngắt câu
 
-- [ ] G3.1 Quy tắc (khớp `detectStoryHeading` + `mdHeading` sẵn có): đề mục = chuỗi NGẮN
-  (≤120 ký tự, 1 dòng), KHÔNG dấu chấm cuối (`.!?…:;`), bắt đầu HOA/số, xuống hàng ngay
-  sau. Mở rộng: EPUB `h1-h3`/spine title, `CHAPTER-BREAK title=`, MD `##` (đã có).
+- [x] G3.1 Quy tắc đề mục — XONG ở D7 (`detectStoryHeading` ≤120 ký tự + fallback dòng ngắn
+  D7 `SHORT_HEADING_MAX_CHARS=60`, ≤10 từ, không dấu câu cuối, mở đầu HOA/số + guard
+  chống wrap) + `mdHeading` (`##`) + `CHAPTER-BREAK title=` (`chapterBreakTitle`).
+  EPUB `h1-h3`/spine title: spine đã có ở `EpubReader.chapters`, tách `h1-h3` trong spine
+  chưa làm (ghi nhận).
 - [ ] G3.2 Hành vi mới: producer phát **tiêu đề chương là chunk đầu tiên kèm pause**
   (`pauseAfterMs` = `BOOK_PAUSE_BETWEEN_MS`, hoặc marker `⏸` như pause 2s) rồi mới tới
   câu nội dung; karaoke highlight tab tương ứng. Hiện tại title chỉ hiện UI, TTS bỏ qua.
@@ -571,41 +624,66 @@ JSON thắng về nhẹ + đa nền tảng 0-dependency.
 - [x] H0.1 Schema mỗi rule: `{id, kind, scope, lang, pattern(s), template?, params?,
   priority, tests[]}` (`validate` gộp vào hook tên: `day/month/year/num/roman`).
   `kind` = `rewrite` | `drop_line` | `start_marker` | `split_guard`.
-  `priority` = thứ tự pipeline. File: `tools/rules/reading-rules.ruler` (v1, 3 rule).
-- [x] H0.2 Test nhúng trong ruler (19 case, cả giữ nguyên) — `compile_rules.py` chạy
-  toàn bộ, 19/19 PASS, thay `regex_check.py` rời rạc.
+  `priority` = thứ tự pipeline. File: `tools/rules/reading-rules.ruler`
+  (v1 3 rule lúc khóa; nay v2 16 rules — xem H2.0).
+- [x] H0.2 Test nhúng trong ruler (cả giữ nguyên) — `compile_rules.py` chạy toàn bộ,
+  thay `regex_check.py` rời rạc. (v1: 19/19; v2: 61/61.)
 - [x] H0.3 Giao Java∩RE2∩Python: script từ chối lookaround/atomic/possessive/backref/
   named (đã bắt bug thật khi dev). `version` int + `checksum` sha256 trong JSON
-  (1006 bytes). Lệch nhỏ: `split_guard` mới có trong schema + doc, chưa có rule mẫu
-  (sang H2.3).
+  (v1 1006 bytes; v2 ~4,4KB, trần 30KB). `split_guard` đã có rule mẫu `chunk.brackets`
+  từ H2.0 (lệch cũ "chưa có rule mẫu" đã xong).
 
 ### H1. Scaffold + 3 rule pilot — [x] chạy được (H1.3 dời H2)
 
-- [x] H1.1 `tools/rules/reading-rules.ruler` (3 rule pilot) + `compile_rules.py`
-  (YAML→JSON + tests + đo size) + `RULES_AUTHORING.md`. Lệch: script còn mirror 1 bản
-  JSON sang `internal/rules/reading-rules.json` (do `go:embed` cấm `..`).
-- [x] H1.2 Loader Kotlin `core/text/ReadingRules.kt` (`org.json`, 0 lib mới:
+- [x] H1.1 `tools/rules/reading-rules.ruler` (v1 3 rule pilot, nay v2 16 rules) +
+  `compile_rules.py` (YAML→JSON + tests + đo size) + `RULES_AUTHORING.md` (§4 quy trình
+  publish từ H2.0). Lệch: script mirror 1 bản JSON sang `internal/rules/reading-rules.json`
+  (do `go:embed` cấm `..`); bản assets copy tay theo §4.
+- [x] H1.2 Loader Kotlin `core/text/ReadingRules.kt` (0 lib mới:
   `parse/load/apply/isDropLine/isStartMarker`, hook dùng `TextCleaner` sẵn có) +
-  JSON copy vào `android/app/src/main/assets/reading-rules.json` (1053 bytes).
+  JSON ở `android/app/src/main/assets/reading-rules.json`.
+  (Đính chính 2026-10-12: parser đã BỎ `org.json` → `MiniJson` thuần vì stub Android
+  crash trên JVM thường; JSON v2 ~4,4KB.)
   Loader Go `internal/rules/` (`//go:embed` + stdlib, engine + hook + `viWords`
-  port từ Kotlin) + `rules_test.go` 4 test PASS. Budget giữ: JSON ~1KB (trần 30KB).
-  Ghi nhận 2 bug đã sửa khi verify: Go `FindAllStringSubmatchIndex` trả -1 với group
-  optional (đã fix + Kotlin an toàn sẵn); quirk `mười mốt` parity Kotlin (fix sang H2).
-  Kotlin chưa biên dịch local (như D5.4) — `assembleDebug` sẽ kiểm chứng.
-- [ ] H1.3 1 entry reuse duy nhất: voice chat / news / weather / đọc sách đều gọi
-  `ReadingRules.apply()` — DỜI sang H2 (migrate từng bước, giữ hàm cũ làm wrapper).
+  port từ Kotlin) + `rules_test.go` 5 test PASS. Kotlin build local đã chạy bình thường.
+  Ghi nhận bug đã sửa khi verify: Go `FindAllStringSubmatchIndex` trả -1 với group
+  optional (đã fix + Kotlin an toàn sẵn); quirk `mười mốt` parity Kotlin (giữ theo H2.0,
+  không phải "fix sang H2" nữa — test khóa hành vi ở cả 3 engine); Go `hook("",…)`
+  trim mất đuôi (đã fix H2.0).
+- [x] H1.3 1 entry reuse duy nhất (XONG 1 PHẦN ở H2.0, còn lại ở H2.1/H2.3): đọc sách đã gọi
+  (`ReadingRules.init()` ở `BibotApp` + `applyIfReady` trong `cleanForTts` + vòng dòng
+  `BlockTextReader`); voice chat / news / weather CHƯA gọi (giữ hàm cũ).
 
 ### H2. Migrate dần, mỗi bước xóa code cứng (D1–D4, G2–G3 → ruler)
 
-- [ ] H2.1 Dates/degrees/roman (D2–D4) vào ruler; xóa hàm cứng tương ứng, test cũ phải
-  xanh (port case sang `tests[]` trong ruler, xóa dần `tts_test.go` trùng).
-- [ ] H2.2 Drop-line + start-marker (D1) vào ruler (`kind: drop_line/start_marker`);
-  `BlockTextReader` chỉ còn state machine buffer/discard (logic), pattern lấy từ ruler.
-- [ ] H2.3 Chunk guard ngoặc (G2) + đọc đề mục (G3): tham số `split_guard.pairs: ()[]{}`""
-  và `heading.max_chars/speak_pause_ms` vào ruler; `VietnameseChunker`/producer đọc
-  tham số, không hardcode.
-- [ ] H2.4 Mỗi H2.x xong: `go test`, `regex_check` thay bằng `compile_rules.py test`,
-  APK không tăng quá 0.2MB (JSON nhúng ~20KB).
+- [x] H2.0 Rulepack v2 (2026-10-12): 16 rules / 61 tests nhúng PASS — thêm
+  `date.full(9)`, `temp.celsius/fahrenheit/stuck(12-14)`, `roman.range(29)`,
+  `fig.vi/en + no.vi/en(31-32)`, `drop.toc_leader(1)`, `start.intro + start.first_chapter(0)`,
+  `chunk.brackets` params flat. JSON ~4.3KB (trần 30KB), 3 bản đồng bộ
+  (tools/internal/assets). Wire Kotlin: `ReadingRules.init()` ở `BibotApp.onCreate` +
+  `applyIfReady` trong `cleanForTts` (hàm cứng thành no-op/fallback, chưa xóa) +
+  vòng dòng `BlockTextReader` thử ruler trước. GIỮ code có lý do ghi trong `note:`:
+  `readPageNumbers` (cần lookahead, ngoài giao 3 engine), `dropPageNumberLines` vòng
+  khối (chỉ bỏ số trang, TOC để vòng dòng). Test mới `ReadingRulesTest` đọc JSON thật
+  (chống drift) + `TestApplyV2` Go. `PREP_VERSION` giữ 3 (pipeline clean chưa đổi
+  output — ruler trùng hành vi cũ; đổi output mới bump).
+  Bug thật lòi ra khi verify (vá đồng bộ 4 nơi): `roman.single` tái-match chữ "m"
+  trong output của `roman.range` ("mười…" — `\b` ASCII ở Java/Go coi "m|ư" là biên,
+  Python-unicode che mất nên test cũ vẫn xanh): đuôi single đổi `([^A-Za-z0-9À-ɏḀ-ỹ]|$)`
+  + giữ `{3}` ở cả `.ruler`/Kotlin/Go; Go `hook("",…)` sửa trả nguyên văn (đừng trim
+  mất dấu cách đuôi). Parser Kotlin bỏ `org.json` (stub crash trên JVM thường) →
+  `MiniJson` thuần (~90 dòng, đủ schema sinh bởi script, 0 dep). Verify: compile
+  61/61 + Go `-count=1` 3 package + JVM 23/23 (5 ReadingRules + 9 TextRules +
+  9 TtsSegments) + `assembleDemoDebug` SUCCESS, APK 58.881.939B (+107B).
+- [ ] H2.1 Xóa hàm cứng dates/degrees/roman/figure sau khi v2 chạy ổn định ngoài máy thật
+  (port case sang `tests[]` xong ở H2.0; xóa dần `tts_test.go` trùng).
+- [ ] H2.2 `BlockTextReader` chỉ còn state machine buffer/discard (pattern đã lấy từ
+  ruler ở vòng dòng từ H2.0; còn `dropPageNumberLines` vòng khối giữ code theo H2.0).
+- [ ] H2.3 Chunker đọc params (G2 còn lại): `VietnameseChunker`/producer đọc
+  `ReadingRules.chunkGuard()` thay hardcode (params đã có từ H2.0; API + test sẵn).
+  Đề mục đọc-pause (G3) giữ code (cần `pauseAfterMs` ở producer, chưa vào ruler).
+- [ ] H2.4 Mỗi H2.x xong: `go test`, `compile_rules.py` (thay `regex_check`),
+  APK không tăng quá 0.2MB (JSON nhúng v2 ~4.3KB).
 
 ### H3. Cập nhật bởi người/AI + OTA nhẹ
 
@@ -665,4 +743,66 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   Bug đã bắt khi user test: ô nhập `.take(32)` cắt mã 35 ký tự (thiếu 3) → nới `.take(40)`.
   Verify máy ảo 2026-10-11 (dev fallback, chưa có relay staging): mã đúng → VIP 1 tháng;
   tắt mạng → giữ 1 tháng (grace); mã sai → GIỮ VIP cũ (đúng thiết kế, chống typo mất
-  quyền); không crash. Còn nợ: relay thật staging, vặn đồng hồ, `strings` release.
+   quyền); không crash. Còn nợ: relay thật staging, vặn đồng hồ, `strings` release.
+
+## PHẦN J - Quy trình ra bản mới (release/upgrade) + quy ước tên file - [x] chốt 2026-10-12
+
+### J0. Quy ước tên file CHUẨN (bắt buộc mọi bản, không đặt tên có version)
+
+| Flavor | Package | APK (cài trực tiếp) | AAB (nộp store) |
+|---|---|---|---|
+| Demo (Free, có Ads) | `com.bibot.app` | `Bibot.apk` | `Bibot.aab` |
+| VIP (đặc biệt, không Ads) | `com.bibot.app.vip` | `BibotV.apk` | `BibotV.aab` |
+
+- Gradle TỰ xuất đúng tên này, không đổi tay:
+  `android/app/build.gradle.kts` → `applicationVariants.all { outputFileName =
+  flavorName == "demo" ? "Bibot.apk" : "BibotV.apk" }` + task `renameReleaseBundles`
+  (copy `app-*-release.aab` → `Bibot.aab` / `BibotV.aab`).
+- Outputs gốc: `app/build/outputs/apk/<flavor>/release/Bibot*.apk`,
+  `app/build/outputs/bundle/<flavor>Release/Bibot*.aab`.
+- Đóng gói `H:\Pi4_Xiaozhi\dist\vX.Y.Z-demo\`: COPY GIỮ NGUYÊN TÊN, version nằm ở
+  tên THƯ MỤC. CẤM tên kiểu `Bibot-v1.0.1-demo.apk` (đã mắc 1 lần ở v1.0.0/v1.0.1,
+  sửa xong 2026-10-12).
+- Nguyên tắc build song song (chốt 2026-10-12): mỗi bản release build CẢ 2 APK —
+  `Bibot.apk` trước, `BibotV.apk` ngay sau — để cài cùng máy test song song
+  (khác package `com.bibot.app` / `com.bibot.app.vip`, khác label "Bibot" /
+  "Bibot VIP" nên không đè nhau). File VIP test để riêng `dist\vX.Y.Z-vip\`,
+  KHÔNG public khi chưa có lệnh riêng (chỉ demo + `Bibot.aab` được public).
+
+### J1. Checklist từng bước ra bản mới
+
+- [ ] J1.1 Tăng version trong `android/app/build.gradle.kts` (`defaultConfig`):
+  `versionCode` +1, `versionName` theo semver. Commercial tự thêm suffix `-vip`.
+- [ ] J1.2 Build song song: `./gradlew :app:assembleDemoRelease`
+  rồi `:app:assembleCommercialRelease :app:renameReleaseBundles`
+  (task sau kéo cả 2 `bundle*Release`). Kết quả đủ bộ 4 file:
+  `Bibot.apk` + `Bibot.aab` + `BibotV.apk` + `BibotV.aab`. Kiểm tra BUILD SUCCESSFUL.
+- [ ] J1.3 Verify outputs: `output-metadata.json` đúng code/name; `apksigner verify`
+  cả 2 APK phải exit 0; đúng chữ ký `CN=Bibot App` (không dùng `bibot-test.keystore`);
+  `aapt2 dump badging` check package (`com.bibot.app` / `com.bibot.app.vip`) +
+  label ("Bibot" / "Bibot VIP") + versionCode đồng đều 2 flavor.
+- [ ] J1.4 Đóng dist mới: `dist\vX.Y.Z-demo\` copy `Bibot.apk` + `Bibot.aab`
+  (GIỮ NGUYÊN TÊN) + viết `SHA256.txt` (`Get-FileHash -Algorithm SHA256`) +
+  ghi chú test (`GHI-CHU-TEST.md`: có gì mới, cần test gì, cài đè giữ data);
+  `dist\vX.Y.Z-vip\` copy `BibotV.apk` + `SHA256.txt` riêng (test nội bộ).
+- [ ] J1.5 Cập nhật tài liệu: `data_to_CH Play\store-info.txt` (bản/code/đường dẫn),
+  `README-Bibot.md` (số version, dung lượng), `Policy.md` + `privacy-policy.md`
+  trên GitHub nếu đổi thu thập dữ liệu/quyền (hiện tại email thống nhất
+  `bibotvadmin@gmail.com`, URL raw `.../Bibot/main/privacy-policy.md`).
+- [ ] J1.6 Test máy thật trước khi public: cài đè lên bản cũ (giữ data), đọc
+  TXT/MD + PDF text, Voice Chat, Tin tức/Thời tiết, check nhãn menu "Tài liệu",
+  PDF scan xác nhận đọc không ra (đúng thiết kế, không phải bug).
+- [ ] J1.7 Public: up `Bibot.apk` + `SHA256.txt` + ghi chú lên GitHub Releases
+  (tag `vX.Y.Z-demo`); beta qua Firebase App Distribution; store hãng + chợ APK
+  theo `store-info.txt`. Không public `BibotV.*` khi chưa có lệnh.
+
+### J2. Lịch sử áp dụng
+
+- [x] v1.0.1 (code 2, 2026-10-10): vá đọc PDF FlateDecode (`BlockTextReader`),
+  gỡ ML Kit OCR + `PdfScreen`, nhãn "Tài liệu". APK 64MB → 33.5MB,
+  AAB 36MB → 22MB. Chuẩn hóa tên dist về `Bibot.apk`/`Bibot.aab` 2026-10-12.
+- [x] v1.0.2 (code 3, 2026-10-12): bộ song song đầu tiên — `Bibot.apk` 33.7MB
+  (`com.bibot.app`, "Bibot") + `BibotV.apk` 34MB (`com.bibot.app.vip`,
+  "Bibot VIP"), `Bibot.aab` 22.3MB + `BibotV.aab` 22.5MB. Verify aapt +
+  apksigner cả 2 APK. Dist tách `v1.0.2-demo\` (public được) / `v1.0.2-vip\`
+  (test nội bộ).

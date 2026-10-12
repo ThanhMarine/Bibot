@@ -20,6 +20,8 @@
     <string name="nav_settings">Settings</string>
     <string name="nav_back_home">Back to home</string>
     <string name="nav_author_note">Author\’s note</string>
+    <string name="nav_about">About</string>
+    <string name="nav_view">View</string>
     <string name="dialog_close">Close</string>
 
     <!-- Home lists -->
@@ -539,4 +541,14 @@
     </string>
     <string name="help_section_title">Hướng dẫn sử dụng</string>
     <string name="help_section_sub">Cài đặt Offline STT/TTS, API Keys, FAQ</string>
+
+    <!-- A2.3: Reading display settings -->
+    <string name="reader_font_size">Cỡ chữ</string>
+    <string name="reader_font_size_sub">%1$.0f sp</string>
+    <string name="reader_interline">Khoảng dòng</string>
+    <string name="reader_interline_sub">%1$.1f</string>
+    <string name="reader_paragraph_margin">Khoảng đoạn</string>
+    <string name="reader_paragraph_margin_sub">%1$.0f dp</string>
+    <string name="reader_display_title">Hiển thị khi đọc</string>
+    <string name="reader_display_sub">Cỡ chữ, khoảng dòng, khoảng đoạn</string>
 </resources>

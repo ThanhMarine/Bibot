@@ -1,6 +1,26 @@
 {
- "version": 1,
+ "version": 2,
  "rules": [
+  {
+   "id": "chunk.brackets",
+   "kind": "split_guard",
+   "scope": [
+    "chunk"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 0,
+   "params": {
+    "brackets_open": "([{",
+    "brackets_close": ")]}",
+    "quotes": "\"“”",
+    "cite_abbrev": "fig no st mr mrs ms dr prof vs etc ie eg am pm tr tp nxb p pp ch sec vol ed",
+    "overrun_words": "8",
+    "overrun_chars_mult": "2"
+   }
+  },
   {
    "id": "drop.page_number",
    "kind": "drop_line",
@@ -18,6 +38,60 @@
    ]
   },
   {
+   "id": "start.first_chapter",
+   "kind": "start_marker",
+   "scope": [
+    "segment"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 0,
+   "pattern": "(?i)^\\s*(?:#+\\s*)?(chương|phần|tập|hồi|quyển|truyện|chuyện|mục|book|part|chapter)\\s+(1|01|một|nhất|đầu|thứ nhất|first|one|i)\\b"
+  },
+  {
+   "id": "start.intro",
+   "kind": "start_marker",
+   "scope": [
+    "segment"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 0,
+   "pattern": "(?i)^\\s*(?:#+\\s*)?(lời\\s+(giới thiệu|nói đầu|dẫn|tựa|tác giả|mở đầu)|mở đầu|phần mở đầu|prologue|preface|foreword|introduction)\\b"
+  },
+  {
+   "id": "drop.toc_leader",
+   "kind": "drop_line",
+   "scope": [
+    "segment"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 1,
+   "patterns": [
+    ".{4,}?\\.{3,}\\s*\\d{1,4}\\s*$"
+   ]
+  },
+  {
+   "id": "date.full",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 9,
+   "pattern": "(?i)(?:ngày\\s+)?\\b([0-3]?\\d)\\s*[/\\-.]\\s*([01]?\\d)\\s*[/\\-.]\\s*(\\d{2}|\\d{4})\\b",
+   "template": "{day:1} tháng {month:2} năm {year:3}"
+  },
+  {
    "id": "date.slash_short",
    "kind": "rewrite",
    "scope": [
@@ -31,6 +105,58 @@
    "template": "{day:1} tháng {month:2}"
   },
   {
+   "id": "temp.celsius",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 12,
+   "pattern": "(?i)(\\d)\\s*°\\s*C\\b",
+   "template": "{1} độ C"
+  },
+  {
+   "id": "temp.fahrenheit",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 13,
+   "pattern": "(?i)(\\d)\\s*°\\s*F\\b",
+   "template": "{1} độ F"
+  },
+  {
+   "id": "temp.stuck",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 14,
+   "pattern": "(?i)(\\d)\\s*(độ)",
+   "template": "{1} {2}"
+  },
+  {
+   "id": "roman.range",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 29,
+   "pattern": "(?i)\\b(thế\\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\\s+lục)\\s+([IVXLCDM]+)\\s*[-–—_]\\s*([IVXLCDM]+)\\b",
+   "template": "{1} {roman:2} đến {1} {roman:3}"
+  },
+  {
    "id": "roman.single",
    "kind": "rewrite",
    "scope": [
@@ -40,9 +166,61 @@
     "vi"
    ],
    "priority": 30,
-   "pattern": "(?i)\\b(thế\\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\\s+lục)\\s+([IVXLCDM]+)\\b",
-   "template": "{1} {roman:2}"
+   "pattern": "(?i)\\b(thế\\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\\s+lục)\\s+([IVXLCDM]+)([^A-Za-z0-9À-ɏḀ-ỹ]|$)",
+   "template": "{1} {roman:2}{3}"
+  },
+  {
+   "id": "fig.en",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "en"
+   ],
+   "priority": 31,
+   "pattern": "(?i)\\bfig\\.\\s*(\\d{1,4})\\b",
+   "template": "figure {1}"
+  },
+  {
+   "id": "fig.vi",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 31,
+   "pattern": "(?i)\\bfig\\.\\s*(\\d{1,4})\\b",
+   "template": "hình {1}"
+  },
+  {
+   "id": "no.en",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "en"
+   ],
+   "priority": 32,
+   "pattern": "(?i)\\bno\\.\\s*(\\d{1,4})\\b",
+   "template": "number {1}"
+  },
+  {
+   "id": "no.vi",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 32,
+   "pattern": "(?i)\\bno\\.\\s*(\\d{1,4})\\b",
+   "template": "số {1}"
   }
  ],
- "checksum": "f661e0cea669fad772e7b0019990eb75809c583fecb10a02870b61ff1262fc73"
+ "checksum": "59c432e1b98687f7fa7913577d43d5e828e474f8722057300e813eeed49a490b"
 }

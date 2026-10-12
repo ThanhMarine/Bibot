@@ -18,14 +18,15 @@ var embedded []byte
 
 // Rule là 1 quy tắc đọc/nói từ rulepack.
 type Rule struct {
-	ID       string   `json:"id"`
-	Kind     string   `json:"kind"`
-	Scope    []string `json:"scope"`
-	Lang     []string `json:"lang"`
-	Priority int      `json:"priority"`
-	Pattern  string   `json:"pattern,omitempty"`
-	Patterns []string `json:"patterns,omitempty"`
-	Template string   `json:"template,omitempty"`
+	ID       string            `json:"id"`
+	Kind     string            `json:"kind"`
+	Scope    []string          `json:"scope"`
+	Lang     []string          `json:"lang"`
+	Priority int               `json:"priority"`
+	Pattern  string            `json:"pattern,omitempty"`
+	Patterns []string          `json:"patterns,omitempty"`
+	Template string            `json:"template,omitempty"`
+	Params   map[string]string `json:"params,omitempty"`
 
 	rx []*regexp.Regexp
 }
@@ -70,7 +71,8 @@ func Load(data []byte) (*Pack, error) {
 			}
 			r.rx = append(r.rx, rx)
 		}
-		if len(r.rx) == 0 {
+		// split_guard không có pattern (chỉ params) — vẫn giữ rule.
+		if len(r.rx) == 0 && r.Kind != "split_guard" {
 			return nil, fmt.Errorf("rule %s: no pattern", r.ID)
 		}
 	}
@@ -98,11 +100,12 @@ func matchLang(r *Rule, lang string) bool {
 var phRe = regexp.MustCompile(`\{([a-z]+:)?(\d+)\}`)
 
 // hook Y HỆT Python/Kotlin — "" + ok=false = bỏ cả match, giữ nguyên chữ.
+// name=="" trả NGUYÊN VĂN (không trim — đuôi {3} như " " phải sống sót).
 func hook(name, raw string) (string, bool) {
-	t := strings.TrimSpace(raw)
 	if name == "" {
-		return t, true
+		return raw, true
 	}
+	t := strings.TrimSpace(raw)
 	toInt := func() (int, bool) {
 		n := 0
 		if t == "" {

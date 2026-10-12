@@ -10,7 +10,7 @@ func loadTestPack(t *testing.T) *Pack {
 	if err != nil {
 		t.Fatalf("LoadEmbedded: %v", err)
 	}
-	if p.Version == "" || len(p.Rules) != 3 {
+	if p.Version == "" || len(p.Rules) != 16 {
 		t.Fatalf("pack lạ: version=%q rules=%d", p.Version, len(p.Rules))
 	}
 	return p
@@ -62,6 +62,43 @@ func TestApplyRoman(t *testing.T) {
 		if got := p.Apply(in, "vi"); got != want {
 			t.Errorf("Apply(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestApplyV2(t *testing.T) {
+	p := loadTestPack(t)
+	cases := map[string]string{
+		"31-12-2026":              "ngày ba mươi mốt tháng mười hai năm hai nghìn hai mươi sáu",
+		"25°C hôm nay":            "25 độ C hôm nay",
+		"thế kỷ XI-XIX rực rỡ":    "thế kỷ mười mốt đến thế kỷ mười chín rực rỡ",
+		"Xem (Fig. 5) nhé":        "Xem (hình 5) nhé",
+		"Chương 1 .... 5 còn đọc": "Chương 1 .... 5 còn đọc", // drop chỉ theo dòng
+	}
+	for in, want := range cases {
+		if got := p.Apply(in, "vi"); got != want {
+			t.Errorf("Apply(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := p.Apply("See (Fig. 5).", "en"); got != "See (figure 5)." {
+		t.Errorf("Apply en fig = %q", got)
+	}
+	if !p.IsDropLine("Chương 1 .... 5", "vi") {
+		t.Errorf("IsDropLine toc-leader = false, want true")
+	}
+	if !p.IsStartMarker("Lời giới thiệu", "vi") || !p.IsStartMarker("Chương 1", "vi") {
+		t.Errorf("IsStartMarker intro/ch1 = false, want true")
+	}
+	if p.IsStartMarker("Chương 2", "vi") {
+		t.Errorf("IsStartMarker Chương 2 = true, want false")
+	}
+	var guard *Rule
+	for _, r := range p.Rules {
+		if r.Kind == "split_guard" {
+			guard = r
+		}
+	}
+	if guard == nil || guard.Params["brackets_open"] != "([{" || guard.Params["overrun_words"] != "8" {
+		t.Errorf("split_guard params lạ: %+v", guard)
 	}
 }
 

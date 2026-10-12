@@ -1,14 +1,10 @@
 package com.bibot.app.core.ads
 
 /**
- * AdCopy — noi dung quang cao VI/EN + cau bonus chuyen pha (CHECKLIST 2026-10-01).
+ * AdCopy — noi dung quang cao VI/EN (B6.14: đã xoá bonus/interstitial giữa chừng ở reader).
  * Eng Books (hoc sinh/sinh vien): full EN. Cotich: giong ke nhe + badge gia dinh.
  */
 object AdCopy {
-    fun bonusChapter(lang: String, chapterTitle: String): String =
-        if (lang == "en") "End of chapter $chapterTitle. Please relax with a short ad break!"
-        else "Hết chương $chapterTitle, xin mời bạn thư giãn với ít phút quảng cáo!"
-
     fun nativeLabel(lang: String): String = if (lang == "en") "Ad" else "Quang cao"
 
     fun familyBadge(lang: String): String = if (lang == "en") "Family safe" else "Danh cho gia dinh"

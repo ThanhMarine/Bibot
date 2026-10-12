@@ -27,7 +27,8 @@ object AdConfig {
         com.bibot.app.BuildConfig.AD_TEST_DEVICES.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     } catch (_: Exception) { emptyList() }
 
-    // Tan suat quang cao (AD_DESIGN v1.0 — DEPRECATED cho reader: thay bang PhaseTracker 8-10'/bien chuong)
+    // Tan suat quang cao (AD_DESIGN v1.0 — B6.14: reader KHONG interstitial giữa chừng,
+    // chỉ banner + rewarded Cloud TTS; cooldown dưới chỉ dùng ngoài reader)
     const val INTERSTITIAL_INTERVAL_MODE_SWITCHES = 3
     const val INTERSTITIAL_COOLDOWN_MS = 30 * 60 * 1000L // 30 phut (chi dung ngoai reader)
     const val REWARDED_COOLDOWN_MS = 30 * 60 * 1000L // 30 phut

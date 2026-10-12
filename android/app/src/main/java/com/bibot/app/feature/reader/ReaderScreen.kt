@@ -3,11 +3,10 @@ package com.bibot.app.feature.reader
 /**
  * R0 - Man doc duy nhat cho moi kho sach (F0.1).
  * Tong quat hoa tu BookScreen (giu nguyen luong producer Channel(2) +
- * PrepSession + phase ads), khac biet theo ReaderCollection (filter kho,
+ * PrepSession), khac biet theo ReaderCollection (filter kho,
  * lang/voice, co ads, chuoi UI). Tham khao / PDF local dung chung.
  */
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -134,9 +133,6 @@ fun ReaderScreen(
     val jumpChapterReq = remember { mutableIntStateOf(-1) }
     val jumpSentenceReq = remember { mutableIntStateOf(0) }
     val jumpSeq = remember { mutableIntStateOf(0) }
-    // Phase Doc/Ngat 8-10' + bonus truoc ad (chi ban demo co ads; ban VIP doc lien mach)
-    val phaseTracker = remember { com.bibot.app.core.ads.ReadingPhaseTracker() }
-    var adPreloaded by remember { mutableStateOf(false) }
     // Highlight chi bat khi audio that su start (sua loi chunk dau to som trong luc cho synth)
     var audioStarted by remember { mutableStateOf(false) }
     // A1.4: engine thực tế của lượt đọc (Piper/Cloud/Offline) — snapshot lúc bắt
@@ -146,11 +142,6 @@ fun ReaderScreen(
     val adsPrefs = remember { com.bibot.app.data.ads.AdsPreferences(context) }
     val adsState by adsPrefs.adsStateFlow.collectAsState(initial = com.bibot.app.data.ads.AdsState())
     val vipActive = com.bibot.app.data.ads.isVipActive(adsState)
-    // Dang doi QC tat de tu doc tiep (khong can bam Play lai)
-    var adBreakActive by remember { mutableStateOf(false) }
-    // Chong loop counter: lan ngat truoc cach day bao lau + o chuong nao
-    var lastAdBreakMs by remember { mutableStateOf(0L) }
-    var lastAdBreakChap by remember { mutableIntStateOf(-1) }
     // B3+E1.1+F2: chrome + 2 chế độ VIEW + Touch_point (mặc định BROWSE: chỉ render).
     var menuVisible by remember { mutableStateOf(true) }
     var viewMode by remember { mutableStateOf(ReaderView.TEXT) }
@@ -184,6 +175,12 @@ fun ReaderScreen(
     val strPlay = if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read
     val strDone = if (collection.useStoryStrings) R.string.reader_done_telling else R.string.reader_done_reading
     val strStatus = if (collection.useStoryStrings) R.string.reader_status_telling else R.string.reader_status_reading
+
+    // A2.3: RenderIfDirty key — chỉ relayout khi cài đặt hiển thị thay đổi (Snap config)
+    // Tránh jank khi đổi font sách dày: chỉ recompose khi fontSize/interline/paragraphMargin thực sự thay đổi
+    val renderKey = androidx.compose.runtime.derivedStateOf {
+        prefsState.readerFontSizeSp to prefsState.readerInterline to prefsState.readerParagraphMargin
+    }.value
 
     LaunchedEffect(Unit) {
         offlineTts.ensureInit {}
@@ -382,9 +379,6 @@ fun ReaderScreen(
     fun jumpNow(idx: Int, sentence: Int = 0) {
         if (idx !in chapters.indices) return
         pendingJump = null // dialog Có → đóng hộp
-        // Huy lenh tu-resume neu user nhay thu cong giua luc QC (chong doc lai ngoai y)
-        adBreakActive = false
-        com.bibot.app.data.ads.AdManager.onAdClicked = null
         jumpChapterReq.intValue = idx
         jumpSentenceReq.intValue = sentence.coerceAtLeast(0)
         jumpSeq.intValue++
@@ -426,8 +420,6 @@ fun ReaderScreen(
         val book = selectedBook ?: return
         readModeState = ReadMode.READ
         audioStarted = false
-        phaseTracker.reset()
-        adPreloaded = false
         jumpSeq.intValue++
         playerVm.stopPlayback()
         isReading = true
@@ -495,8 +487,6 @@ fun ReaderScreen(
         // Đang pause giữa chừng (đã neo, chưa đổi chỗ) → đọc tiếp ngay, không hỏi lại.
         if (readModeState == ReadMode.READ && !isReading && selAnchor != null) {
             audioStarted = false
-            phaseTracker.reset()
-            adPreloaded = false
             jumpSeq.intValue++
             playerVm.stopPlayback()
             isReading = true
@@ -511,7 +501,6 @@ fun ReaderScreen(
     fun stopAll() {
         isReading = false
         readModeState = ReadMode.BROWSE
-        adBreakActive = false
         audioStarted = false
         anchorConfirm = null
         pendingJump = null
@@ -525,7 +514,6 @@ fun ReaderScreen(
     fun togglePlay() {
         if (isReading) {
             isReading = false
-            adBreakActive = false
             offlineTts.stop()
             playerVm.stopPlayback()
             com.bibot.app.ui.player.KeepAwakeService.stop(context)
@@ -583,6 +571,40 @@ fun ReaderScreen(
         }
     }
 
+    // B4.2: Tìm kiếm toàn sách (không chỉ chương hiện tại) — dùng SearchWindow ±7 từ (A2.4)
+    suspend fun runSearchFullBook(q: String): List<com.bibot.app.core.text.TextCleaner.SearchWindow> {
+        val needle = q.trim().lowercase()
+        if (needle.length < 2) return emptyList()
+        return withContext(Dispatchers.IO) {
+            val results = mutableListOf<com.bibot.app.core.text.TextCleaner.SearchWindow>()
+            val session = prepSession ?: return@withContext emptyList()
+            val book = selectedBook ?: return@withContext emptyList()
+            val file = book.localFile ?: return@withContext emptyList()
+            
+            // Lấy tất cả nội dung sách (suspend call)
+            val content = session.contentAll() ?: BlockTextReader.iterCleanedBlocks(file).joinToString(" ") { it }
+            val low = content.lowercase()
+            
+            // Tìm tất cả vị trí
+            var from = 0
+            while (true) {
+                val p = low.indexOf(needle, from)
+                if (p < 0) break
+                // Tạo hitbox từ char offset
+                val hitbox = com.bibot.app.core.text.TextCleaner.hitboxFromCharOffset(content, p, p + needle.length)
+                if (hitbox != null) {
+                    // Tạo SearchWindow ±7 từ
+                    val totalWords = content.split(Regex("\\s+")).size
+                    val window = com.bibot.app.core.text.TextCleaner.searchWindow(hitbox, totalWords)
+                    results.add(window)
+                }
+                from = p + needle.length
+                if (results.size >= 50) break
+            }
+            results
+        }
+    }
+
     fun goHit(step: Int) {
         val hits = searchHits
         if (hits.isEmpty() || searchChap != currentChapter) return
@@ -633,18 +655,9 @@ fun ReaderScreen(
 
     LaunchedEffect(isReading) {
         // F2.1: producer TTS chỉ chạy ở mode READ (BROWSE chỉ render, không chunking).
+        // B6.14: đọc liên tục, không ngắt interstitial giữa chừng (chỉ banner + rewarded Cloud TTS).
         if (!isReading || readModeState != ReadMode.READ || selectedBook == null || chapters.isEmpty()) {
-            adPreloaded = false
             return@LaunchedEffect
-        }
-        // Preload interstitial early when reading starts (fix race condition)
-        if (com.bibot.app.BuildConfig.ENABLE_ADS && collection.adsEnabled && !vipActive && !adPreloaded) {
-            try {
-                (context as? android.app.Activity)?.let { act ->
-                    com.bibot.app.data.ads.AdManager.loadInterstitial(act)
-                }
-                adPreloaded = true
-            } catch (_: Exception) {}
         }
         val book = selectedBook ?: return@LaunchedEffect
         // P1: câu từng chương lấy từ session (.sent cache / seek .prep) — không split content trong RAM
@@ -828,68 +841,10 @@ fun ReaderScreen(
                     )
                 } catch (_: Exception) {}
                 // Tạm nghỉ mỗi câu — dài hơn nếu câu kết thúc bằng dấu phẩy
+                // B6.14: không ngắt interstitial giữa chừng — đọc liên tục.
                 val spokenText = if (item is ReaderTtsItem.Direct) item.text else ""
                 val isComma = spokenText.trimEnd().endsWith(",") || spokenText.trimEnd().endsWith("，")
                 delay(if (isComma) 250 else 180)
-                // Phase Doc/Ngat 8-10': VIP bo qua (khong bonus, khong dung, khong QC)
-                if (com.bibot.app.BuildConfig.ENABLE_ADS && collection.adsEnabled && !vipActive && item.jumpSeq == jumpSeq.intValue) {
-                    if (item is ReaderTtsItem.Direct) phaseTracker.onBlock(item.text)
-                    else if (item is ReaderTtsItem.Pcm) phaseTracker.onChars(item.textLen)
-                    val lv = phaseTracker.level()
-                    val chapEnd = item.sentIdx + 1 >= item.sentTotal
-                    // Chong loop counter: cach lan ngat truoc >= 5 phut VA khac chuong da ngat.
-                    val nowMs = System.currentTimeMillis()
-                    val gapOk = nowMs - lastAdBreakMs >= 5 * 60 * 1000L
-                    val chapOk = item.chapIdx != lastAdBreakChap
-                    if (phaseTracker.shouldBreakAtBoundary(lv, chapEnd) && gapOk && chapOk) {
-                        val bonus = com.bibot.app.core.ads.AdCopy.bonusChapter(readLang, item.title)
-                        status = bonus
-                        try { offlineTts.speakOffline(bonus, speed, lang = readLang) } catch (_: Exception) {}
-                        if (item.jumpSeq == jumpSeq.intValue) {
-                            try { offlineTts.stop() } catch (_: Exception) {}
-                            playerVm.stopPlayback()
-                            // Hien QC neu co san; khong co -> doc lien mach khong dung
-                            var adShown = false
-                            try {
-                                (context as? android.app.Activity)?.let { act ->
-                                    adShown = com.bibot.app.data.ads.AdManager.showInterstitial(act)
-                                }
-                            } catch (_: Exception) {}
-                            phaseTracker.reset()
-                            adPreloaded = false
-                            lastAdBreakMs = nowMs
-                            lastAdBreakChap = item.chapIdx
-                            try {
-                                Log.d("PhaseAd", "break ${collection.key} chap=${item.chapIdx} sent=${item.sentIdx} lv=$lv ${phaseTracker.debugStats()}")
-                            } catch (_: Exception) {}
-                            currentSentence = item.sentIdx + 1
-                            if (adShown) {
-                                // Tu dong doc tiep khi QC tat (onAdDismissed) — ke ca khi tat man hinh
-                                adBreakActive = true
-                                com.bibot.app.data.ads.AdManager.onAdClicked = {
-                                    com.bibot.app.data.ads.AdManager.onAdClicked = null
-                                    if (adBreakActive) { adBreakActive = false; isReading = true }
-                                }
-                                com.bibot.app.data.ads.AdManager.onAdFailed = {
-                                    com.bibot.app.data.ads.AdManager.onAdFailed = null
-                                    if (adBreakActive) { adBreakActive = false; isReading = true }
-                                }
-                                status = context.getString(R.string.reader_ad_resume, bonus)
-                                isReading = false
-                                break
-                            }
-                            // Khong co QC san: doc tiep cau ke ma khong ngat
-                        }
-                    } else if (lv == 1 && !adPreloaded && collection.adsEnabled) {
-                        // Armed: preload interstitial de san o bien chuong (fallback nếu preload đầu thất bại)
-                        try {
-                            (context as? android.app.Activity)?.let { act ->
-                                com.bibot.app.data.ads.AdManager.loadInterstitial(act)
-                            }
-                            adPreloaded = true
-                        } catch (_: Exception) {}
-                    }
-                }
             }
         } finally {
             try { producer.cancel() } catch (_: Exception) {}
@@ -1267,20 +1222,24 @@ fun ReaderScreen(
                                 val isHit = searchOpen && searchChap == currentChapter &&
                                     searchHits.getOrNull(searchPos) == idx
                                 val (displayText, hasPause) = com.bibot.app.core.text.TextCleaner.splitPause(s)
-                                Column {
-                                    Text(
-                                        if (hasPause) "$displayText ⏸2s" else displayText,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        lineHeight = 22.sp,
-                                        color = if (isCurrent || isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = if (isCurrent || isSel || isHit) FontWeight.Bold else FontWeight.Normal,
-                                        modifier = Modifier.padding(vertical = 3.dp)
-                                            .background(
-                                                if (isHit) MaterialTheme.colorScheme.tertiaryContainer
-                                                else androidx.compose.ui.graphics.Color.Transparent,
-                                                RoundedCornerShape(2.dp)
-                                            )
-                                            .combinedClickable(
+Column(
+                                     modifier = Modifier
+                                         .padding(vertical = 3.dp)
+                                         .padding(bottom = prefsState.readerParagraphMargin.dp)
+                                 ) {
+                                     Text(
+                                         if (hasPause) "$displayText ⏸2s" else displayText,
+                                         fontSize = prefsState.readerFontSizeSp.sp,
+                                         lineHeight = (prefsState.readerFontSizeSp * prefsState.readerInterline).sp,
+                                         color = if (isCurrent || isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                         fontWeight = if (isCurrent || isSel || isHit) FontWeight.Bold else FontWeight.Normal,
+                                         modifier = Modifier
+                                             .background(
+                                                 if (isHit) MaterialTheme.colorScheme.tertiaryContainer
+                                                 else androidx.compose.ui.graphics.Color.Transparent,
+                                                 RoundedCornerShape(2.dp)
+                                             )
+                                             .combinedClickable(
                                                 onClick = {
                                                     if (readModeState == ReadMode.BROWSE) {
                                                         selAnchor = ReadAnchor(ReaderView.TEXT, currentChapter, idx)

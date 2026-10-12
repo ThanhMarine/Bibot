@@ -92,7 +92,7 @@
 3. **Build 9** (PDF→MD + Drive) — official kho sách (commercial).
 4. Build 10 (Firestore) + 2.6.4 (relay) song song.
 
-Mỗi build xong: `go vet ./... && go build ./...` `0`, `./gradlew :app:assembleDemoDebug :app:assembleCommercialDebug` ra `Bibot-demo.apk`/`Bibot.apk`, test 3 case `persona Em là Bi` / STT không key (+hộp quyền mic) / TTS offline, cập nhật `Readme.md` §10 + `Bibot_build.md`.
+Mỗi build xong: `go vet ./... && go build ./...` `0`, `./gradlew :app:assembleDemoDebug :app:assembleCommercialDebug` ra `Bibot.apk`/`BibotV.apk`, test 3 case `persona Em là Bi` / STT không key (+hộp quyền mic) / TTS offline, cập nhật `Readme.md` §10 + `Bibot_build.md`.
 
 ---
 

@@ -10,9 +10,73 @@
 # Quy ước pattern: CHỈ giao Java∩RE2∩Python (cấm lookbehind/lookahead/atomic/
 # possessive/backref) — compile_rules.py từ chối pattern ngoài giao.
 
-version: 1
+version: 2
 
 rules:
+  # ---- Tầng nhận diện mốc vào sách (chạy trước mọi rewrite) ----
+  - id: start.intro
+    kind: start_marker
+    scope: [segment]
+    lang: [vi, en]
+    priority: 0
+    pattern: '(?i)^\s*(?:#+\s*)?(lời\s+(giới thiệu|nói đầu|dẫn|tựa|tác giả|mở đầu)|mở đầu|phần mở đầu|prologue|preface|foreword|introduction)\b'
+    note: 'Mốc lời giới thiệu/dẫn/mở đầu (kể cả "## "). Port BlockTextReader introHeading.'
+    tests:
+      - {in: 'Lời giới thiệu', match: true}
+      - {in: '## Lời nói đầu', match: true}
+      - {in: 'Mở đầu', match: true}
+      - {in: 'Nội dung chương một', match: false}
+      - {in: 'Tác giả Nguyễn Du', match: false}
+
+  - id: start.first_chapter
+    kind: start_marker
+    scope: [segment]
+    lang: [vi, en]
+    priority: 0
+    pattern: '(?i)^\s*(?:#+\s*)?(chương|phần|tập|hồi|quyển|truyện|chuyện|mục|book|part|chapter)\s+(1|01|một|nhất|đầu|thứ nhất|first|one|i)\b'
+    note: 'Mốc chương/phần/tập số 1 (chỉ số 1 — Chương 2 không phải mốc). Port firstChapter.'
+    tests:
+      - {in: 'Chương 1', match: true}
+      - {in: '## Phần I', match: true}
+      - {in: 'Tập thứ nhất', match: true}
+      - {in: 'Chương 2', match: false}
+      - {in: 'Tập 10 câu chuyện', match: false}
+
+  # ---- Tầng bỏ dòng rác (vòng dòng: số trang + mục lục chấm) ----
+  # Vòng KHỐI (dropPageNumberLines) cố ý GIỮ code: chỉ bỏ số trang, không bỏ
+  # TOC trong nội dung ("... 100" có thể là chữ) — rule TOC chỉ dùng ở vòng dòng.
+  - id: drop.toc_leader
+    kind: drop_line
+    scope: [segment]
+    lang: [vi, en]
+    priority: 1
+    patterns:
+      - '.{4,}?\.{3,}\s*\d{1,4}\s*$'
+    note: 'Mục lục chấm lãnh đạo. Port tocLeader. Chỉ vòng dòng (không dùng vòng khối).'
+    tests:
+      - {in: 'Chương 1 .... 5', drop: true}
+      - {in: 'Lời nói đầu ... 3', drop: true}
+      - {in: 'Nội dung câu chuyện bình thường', drop: false}
+      - {in: 'Có ba chấm... rồi thôi', drop: false}
+
+  # ---- Tầng rewrite phát âm: ngày (full trước short) ----
+  - id: date.full
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 9
+    pattern: '(?i)(?:ngày\s+)?\b([0-3]?\d)\s*[/\-.]\s*([01]?\d)\s*[/\-.]\s*(\d{2}|\d{4})\b'
+    template: '{day:1} tháng {month:2} năm {year:3}'
+    note: 'Ngày kèm năm (/, -, . đều nhận). Chạy TRƯỚC short để "31/12/2026" khỏi bị ăn nửa.'
+    tests:
+      - {in: '31-12-2026', out: 'ngày ba mươi mốt tháng mười hai năm hai nghìn hai mươi sáu'}
+      - {in: 'Gặp nhau 31/12/2026 nhé', out: 'Gặp nhau ngày ba mươi mốt tháng mười hai năm hai nghìn hai mươi sáu nhé'}
+      - {in: '05/06/26', out: 'ngày mùng năm tháng sáu năm hai nghìn hai mươi sáu'}
+      - {in: '32/12/2026 sai', out: '32/12/2026 sai'}
+      - {in: '31/13/2026 sai', out: '31/13/2026 sai'}
+      - {in: '1.440 đồng', out: '1.440 đồng'}
+      - {in: '12:30 trưa', out: '12:30 trưa'}
+
   - id: date.slash_short
     kind: rewrite
     scope: [tts]
@@ -47,18 +111,134 @@ rules:
       - {in: 'năm 2026 rồi', drop: false}
       - {in: '19840 người', drop: false}
 
+  # ---- Nhiệt độ (sau ngày, trước số — dash "đến" do bước số lo) ----
+  - id: temp.celsius
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 12
+    pattern: '(?i)(\d)\s*°\s*C\b'
+    template: '{1} độ C'
+    note: 'Port normalizeDegrees. "25-30°C" giữ dash (bước số đổi "đến" sau).'
+    tests:
+      - {in: '25°C hôm nay', out: '25 độ C hôm nay'}
+      - {in: '25-30°C ngoài trời', out: '25-30 độ C ngoài trời'}
+      - {in: 'nhiệt độ phòng', out: 'nhiệt độ phòng'}
+
+  - id: temp.fahrenheit
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 13
+    pattern: '(?i)(\d)\s*°\s*F\b'
+    template: '{1} độ F'
+    tests:
+      - {in: '77°F ngoài trời', out: '77 độ F ngoài trời'}
+      - {in: 'nhiệt độ phòng', out: 'nhiệt độ phòng'}
+
+  - id: temp.stuck
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 14
+    pattern: '(?i)(\d)\s*(độ)'
+    template: '{1} {2}'
+    note: '"30độ" dính → tách. Idempotent (chạy lại không đổi).'
+    tests:
+      - {in: '30độ C hôm nay', out: '30 độ C hôm nay'}
+      - {in: 'nhiệt độ phòng', out: 'nhiệt độ phòng'}
+
+  # ---- La Mã: khoảng trước, đơn sau ----
+  - id: roman.range
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 29
+    pattern: '(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)\s*[-–—_]\s*([IVXLCDM]+)\b'
+    template: '{1} {roman:2} đến {1} {roman:3}'
+    note: 'Port romanRange. Từ khóa dài ("thế kỷ") xếp trước "kỷ" để match dài nhất. Quirk parity: 11 → "mười mốt" (cả 3 engine, fix dời H2).'
+    tests:
+      - {in: 'thế kỷ XI-XIX rực rỡ', out: 'thế kỷ mười mốt đến thế kỷ mười chín rực rỡ'}
+      - {in: 'Chương IIII-X sai', out: 'Chương IIII-X sai'}
+      - {in: 'Louis XIV đến chơi', out: 'Louis XIV đến chơi'}
+
   - id: roman.single
     kind: rewrite
     scope: [tts]
     lang: [vi]
     priority: 30
-    pattern: '(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)\b'
-    template: '{1} {roman:2}'
-    note: 'Chỉ sau từ khóa. Phi chuẩn IIX=8 cứu; IIII giữ nguyên.'
+    pattern: '(?i)\b(thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục)\s+([IVXLCDM]+)([^A-Za-z0-9À-ɏḀ-ỹ]|$)'
+    template: '{1} {roman:2}{3}'
+    note: 'Chỉ sau từ khóa. Phi chuẩn IIX=8 cứu; IIII giữ nguyên. Đuôi {3} (thay \b trần): chặn tái-match chữ "m" trong output của roman.range ("mười…") — \b ASCII ở Java/Go coi "m|ư" là biên, Python-unicode thì không (lệch 3 engine, bug thật đã gặp). Ký tự literal À(U+00C0) ɏ(U+024F) Ḁ(U+1E00) ỹ(U+1EF9): phủ Latin-1 + Ext-A/B + Additional.'
     tests:
       - {in: 'Chương X mở đầu', out: 'Chương mười mở đầu'}
       - {in: 'Chương XX', out: 'Chương hai mươi'}
+      - {in: 'Mục III.', out: 'Mục ba.'}
       - {in: 'Phụ lục VII', out: 'Phụ lục bảy'}
       - {in: 'Phần IIX đặc biệt', out: 'Phần tám đặc biệt'}
       - {in: 'Chương IIII sai', out: 'Chương IIII sai'}
       - {in: 'Louis XIV đến chơi', out: 'Louis XIV đến chơi'}
+      - {in: 'thế kỷ mười mốt đến đây', out: 'thế kỷ mười mốt đến đây'}
+
+  # ---- Trích dẫn hình/số (sau La Mã, trước bước viết-tắt/số) ----
+  - id: fig.vi
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 31
+    pattern: '(?i)\bfig\.\s*(\d{1,4})\b'
+    template: 'hình {1}'
+    tests:
+      - {in: 'Xem (Fig. 5) nhé', out: 'Xem (hình 5) nhé'}
+      - {in: 'Hình minh họa đẹp', out: 'Hình minh họa đẹp'}
+      - {in: 'Fig. không số', out: 'Fig. không số'}
+
+  - id: fig.en
+    kind: rewrite
+    scope: [tts]
+    lang: [en]
+    priority: 31
+    pattern: '(?i)\bfig\.\s*(\d{1,4})\b'
+    template: 'figure {1}'
+    tests:
+      - {in: 'See (Fig. 5).', out: 'See (figure 5).'}
+      - {in: 'A fig tree grows.', out: 'A fig tree grows.'}
+
+  - id: no.vi
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 32
+    pattern: '(?i)\bno\.\s*(\d{1,4})\b'
+    template: 'số {1}'
+    tests:
+      - {in: 'Trích No. 12 hay', out: 'Trích số 12 hay'}
+      - {in: 'Số nhà đẹp', out: 'Số nhà đẹp'}
+
+  - id: no.en
+    kind: rewrite
+    scope: [tts]
+    lang: [en]
+    priority: 32
+    pattern: '(?i)\bno\.\s*(\d{1,4})\b'
+    template: 'number {1}'
+    tests:
+      - {in: 'Table No. 3 here.', out: 'Table number 3 here.'}
+      - {in: 'There is no 5 here.', out: 'There is no 5 here.'}
+
+  # ---- Tham số chunker (không regex — engine đọc params) ----
+  # GIỚI HẠN KHOA HỌC: pageNum "Trang 456" (loại trừ thập phân/khoảng bằng
+  # lookahead) NGOÀI giao 3 engine → giữ code TextCleaner.readPageNumbers, không ép vào ruler.
+  - id: chunk.brackets
+    kind: split_guard
+    scope: [chunk]
+    lang: [vi, en]
+    priority: 0
+    params:
+      brackets_open: '([{'
+      brackets_close: ')]}'
+      quotes: '"“”'
+      cite_abbrev: 'fig no st mr mrs ms dr prof vs etc ie eg am pm tr tp nxb p pp ch sec vol ed'
+      overrun_words: '8'
+      overrun_chars_mult: '2'
+    note: 'Port VietnameseChunker (D6): cặp ngoặc/trích dẫn + viết tắt + ngưỡng ép yield. Flat string để loader nhẹ (0 dep).'

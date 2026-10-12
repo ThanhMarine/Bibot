@@ -1,6 +1,8 @@
 package com.bibot.app.core.text
 
 import java.util.regex.Pattern
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Port 1-1 Pi streaming_llm.py:143 clean_tts_text + text_cleaner.py
@@ -219,6 +221,10 @@ object TextCleaner {
         // "25-30 độ C" giữ "đến" (dashBetween lo); "25°C" → "25 độ C".
         // Quy ước phân biệt: không-năm chỉ nhận "/" (31/12 = ngày);
         // "-" không năm là khoảng ("100-120" → "đến", giữ nguyên hành vi cũ).
+        // H2 ruler: rewrite qua rulepack TRƯỚC (nếu Application đã init) — các hàm
+        // cứng dưới thành no-op cho case đã port (idempotent), giữ làm fallback khi
+        // rules chưa sẵn. readPageNumbers GIỮ code (cần lookahead, ngoài giao 3 engine).
+        text = ReadingRules.applyIfReady(text, lang)
         text = readDates(text)
         text = normalizeDegrees(text)
         // 3b. số trang → đọc thành chữ: "page/Trang 456" → "trang bốn trăm năm mươi sáu".
@@ -226,6 +232,7 @@ object TextCleaner {
         text = readPageNumbers(text)
         // 3c. số La Mã sau từ khóa: "thế kỷ XI-XIX" → "thế kỷ mười một đến thế kỷ mười chín".
         // Chỉ sau từ khóa (thế kỷ/chương/phần...) nên không ăn chữ thường ("I", "C", "Louis XIV" giữ nguyên).
+        // (Ruler ở 3a đã rewrite trước; hàm cứng no-op cho case đã port — giữ làm fallback.)
         text = readRomanNumerals(text)
         // 3d. D6: trích dẫn hình/bảng — "Fig. 5" → "hình 5" (VI) / "figure 5" (EN);
         // "No. 12" → "số 12"/"number 12". Dấu chấm BẮT BUỘC (không ăn "no 5" tiếng Anh).
@@ -346,8 +353,10 @@ object TextCleaner {
     private const val ROMAN_KEYWORDS = """thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục"""
     private val romanRangeRegex =
         Regex("""(?i)\b($ROMAN_KEYWORDS)\s+([IVXLCDM]+)\s*[-–—_]\s*([IVXLCDM]+)\b""")
+    // Đuôi ([^...]|$) thay \b trần (parity ruler roman.single): chặn tái-match "m"
+    // trong output của range ("mười…" — \b ASCII coi "m|ư" là biên). Giữ $3 nguyên.
     private val romanSingleRegex =
-        Regex("""(?i)\b($ROMAN_KEYWORDS)\s+([IVXLCDM]+)\b""")
+        Regex("""(?i)\b($ROMAN_KEYWORDS)\s+([IVXLCDM]+)([^A-Za-z0-9À-ɏḀ-ỹ]|$)""")
     private val validRomanRegex =
         Regex("""^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$""")
 
@@ -365,7 +374,7 @@ object TextCleaner {
         }
         t = romanSingleRegex.replace(t) { m ->
             val v = romanToInt(m.groupValues[2])
-            if (v == null) m.value else "${m.groupValues[1]} ${numberToVietnameseWords(v.toString())}"
+            if (v == null) m.value else "${m.groupValues[1]} ${numberToVietnameseWords(v.toString())}${m.groupValues[3]}"
         }
         return t
     }
@@ -490,4 +499,124 @@ object TextCleaner {
 
     // Alias cho HybridTtsManager/TextCleanerForTts cũ
     fun clean(s: String): String = cleanForTts(s)
+
+    // =====================================================================
+    // A2.4: Hitbox + SearchWindow ±7 từ — đơn vị vạn năng cho highlight/bookmark/
+    // TTS word-sync/search preview/tap-to-define. Thay thế position=chap*100+sent.
+    // Clone orebridge/StSearchUtils.h: lưu trữ span (start, end) theo word index.
+    // =====================================================================
+
+    /**
+     * Hitbox: một khoảng liên tục trong text (word indices).
+     * Dùng cho: highlight tìm kiếm, bookmark, TTS karaoke sync, tap-to-define.
+     * start/end là chỉ số TỪ (word index) trong mảng sentences/words.
+     */
+    data class Hitbox(
+        val start: Int,      // word index bắt đầu (inclusive)
+        val end: Int,        // word index kết thúc (exclusive)
+        val chapterIdx: Int = -1, // chapter chứa hitbox (-1 nếu không áp dụng)
+        val sentenceIdx: Int = -1 // sentence trong chapter (-1 nếu không áp dụng)
+    ) {
+        val length: Int get() = end - start
+        val isValid: Boolean get() = start >= 0 && end >= start
+    }
+
+    /**
+     * SearchWindow: mở rộng Hitbox ra ±N từ (mặc định ±7) để hiển thị context.
+     * Dùng cho: search preview, tap-to-define, TTS word-sync visualization.
+     */
+    data class SearchWindow(
+        val hitbox: Hitbox,
+        val contextBefore: Int = 7,
+        val contextAfter: Int = 7,
+        val totalWords: Int = 0 // tổng từ trong chapter/document
+    ) {
+        val windowStart: Int
+            get() = max(0, hitbox.start - contextBefore)
+        val windowEnd: Int
+            get() = min(totalWords, hitbox.end + contextAfter)
+
+        /**
+         * Tạo window với context mặc định ±7 từ.
+         */
+        companion object {
+            const val DEFAULT_CONTEXT = 7
+
+            fun fromHitbox(hitbox: Hitbox, totalWords: Int): SearchWindow {
+                return SearchWindow(
+                    hitbox = hitbox,
+                    contextBefore = DEFAULT_CONTEXT,
+                    contextAfter = DEFAULT_CONTEXT,
+                    totalWords = totalWords
+                )
+            }
+        }
+    }
+
+    /**
+     * Tạo Hitbox từ vị trí câu (sentence) trong chapter.
+     * Thay thế position=chap*100+sent cũ.
+     */
+    fun hitboxFromSentence(
+        chapterIdx: Int,
+        sentenceIdx: Int,
+        wordsInSentence: Int
+    ): Hitbox {
+        // start = tổng từ trước câu này, end = start + wordsInSentence
+        // Giả định caller tính tổng từ trước câu này
+        return Hitbox(
+            start = 0, // caller phải set đúng
+            end = wordsInSentence,
+            chapterIdx = chapterIdx,
+            sentenceIdx = sentenceIdx
+        )
+    }
+
+    /**
+     * Tạo Hitbox từ word offset trong chapter.
+     */
+    fun hitboxFromWordOffset(
+        chapterIdx: Int,
+        wordStart: Int,
+        length: Int,
+        sentenceIdx: Int = -1
+    ): Hitbox {
+        return Hitbox(
+            start = wordStart,
+            end = wordStart + length,
+            chapterIdx = chapterIdx,
+            sentenceIdx = sentenceIdx
+        )
+    }
+
+    /**
+     * Tạo SearchWindow từ Hitbox với context mặc định ±7 từ.
+     */
+    fun searchWindow(hitbox: Hitbox, totalWords: Int): SearchWindow {
+        return SearchWindow.fromHitbox(hitbox, totalWords)
+    }
+
+    /**
+     * Tạo Hitbox từ span (startChar, endChar) trong text - dùng cho tap-to-define.
+     * Chuyển char offset → word index.
+     */
+    fun hitboxFromCharOffset(
+        text: String,
+        charStart: Int,
+        charEnd: Int,
+        chapterIdx: Int = -1,
+        sentenceIdx: Int = -1
+    ): Hitbox? {
+        if (charStart < 0 || charEnd > text.length || charStart >= charEnd) return null
+        val before = text.substring(0, charStart)
+        val match = text.substring(charStart, charEnd)
+        val wordStart = before.split(Regex("\\s+")).size
+        val wordEnd = wordStart + match.split(Regex("\\s+")).size
+        return Hitbox(
+            start = wordStart,
+            end = wordEnd,
+            chapterIdx = chapterIdx,
+            sentenceIdx = sentenceIdx
+        )
+    }
 }

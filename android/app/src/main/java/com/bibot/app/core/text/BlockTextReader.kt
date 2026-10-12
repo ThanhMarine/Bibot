@@ -39,7 +39,7 @@ object BlockTextReader {
     private const val PDF_CARRY_BYTES = 4 * 1024
     // PDF nén FlateDecode: chỉ nạp nguyên file khi ≤ ngưỡng này (truyện thường vài MB)
     private const val PDF_MAX_INFLATE_BYTES = 12 * 1024 * 1024
-    // Bỏ qua stream object > ngưỡng (thường là ảnh/font nhúng, không phải text)
+    // Trần stream object > ngưỡng (thường là ảnh/font nhúng, không phải text)
     private const val PDF_MAX_STREAM_BYTES = 2 * 1024 * 1024
     // Trần output inflate mỗi stream (chống zip-bomb trên máy yếu)
     private const val PDF_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
@@ -50,6 +50,17 @@ object BlockTextReader {
     private const val MAX_FRONT_CHARS = 64 * 1024
     // P6: dòng dài hơn 120 ký tự là câu văn, không phải heading
     private const val STORY_HEADING_MAX_CHARS = 120
+
+/** Cache block text đã clean tránh readText() toàn file lại.
+     * Giới hạn kích thước 64MB, key là SHA-1 nội dung block.
+     * Lưu block thường dùng, tránh readText() toàn file khi quay lại.
+     */
+    private val cache: MutableMap<String, String> = mutableMapOf()
+
+    /** Giải phóng cache (gọi khi thoát file/trở về library). */
+    fun free() {
+        cache.clear()
+    }
 
     // Đúng thứ tự parse bản cũ: chỉ `##` (không phải `#`/`###`)
     private val mdHeading = Regex("""^##\s+(.+?)\s*#*$""")
@@ -141,6 +152,9 @@ object BlockTextReader {
     /** Số trang/header/footer/mục-lục-dòng → bỏ mọi lúc, mọi mode. */
     private fun isDroppableLine(trimmed: String): Boolean {
         if (trimmed.isEmpty()) return false
+        // H2 ruler: thử rulepack trước (drop.page_number + drop.toc_leader);
+        // chưa init → fallback code cứng (giữ nguyên hành vi).
+        ReadingRules.isDropLineReady(trimmed)?.let { return it }
         if (isPageNumberLine(trimmed)) return true
         return tocLeaderRegex.containsMatchIn(trimmed)
     }
@@ -148,6 +162,8 @@ object BlockTextReader {
     /** True nếu dòng/tiêu đề là mốc bắt đầu đọc (lời giới thiệu hoặc chương 1). */
     private fun isReadingStartMarker(text: String): Boolean {
         if (text.isBlank()) return false
+        // H2 ruler: thử rulepack trước (start.intro + start.first_chapter).
+        ReadingRules.isStartMarkerReady(text)?.let { return it }
         if (introHeadingRegex.containsMatchIn(text)) return true
         return firstChapterRegex.containsMatchIn(text)
     }
@@ -166,7 +182,8 @@ object BlockTextReader {
      * Bỏ dòng số trang/header/footer trong khối (PDF dồn nhiều trang 1 khối,
      * EPUB) TRƯỚC khi clean — nếu không TTS đọc "mười hai" giữa truyện.
      * Chỉ bỏ dòng số trang (không bỏ mục-lục-dòng ở đây: ngoài phần đầu,
-     * dòng "... 100" có thể là nội dung).
+     * dòng "... 100" có thể là nội dung) — nên CỐ Ý giữ code cứng, không dùng
+     * ruler ở vòng này (rule drop.toc_leader chỉ dùng ở vòng dòng).
      */
     fun dropPageNumberLines(s: String): String {
         if (s.isEmpty()) return s

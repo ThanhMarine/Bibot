@@ -5,6 +5,9 @@ import com.bibot.app.core.text.BlockTextReader
 import com.bibot.app.core.text.PdfTextCleaner
 import com.bibot.app.core.text.TextCleaner
 import com.bibot.app.core.tts.VietnameseChunker
+import com.bibot.app.data.db.BibotDatabase
+import com.bibot.app.data.db.BookBookmark
+import com.bibot.app.data.db.BookTocEntry
 import com.bibot.app.data.files.FilePaths
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -209,40 +212,6 @@ class BookRepository(private val context: Context) {
         else -> assetsSource.download(meta, onProgress)
     }
 
-    /**
-     * Tải từ URL user dán: link Drive file (`/file/d/<ID>`, `?id=<ID>`) đi thẳng
-     * PublicDriveSource (lấy tên thật từ header khi tải); link folder → báo lỗi rõ;
-     * link http thường → PublicUrlSource.
-     */
-    suspend fun downloadFromUrl(url: String, onProgress: (Int) -> Unit = {}): File {
-        val u = url.trim()
-        if (PublicDriveSource.isFolderUrl(u)) throw IllegalArgumentException(
-            "Đây là link folder — hãy dùng mục Folder Drive trong Cài đặt, hoặc lấy link từng file (…/file/d/…)"
-        )
-        val driveId = PublicDriveSource.extractFileId(u)
-        val file = if (driveId != null) {
-            val seg = u.substringAfterLast('/').substringBefore('?')
-            val title = if (seg.isNotBlank() && seg != "view" && seg != "edit" && seg != "open") seg else driveId
-            download(
-                BookMeta(
-                    id = "pdrive-$driveId",
-                    title = title,
-                    // Module "Sách tiếng Anh" dán link → mặc định sách EN (giọng đọc en-US);
-                    // folder VI không nhận item này (filter theo lang + source)
-                    lang = "en",
-                    source = "pdrive",
-                    mimeType = "application/octet-stream",
-                    remoteUrl = driveId
-                ),
-                onProgress
-            )
-        } else {
-            urlSource.downloadFromUrl(u, onProgress = onProgress)
-        }
-        refreshAll()
-        return file
-    }
-
     suspend fun seedDemo() = assetsSource.seedDemoIfNeeded()
 
     suspend fun delete(meta: BookMeta) = withContext(Dispatchers.IO) {
@@ -294,4 +263,54 @@ class BookRepository(private val context: Context) {
             for (s in VietnameseChunker.split(blk)) if (s.isNotBlank()) emit(s)
         }
     }.flowOn(Dispatchers.IO)
+
+    /** Delegate to PublicUrlSource for direct URL downloads. */
+    suspend fun downloadFromUrl(url: String, title: String? = null, onProgress: (Int) -> Unit = {}): File {
+        return urlSource.downloadFromUrl(url, title, onProgress)
+    }
+
+    // B4.1: TOC - lấy hoặc build từ heading parse
+    suspend fun getToc(bookId: String): List<BookTocEntry> = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).toc().getByBook(bookId)
+    }
+
+    suspend fun buildToc(bookId: String, file: File): List<BookTocEntry> = withContext(Dispatchers.IO) {
+        val db = BibotDatabase.get(context)
+        val tocDao = db.toc()
+        // Đọc heading từ file qua BlockTextReader
+        val chapters = BlockTextReader.readChapters(file, "", BlockTextReader.Heading.MARKDOWN_OR_STORY)
+        val entries = chapters.mapIndexed { idx, ch ->
+            BookTocEntry(
+                bookId = bookId,
+                chapterIdx = idx,
+                title = ch.title,
+                level = 1,
+                startSentenceIdx = 0 // TODO: tính chính xác từ sentenceIdx
+            )
+        }
+        tocDao.insertAll(entries)
+        entries
+    }
+
+    // B4.1: Bookmark/Quote CRUD
+    // B4.1: Bookmark/Quote CRUD
+    suspend fun addBookmark(bookmark: BookBookmark) = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).bookmark().insert(bookmark)
+    }
+
+    suspend fun getBookmarks(bookId: String): List<BookBookmark> = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).bookmark().getByBook(bookId)
+    }
+
+    suspend fun getBookmarksByType(bookId: String, type: String): List<BookBookmark> = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).bookmark().getByBookAndType(bookId, type)
+    }
+
+    suspend fun updateBookmark(bookmark: BookBookmark) = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).bookmark().update(bookmark)
+    }
+
+    suspend fun deleteBookmark(id: Long) = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).bookmark().deleteById(id)
+    }
 }

@@ -441,6 +441,17 @@ object BookPrepStore {
             return c
         }
 
+        // B4.2: Lấy toàn bộ content sách (cho tìm kiếm toàn sách)
+        suspend fun contentAll(): String {
+            val builder = StringBuilder()
+            for (idx in titles.indices) {
+                if (closed) break
+                builder.append(content(idx))
+                if (idx < titles.lastIndex) builder.append("\n")
+            }
+            return builder.toString()
+        }
+
         fun close() {
             if (closed) return
             closed = true

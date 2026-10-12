@@ -27,6 +27,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +44,9 @@ import com.bibot.app.data.files.FilePaths
 import com.bibot.app.data.offline.DownloadState
 import com.bibot.app.data.offline.ModelInfo
 import com.bibot.app.data.store.BibotPreferences
+import com.bibot.app.data.store.ALLOWED_FONT_SIZES
+import com.bibot.app.data.store.ALLOWED_INTERLINES
+import com.bibot.app.data.store.ALLOWED_PARAGRAPH_MARGINS
 import com.bibot.app.data.store.BibotPrefs
 import com.bibot.app.data.store.BotPromptManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -273,6 +277,17 @@ fun SettingsScreen(
                 defaultExpanded = false
             ) {
                 HelpGuideContent()
+            }
+        }
+
+        // ===== 💌 Lời tác giả (B6: chuyển từ nút Info ở Home) =====
+        item {
+            ExpandableSection(
+                title = stringResource(R.string.nav_author_note),
+                subtitle = stringResource(R.string.nav_author_sign),
+                defaultExpanded = false
+            ) {
+                AuthorNoteContent()
             }
         }
 
@@ -547,6 +562,53 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
 
         HorizontalDivider()
         PiperCompactRow(showAdvanced = showPiperAdvanced, onToggleAdvanced = { showPiperAdvanced = !showPiperAdvanced })
+
+        // A2.3: Reading display settings (Snap config + RenderIfDirty)
+        HorizontalDivider()
+        Text(stringResource(R.string.reader_display_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.reader_display_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(8.dp))
+
+        // Font Size
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.reader_font_size, "%.0f".format(prefsState.readerFontSizeSp)), style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = prefsState.readerFontSizeSp,
+                onValueChange = { v -> scope.launch { prefs.setReaderFontSizeSp(v) } },
+                valueRange = ALLOWED_FONT_SIZES.first().toFloat() .. ALLOWED_FONT_SIZES.last().toFloat(),
+                steps = (ALLOWED_FONT_SIZES.size - 1)
+            )
+            Text(stringResource(R.string.reader_font_size_sub, prefsState.readerFontSizeSp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Interline (line spacing)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.reader_interline, "%.1f".format(prefsState.readerInterline)), style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = prefsState.readerInterline,
+                onValueChange = { v -> scope.launch { prefs.setReaderInterline(v) } },
+                valueRange = ALLOWED_INTERLINES.first().toFloat() .. ALLOWED_INTERLINES.last().toFloat(),
+                steps = (ALLOWED_INTERLINES.size - 1)
+            )
+            Text(stringResource(R.string.reader_interline_sub, prefsState.readerInterline), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Paragraph Margin
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.reader_paragraph_margin, "%.0f".format(prefsState.readerParagraphMargin)), style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = prefsState.readerParagraphMargin,
+                onValueChange = { v -> scope.launch { prefs.setReaderParagraphMargin(v) } },
+                valueRange = ALLOWED_PARAGRAPH_MARGINS.first().toFloat() .. ALLOWED_PARAGRAPH_MARGINS.last().toFloat(),
+                steps = (ALLOWED_PARAGRAPH_MARGINS.size - 1)
+            )
+            Text(stringResource(R.string.reader_paragraph_margin_sub, prefsState.readerParagraphMargin), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -1391,6 +1453,36 @@ private fun VipContent() {
 /**
  * Huong dan & Tro giup: render cac chuoi help_* (CDATA, HTML-lite <b> + <a href>).
  */
+/**
+ * 💌 Lời tác giả (B6: chuyển từ nút Info ở Home thành About trong Settings).
+ * Nội dung thư giữ nguyên tiếng Việt.
+ */
+private val AUTHOR_NOTE = listOf(
+    "Chào bạn,",
+    "Bibot được khởi nguồn từ một mong ước gieo mầm tri thức: biến những trang sách lặng lẽ thành dòng chảy âm thanh sống động, mượt mà và đồng hành cùng bạn trên mọi hành trình.",
+    "Nhờ ứng dụng công nghệ chuyển đổi văn bản thành giọng nói (TTS), Bibot mang đến một không gian đọc - nghe linh hoạt, gõ cửa từng nhu cầu học tập và thư giãn:",
+    "Song hành cùng ngoại ngữ: Giúp bạn nâng tầm phản xạ nghe – đọc tiếng Anh tự nhiên qua các tài liệu tham khảo giàu giá trị.",
+    "Khơi nguồn dòng chảy sử Việt: Đưa những trang sử hào hùng của dân tộc đến gần hơn với những tâm hồn yêu tri thức bằng chất giọng mộc mạc, lắng đọng.",
+    "Nuôi dưỡng giấc mơ tuổi thơ: Mở ra thế giới cổ tích Việt Nam và thế giới đầy màu sắc, gắn kết tình cảm gia đình sau mỗi ngày dài làm việc.",
+    "Dù bạn đang mở rộng tầm nhìn ra thế giới hay tìm về những giá trị cội nguồn, Bibot hy vọng sẽ trở thành người bạn tri kỷ, cùng bạn lưu giữ nét đẹp văn hóa và tiếp lửa cho niềm ham học hỏi mỗi ngày.",
+    "Cảm ơn bạn đã tin tưởng và chọn Bibot. Sự đồng hành cùng những phản hồi từ bạn chính là nguồn động lực lớn nhất để ứng dụng ngày một hoàn thiện hơn!"
+)
+
+@Composable
+private fun AuthorNoteContent() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        AUTHOR_NOTE.forEach { p ->
+            Text(p, style = MaterialTheme.typography.bodyMedium, lineHeight = 22.sp)
+        }
+        Text(
+            stringResource(R.string.nav_author_sign),
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
 @Composable
 private fun HelpGuideContent() {
     val uriHandler = LocalUriHandler.current

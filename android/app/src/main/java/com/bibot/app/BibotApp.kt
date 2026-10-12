@@ -64,6 +64,8 @@ class BibotApp : Application(), ComponentCallbacks2 {
         try { com.bibot.app.data.files.CleanupWorker.schedule(this) } catch (_: Exception) {}
         // 10.3 memory sync nền 12h/lần khi có mạng (no-op nếu chưa cấu hình Firebase)
         try { com.bibot.app.data.sync.MemorySyncWorker.schedule(this) } catch (_: Exception) {}
+        // H2 ruler: nạp rulepack đọc sách 1 lần (nhẹ ~5KB, cache RAM, có fallback cứng)
+        try { com.bibot.app.core.text.ReadingRules.init(this) } catch (_: Exception) {}
         // AdMob initialize — chi ban demo (chinh thuc, ENABLE_ADS=true); ban commercial VIP (vip_only) khong init
         if (com.bibot.app.BuildConfig.ENABLE_ADS) {
             try { com.bibot.app.data.ads.AdManager.initialize(this) } catch (_: Exception) {}
