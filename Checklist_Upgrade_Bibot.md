@@ -178,6 +178,22 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   lỗi rải rác p8/9/11/15/18/19) → serialize bằng Mutex + retry nửa chiều rộng +
   giữ aspect (bản cũ cap cao 2400 làm bẹp trang dài) + log nguyên nhân.
   Verify: lướt tới Page 18/301 render đẹp, logcat hết `PdfPageView fail`.
+- **Scope B — EPUB rich, giữ nguyên bản (xong, verify screenshot máy ảo)**:
+  `EpubReader.richChapterAt` (1 pass: heading H1-H3 / đoạn / caption / bảng /
+  `hr` + inline đậm-nghiêng, path ảnh đã resolve) + `readImageBytes` +
+  `EpubRichView` (ảnh decode local sampled ≤1200px RGB_565, LRU 8, caption
+  italic giữa, highlight best-effort theo câu TTS). EPUB toggle TEXT (karaoke) ↔
+  PAGE rich (thay phân trang text cũ); EPUB scan mặc định + khóa PAGE rich
+  (thấy được ảnh dù không có chữ). Verify: "How it Works" hiện ảnh đầu máy hơi
+  nước + caption + chữ đậm/căn giữa đúng gốc.
+  Bug bắt được khi verify: key LazyColumn trùng (`rule:indexOf`, đoạn lặp) crash
+  `Key "rule:11"` → key theo index.
+- **Scope B — số trang (quyết user: display GIỮ, TTS KHÔNG đọc, qua rulerpack)**:
+  span số trang in Gutenberg rỗng (số nằm ở attribute) nên extractor không đổi;
+  rule mới `drop.pageno_inline` (rewrite scope tts, template RỖNG = xóa match —
+  validator + 3 engine đều nuốt) → ruler v3 (17 rules, tests 64/64, JSON 3 bản
+  tools/internal/assets đồng bộ, Go PASS, JVM pagenoInline test).
+  Verify unit (display `cleanForDisplay` giữ `[Pg 62]`, apply bỏ).
 - **Nghe TTS**: producer `ReaderScreen` (Piper/Cloud/Offline + `TtsVoiceResolve`).
 - **Kệ sách**: tab Documents (`DocBrowserScreen` kiểu ReadEra: drawer lọc, bìa,
   progress, yêu thích, search, SAF) + kệ từng kho trong `ReaderScreen`.

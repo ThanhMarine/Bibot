@@ -1,5 +1,5 @@
 {
- "version": 2,
+ "version": 3,
  "rules": [
   {
    "id": "chunk.brackets",
@@ -77,6 +77,20 @@
    "patterns": [
     ".{4,}?\\.{3,}\\s*\\d{1,4}\\s*$"
    ]
+  },
+  {
+   "id": "drop.pageno_inline",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 8,
+   "pattern": "(?i)\\[Pg\\.?\\s*\\d{1,4}\\]",
+   "template": ""
   },
   {
    "id": "date.full",
@@ -222,5 +236,5 @@
    "template": "số {1}"
   }
  ],
- "checksum": "59c432e1b98687f7fa7913577d43d5e828e474f8722057300e813eeed49a490b"
+ "checksum": "f1b3414a6abb2d237cf54c64d01a51cd4cdbb302a54102a67646daa6517777f2"
 }

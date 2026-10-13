@@ -10,7 +10,7 @@ func loadTestPack(t *testing.T) *Pack {
 	if err != nil {
 		t.Fatalf("LoadEmbedded: %v", err)
 	}
-	if p.Version == "" || len(p.Rules) != 16 {
+	if p.Version == "" || len(p.Rules) != 17 {
 		t.Fatalf("pack lạ: version=%q rules=%d", p.Version, len(p.Rules))
 	}
 	return p
@@ -81,6 +81,13 @@ func TestApplyV2(t *testing.T) {
 	}
 	if got := p.Apply("See (Fig. 5).", "en"); got != "See (figure 5)." {
 		t.Errorf("Apply en fig = %q", got)
+	}
+	// Scope B: display giữ "[Pg 62]", TTS (Apply) bỏ qua.
+	if got := p.Apply("Text Tam[Pg 62] continues.", "en"); got != "Text Tam continues." {
+		t.Errorf("Apply en pageno = %q", got)
+	}
+	if got := p.Apply("Xem [Pg. 7] nhé", "vi"); got != "Xem  nhé" {
+		t.Errorf("Apply vi pageno = %q", got)
 	}
 	if !p.IsDropLine("Chương 1 .... 5", "vi") {
 		t.Errorf("IsDropLine toc-leader = false, want true")

@@ -63,25 +63,321 @@ object EpubReader {
      */
     fun chapters(file: File, defaultTitle: String = "Nội dung"): List<Chapter> {
         if (!file.exists()) return listOf(Chapter(defaultTitle, ""))
-        val out = ArrayList<Chapter>()
+        return spineContents(file, defaultTitle)
+            .map { Chapter(it.title, xhtmlToText(it.html)) }
+            .ifEmpty { listOf(Chapter(defaultTitle, "")) }
+    }
+
+    // -------------------------------------------------- rich (scope B: giữ bản gốc)
+
+    /** Kiểu khối hiển thị nguyên bản (scope B: ảnh + format, ReadEra-like). */
+    enum class RichStyle { BODY, H1, H2, H3, CAPTION, CENTER }
+
+    /** Đoạn inline trong khối text (đậm/nghiêng giữ nguyên bản). */
+    data class RichInline(val text: String, val bold: Boolean, val italic: Boolean)
+
+    /** 1 khối hiển thị: đoạn text / ảnh minh họa / gạch ngang. */
+    sealed interface RichBlock {
+        data class Para(val lines: List<RichInline>, val style: RichStyle) : RichBlock {
+            val text: String get() = lines.joinToString("") { it.text }
+        }
+
+        data class Figure(val path: String, val alt: String) : RichBlock
+        data object Rule : RichBlock
+    }
+
+    /** 1 spine item: title + html thô + base resolve ảnh (dùng chung cho text/rich). */
+    private data class SpineContent(val title: String, val html: String, val base: String)
+
+    private fun spineContents(file: File, defaultTitle: String): List<SpineContent> {
+        if (!file.exists()) return listOf(SpineContent(defaultTitle, "", ""))
+        val out = ArrayList<SpineContent>()
         try {
             ZipFile(file).use { zip ->
-                val plan = spinePlan(zip) ?: return listOf(Chapter(defaultTitle, ""))
+                val plan = spinePlan(zip) ?: return listOf(SpineContent(defaultTitle, "", ""))
+                val base = try { opfText(zip)?.second ?: "" } catch (_: Exception) { "" }
                 var idx = 0
                 for (item in plan.items.take(MAX_SPINE_ITEMS)) {
                     idx++
                     val entry = zip.getEntry(item.path) ?: continue
                     val bytes = readEntry(zip, entry) ?: continue
                     val html = decodeBytes(bytes)
-                    val text = xhtmlToText(html)
                     val title = chapterTitle(html, plan.bookTitle, idx, defaultTitle)
-                    out.add(Chapter(title, text))
+                    out.add(SpineContent(title, html, base))
                 }
             }
         } catch (_: Exception) {
             // zip hỏng → trả phần đã có (có thể rỗng)
         }
-        return out.ifEmpty { listOf(Chapter(defaultTitle, "")) }
+        return out.ifEmpty { listOf(SpineContent(defaultTitle, "", "")) }
+    }
+
+    /** Titles đúng thứ tự spine — KHỚP 1-1 với [chapters] (cùng traversal). */
+    fun richTitles(file: File, defaultTitle: String = "Nội dung"): List<String> =
+        spineContents(file, defaultTitle).map { it.title }
+
+    /** Khối hiển thị của 1 spine item (index theo [richTitles]/[chapters]). */
+    fun richChapterAt(file: File, defaultTitle: String = "Nội dung", chapterIdx: Int): List<RichBlock> {
+        if (!file.exists() || chapterIdx < 0) return emptyList()
+        return try {
+            val items = spineContents(file, defaultTitle)
+            if (chapterIdx >= items.size) return emptyList()
+            val sc = items[chapterIdx]
+            if (sc.html.isBlank()) return emptyList()
+            richParse(sc.html, sc.base)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Đọc bytes ảnh trong EPUB theo path đã resolve (cho view rich).
+     * Cap 3MB — caller tự decode sampled (tránh OOM).
+     */
+    fun readImageBytes(file: File, imgPath: String, maxBytes: Int = 3 * 1024 * 1024): ByteArray? {
+        if (!file.exists() || imgPath.isBlank()) return null
+        return try {
+            ZipFile(file).use { zip ->
+                val entry = zip.getEntry(imgPath) ?: return null
+                if (entry.isDirectory) return null
+                zip.getInputStream(entry).use { input ->
+                    val bos = ByteArrayOutputStream(64 * 1024)
+                    val buf = ByteArray(32 * 1024)
+                    var total = 0
+                    while (total < maxBytes) {
+                        val r = input.read(buf, 0, minOf(buf.size, maxBytes - total))
+                        if (r < 0) break
+                        bos.write(buf, 0, r)
+                        total += r
+                    }
+                    bos.toByteArray().takeIf { it.isNotEmpty() }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private val richBlockTags = setOf(
+        "p", "div", "section", "article", "header", "footer", "li", "ul", "ol",
+        "blockquote", "table", "tr", "td", "th", "figure", "figcaption", "pre", "main", "aside"
+    )
+    private val richHeadingTag = mapOf(
+        "h1" to RichStyle.H1, "h2" to RichStyle.H2, "h3" to RichStyle.H3,
+        "h4" to RichStyle.H3, "h5" to RichStyle.H3, "h6" to RichStyle.H3
+    )
+
+    private fun hasClass(tag: String, cls: String): Boolean {
+        // class="a caption b" / class='caption' — so khớp thô, không parse full attr.
+        val low = tag.lowercase()
+        val key = "class="
+        val ci = low.indexOf(key)
+        if (ci < 0) return false
+        var v = tag.substring(ci + key.length).trimStart()
+        if (v.startsWith("\"") || v.startsWith("'")) {
+            val q = v[0]
+            val e = v.indexOf(q, 1)
+            if (e < 0) return false
+            v = v.substring(1, e)
+        } else {
+            v = v.substringBefore(' ').substringBefore('\t')
+        }
+        return v.split(Regex("\\s+")).any { it.equals(cls, ignoreCase = true) }
+    }
+
+    /**
+     * HTML spine item → khối hiển thị (1 pass, không regex cả file):
+     * heading/đoạn/caption giữ style, `<img>` → Figure (path đã resolve),
+     * inline b/i giữ đậm-nghiêng. Text trích GIỮ nguyên từ (không rewrite TTS).
+     */
+    internal fun richParse(html: String, base: String): List<RichBlock> {
+        if (html.isEmpty()) return emptyList()
+        val blocks = ArrayList<RichBlock>()
+        val segs = ArrayList<RichInline>()
+        val cur = StringBuilder()
+        var curBold = false
+        var curItalic = false
+        var curStyle: RichStyle = RichStyle.BODY
+        var captionDepth = 0
+        val boldStack = ArrayDeque<Boolean>()
+        val italicStack = ArrayDeque<Boolean>()
+        var skipDepth = 0
+        var skipTag = ""
+
+        fun flushSeg() {
+            if (cur.isNotEmpty()) {
+                segs.add(RichInline(cur.toString(), curBold, curItalic))
+                cur.setLength(0)
+            }
+        }
+
+        fun flushPara(style: RichStyle = curStyle) {
+            flushSeg()
+            if (segs.isNotEmpty()) {
+                blocks.add(RichBlock.Para(segs.toList(), style))
+                segs.clear()
+            }
+            curStyle = RichStyle.BODY
+        }
+
+        var i = 0
+        val n = html.length
+        while (i < n) {
+            val c = html[i]
+            if (c == '<') {
+                if (html.startsWith("<!--", i)) {
+                    val e = html.indexOf("-->", i + 4)
+                    i = if (e < 0) n else e + 3
+                    continue
+                }
+                if (html.startsWith("<![CDATA[", i)) {
+                    val e = html.indexOf("]]>", i + 9)
+                    val inner = if (e < 0) html.substring(i + 9) else html.substring(i + 9, e)
+                    i = if (e < 0) n else e + 3
+                    if (skipDepth == 0 && inner.isNotEmpty()) cur.append(inner)
+                    continue
+                }
+                if (i + 1 < n && (html[i + 1] == '!' || html[i + 1] == '?')) {
+                    val e = html.indexOf('>', i + 2)
+                    i = if (e < 0) n else e + 1
+                    continue
+                }
+                val e = html.indexOf('>', i + 1)
+                if (e < 0) break
+                val tag = html.substring(i + 1, e).trim()
+                val closing = tag.startsWith("/")
+                val name = tag.trimStart('/').substringBefore(' ').substringBefore('\t')
+                    .substringBefore('\n').substringBefore('/').lowercase()
+                val selfClose = tag.trimEnd().endsWith("/")
+                if (skipDepth > 0) {
+                    if (!closing && name == skipTag) skipDepth++
+                    else if (closing && name == skipTag) {
+                        skipDepth--
+                        if (skipDepth == 0) skipTag = ""
+                    }
+                    i = e + 1
+                    continue
+                }
+                if (!closing && name in skipTags) {
+                    if (!selfClose) {
+                        skipDepth = 1
+                        skipTag = name
+                    }
+                    i = e + 1
+                    continue
+                }
+                val isCaption = !closing && (name == "figcaption" ||
+                    ((name == "span" || name == "div" || name == "p") && hasClass(tag, "caption")))
+                if (isCaption) {
+                    flushPara()
+                    captionDepth++
+                    i = e + 1
+                    continue
+                }
+                if (closing && captionDepth > 0 &&
+                    (name == "figcaption" || name == "span" || name == "div" || name == "p")
+                ) {
+                    flushPara(RichStyle.CAPTION)
+                    captionDepth--
+                    i = e + 1
+                    continue
+                }
+                if (!closing && name == "img") {
+                    flushPara()
+                    val src = Regex("""src\s*=\s*["']([^"']+)""", RegexOption.IGNORE_CASE)
+                        .find(tag)?.groupValues?.get(1).orEmpty()
+                    val alt = Regex("""alt\s*=\s*["']([^"']*)""", RegexOption.IGNORE_CASE)
+                        .find(tag)?.groupValues?.get(1).orEmpty()
+                    val path = if (src.isBlank() || src.contains("://")) "" else resolveHref(base, src)
+                    if (path.isNotEmpty()) blocks.add(RichBlock.Figure(path, alt))
+                    i = e + 1
+                    continue
+                }
+                if (!closing && (name == "br" || name == "hr")) {
+                    if (name == "hr") {
+                        flushPara()
+                        blocks.add(RichBlock.Rule)
+                    } else {
+                        flushSeg()
+                        segs.add(RichInline("\n", curBold, curItalic))
+                    }
+                    i = e + 1
+                    continue
+                }
+                if (name in richHeadingTag) {
+                    if (!closing) {
+                        flushPara()
+                        curStyle = richHeadingTag[name] ?: RichStyle.BODY
+                    } else {
+                        flushPara()
+                    }
+                    i = e + 1
+                    continue
+                }
+                if (name in richBlockTags) {
+                    if (!closing) {
+                        flushPara()
+                        val tl = tag.lowercase().replace(" ", "")
+                        if (hasClass(tag, "center") || tl.contains("text-align:center")) {
+                            curStyle = RichStyle.CENTER
+                        }
+                    } else {
+                        flushPara()
+                    }
+                    i = e + 1
+                    continue
+                }
+                // Inline: b/strong, i/em (stack để lồng nhau đúng).
+                if (!closing && (name == "b" || name == "strong")) {
+                    flushSeg(); boldStack.addLast(curBold); curBold = true
+                    i = e + 1; continue
+                }
+                if (closing && (name == "b" || name == "strong")) {
+                    flushSeg(); curBold = boldStack.removeLastOrNull() ?: false
+                    i = e + 1; continue
+                }
+                if (!closing && (name == "i" || name == "em")) {
+                    flushSeg(); italicStack.addLast(curItalic); curItalic = true
+                    i = e + 1; continue
+                }
+                if (closing && (name == "i" || name == "em")) {
+                    flushSeg(); curItalic = italicStack.removeLastOrNull() ?: false
+                    i = e + 1; continue
+                }
+                // Tag inline còn lại (a/span/small/...) → bỏ tag giữ chữ.
+                i = e + 1
+                continue
+            }
+            if (skipDepth > 0) {
+                i++
+                continue
+            }
+            if (c == '&') {
+                val en = html.indexOf(';', i + 1)
+                if (en < 0 || en - i > 10) {
+                    cur.append(c)
+                } else {
+                    cur.append(decodeEntity(html.substring(i + 1, en)) ?: "&")
+                    i = en + 1
+                    continue
+                }
+                i++
+                continue
+            }
+            if (c < ' ' && c != '\n' && c != '\t') {
+                i++
+                continue
+            }
+            cur.append(c)
+            i++
+        }
+        flushPara(if (captionDepth > 0) RichStyle.CAPTION else curStyle)
+        return blocks.filter {
+            when (it) {
+                is RichBlock.Para -> it.text.isNotBlank()
+                else -> true
+            }
+        }
     }
 
     /** Stream text từng spine item (cho TTS/picard, không giữ cả sách). */
@@ -361,9 +657,6 @@ object EpubReader {
         val n = html.length
         var skipDepth = 0
         var skipTag = ""
-        // Số trang in (Gutenberg `<span class="x-ebookmaker-pageno">[Pg 62]</span>`)
-        // không phải nội dung — ẩn cả display lẫn TTS (ReadEra cũng ẩn).
-        var pageNoDepth = 0
         while (i < n) {
             val c = html[i]
             if (c == '<') {
@@ -373,12 +666,12 @@ object EpubReader {
                     i = if (e < 0) n else e + 3
                     continue
                 }
-                // CDATA → giữ text bên trong (trừ khi đang bỏ span số trang)
+                // CDATA → giữ text bên trong
                 if (html.startsWith("<![CDATA[", i)) {
                     val e = html.indexOf("]]>", i + 9)
                     val inner = if (e < 0) html.substring(i + 9) else html.substring(i + 9, e)
                     i = if (e < 0) n else e + 3
-                    if (skipDepth == 0 && pageNoDepth == 0 && inner.isNotEmpty()) {
+                    if (skipDepth == 0 && inner.isNotEmpty()) {
                         out.append(inner)
                         lastBreak = false
                     }
@@ -396,17 +689,6 @@ object EpubReader {
                 val closing = tag.startsWith("/")
                 val name = tag.trimStart('/').substringBefore(' ').substringBefore('\t')
                     .substringBefore('\n').substringBefore('/').lowercase()
-                if (pageNoDepth > 0) {
-                    if (!closing && name == "span") pageNoDepth++
-                    else if (closing && name == "span") pageNoDepth--
-                    i = e + 1
-                    continue
-                }
-                if (!closing && name == "span" && tag.lowercase().contains("pageno")) {
-                    pageNoDepth = 1
-                    i = e + 1
-                    continue
-                }
                 if (skipDepth > 0) {
                     if (!closing && name == skipTag) skipDepth++
                     else if (closing && name == skipTag) {
@@ -430,7 +712,7 @@ object EpubReader {
                 i = e + 1
                 continue
             }
-            if (skipDepth > 0 || pageNoDepth > 0) {
+            if (skipDepth > 0) {
                 i++
                 continue
             }

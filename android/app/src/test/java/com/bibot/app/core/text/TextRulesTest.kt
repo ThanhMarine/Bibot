@@ -125,12 +125,15 @@ class TextRulesTest {
     }
 
     @Test
-    fun epubPagenoSpan_hidden() {
+    fun epubPagenoSpan_scopeB() {
+        // Span số trang in Gutenberg RỖNG (số nằm ở attribute) → không text.
         val html = "<p>Text Tam<span class=\"x-ebookmaker-pageno\" title=\"[Pg 62]\"><a id=\"Page_62\"></a></span> continues.</p>"
         val t = EpubReader.xhtmlToText(html)
         assertTrue(t.contains("Text Tam"))
         assertTrue(t.contains("continues."))
         assertFalse(t.contains("Pg 62"))
+        // Sách khác inline "[Pg 62]" dạng text: display GIỮ, TTS bỏ (rule ruler).
+        assertTrue(TextCleaner.cleanForDisplay("a [Pg 62] b").contains("[Pg 62]"))
     }
 
     private fun chaptersOf(text: String): List<String> {

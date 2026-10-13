@@ -25,8 +25,8 @@ class ReadingRulesTest {
     @Test
     fun pack_v2_shape() {
         val rules = loadPack()
-        // v2: 16 rules (3 pilot + 13 mới) — đổi số này khi thêm rule (cùng sửa .ruler).
-        assertEquals(16, rules.size)
+        // v3: 17 rules (16 v2 + drop.pageno_inline scope B) — đổi số này khi thêm rule.
+        assertEquals(17, rules.size)
         assertTrue(rules.any { it.id == "date.full" })
         assertTrue(rules.any { it.id == "roman.range" })
         assertTrue(rules.any { it.id == "drop.toc_leader" })
@@ -124,5 +124,14 @@ class ReadingRulesTest {
         val g = ReadingRules.chunkGuard()
         assertEquals("([{", g.bracketsOpen)
         assertEquals(8, g.overrunWords)
+    }
+
+    @Test
+    fun pagenoInline_scopeB() {
+        val rules = loadPack()
+        // Scope B: display giữ "[Pg 62]", TTS (apply) bỏ qua.
+        assertEquals("Text Tam continues.", ReadingRules.apply("Text Tam[Pg 62] continues.", "en", rules))
+        assertEquals("Xem  nhé", ReadingRules.apply("Xem [Pg. 7] nhé", "vi", rules))
+        assertEquals("Trang 12 rồi", ReadingRules.apply("Trang 12 rồi", "vi", rules))
     }
 }

@@ -10,7 +10,7 @@
 # Quy ước pattern: CHỈ giao Java∩RE2∩Python (cấm lookbehind/lookahead/atomic/
 # possessive/backref) — compile_rules.py từ chối pattern ngoài giao.
 
-version: 2
+version: 3
 
 rules:
   # ---- Tầng nhận diện mốc vào sách (chạy trước mọi rewrite) ----
@@ -58,6 +58,21 @@ rules:
       - {in: 'Lời nói đầu ... 3', drop: true}
       - {in: 'Nội dung câu chuyện bình thường', drop: false}
       - {in: 'Có ba chấm... rồi thôi', drop: false}
+
+  # ---- Bỏ số trang in-inline (scope B: display GIỮ "[Pg 62]", TTS KHÔNG đọc) ----
+  # Template RỖNG = xóa match (validator + 3 engine đều nuốt template rỗng).
+  - id: drop.pageno_inline
+    kind: rewrite
+    scope: [tts]
+    lang: [vi, en]
+    priority: 8
+    pattern: '(?i)\[Pg\.?\s*\d{1,4}\]'
+    template: ''
+    note: 'Số trang in Gutenberg "[Pg 62]" — display giữ nguyên bản, TTS bỏ qua (scope B).'
+    tests:
+      - {in: 'Text Tam[Pg 62] continues.', out: 'Text Tam continues.'}
+      - {in: 'Xem [Pg. 7] nhé', out: 'Xem  nhé'}
+      - {in: 'Trang 12 rồi', out: 'Trang 12 rồi'}
 
   # ---- Tầng rewrite phát âm: ngày (full trước short) ----
   - id: date.full

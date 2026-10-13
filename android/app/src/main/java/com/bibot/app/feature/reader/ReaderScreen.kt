@@ -149,6 +149,9 @@ fun ReaderScreen(
     var menuVisible by remember { mutableStateOf(true) }
     var viewMode by remember { mutableStateOf(ReaderView.TEXT) }
     var isPdfBook by remember { mutableStateOf(false) }
+    var isEpubBook by remember { mutableStateOf(false) }
+    // Scope B: titles spine EPUB (map session-chương → spine rich, KHỚP 1-1 chapters).
+    var epubRichTitles by remember { mutableStateOf<List<String>>(emptyList()) }
     var viewLockedPage by remember { mutableStateOf(false) } // scan: chỉ PAGE
     var readModeState by remember { mutableStateOf(ReadMode.BROWSE) }
     var selAnchor by remember { mutableStateOf<ReadAnchor?>(null) } // marker điểm neo
@@ -228,6 +231,8 @@ fun ReaderScreen(
         fileHashState = ""
         scanNoTts = false
         isPdfBook = false
+        isEpubBook = false
+        epubRichTitles = emptyList()
         viewLockedPage = false
         menuVisible = true
         savedPos = 0
@@ -289,19 +294,33 @@ fun ReaderScreen(
                     (progress.position % 100).coerceIn(0, (sentences.size - 1).coerceAtLeast(0)) else 0
 
                 // B3+E1.1+F2: VIEW mặc định + fileHash + scan-lock + neo đã lưu.
-                // PDF (local/Tham khảo/EN) → PAGE; EPUB/MD/TXT → TEXT; scan → PAGE khóa.
+                // PDF → PAGE (ảnh); EPUB scan → PAGE rich-ảnh; còn lại TEXT.
+                // Scope B: EPUB toggle TEXT (karaoke) ↔ PAGE rich (ảnh + format gốc).
                 bookFile = file
                 val isPdf = file.extension.equals("pdf", ignoreCase = true)
                 val isEpub = file.extension.equals("epub", ignoreCase = true)
                 isPdfBook = isPdf
+                isEpubBook = isEpub
                 val scanned = withContext(Dispatchers.IO) {
                     if (isPdf) BlockTextReader.isScannedPdf(file)
                     else if (isEpub) com.bibot.app.core.text.EpubReader.isScannedEpub(file)
                     else false
                 }
                 scanNoTts = scanned
-                viewLockedPage = isPdf && scanned
-                viewMode = if (isPdf) ReaderView.PAGE else ReaderView.TEXT
+                viewLockedPage = (isPdf || isEpub) && scanned
+                viewMode = if (isPdf || (isEpub && scanned)) ReaderView.PAGE else ReaderView.TEXT
+                if (isEpub) {
+                    // Titles spine (KHỚP 1-1 chapters) để map session-chương → spine rich.
+                    epubRichTitles = withContext(Dispatchers.IO) {
+                        try {
+                            com.bibot.app.core.text.EpubReader.richTitles(
+                                file, collection.fallbackTitle ?: book.title
+                            )
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                }
                 menuVisible = true
                 scope.launch(Dispatchers.IO) { fileHashState = sha1File(file) }
                 savedAnchor = if (progress != null && progress.anchorPage >= 0) {
@@ -1109,7 +1128,7 @@ fun ReaderScreen(
                             title = "${collection.headerEmoji} ${book.title}",
                             isReading = isReading,
                             playEnabled = !scanNoTts,
-                            pageMode = isPdfBook && !viewLockedPage,
+                            pageMode = (isPdfBook || isEpubBook) && !viewLockedPage,
                             onBack = { stopAll(); selectedBook = null },
                             onTogglePlay = { togglePlay() },
                             onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
@@ -1222,19 +1241,40 @@ fun ReaderScreen(
                 ) {
                     val bf = bookFile
                     if (viewMode == ReaderView.PAGE && bf != null) {
-                        PdfPageView(
-                            file = bf,
-                            initialPage = 0,
-                            selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
-                            onVisiblePage = { pageIndex = it },
-                            onPageCount = { pageCount = it },
-                            onPageTap = { menuVisible = !menuVisible },
-                            onPageLongPress = { idx ->
-                                val a = ReadAnchor(ReaderView.PAGE, idx, 0)
-                                selAnchor = a
-                                anchorConfirm = a
-                            }
-                        )
+                        // Scope B: EPUB → rich (ảnh + format gốc, thay phân trang text);
+                        // PDF → ảnh trang. Karaoke câu chỉ ở TEXT.
+                        if (isEpubBook) {
+                            val richIdx = epubRichTitles
+                                .indexOfFirst { it == chapters.getOrNull(currentChapter)?.title }
+                                .coerceAtLeast(0)
+                            EpubRichView(
+                                file = bf,
+                                spineIdx = richIdx,
+                                defaultTitle = chapters.getOrNull(currentChapter)?.title
+                                    ?: collection.fallbackTitle ?: "",
+                                fontSizeSp = prefsState.readerFontSizeSp,
+                                highlightPrefix = if (isReading) {
+                                    sentences.getOrNull(currentSentence)?.take(24)
+                                } else {
+                                    null
+                                },
+                                onTap = { menuVisible = !menuVisible }
+                            )
+                        } else {
+                            PdfPageView(
+                                file = bf,
+                                initialPage = 0,
+                                selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
+                                onVisiblePage = { pageIndex = it },
+                                onPageCount = { pageCount = it },
+                                onPageTap = { menuVisible = !menuVisible },
+                                onPageLongPress = { idx ->
+                                    val a = ReadAnchor(ReaderView.PAGE, idx, 0)
+                                    selAnchor = a
+                                    anchorConfirm = a
+                                }
+                            )
+                        }
                     } else {
                         val listState = rememberLazyListState()
                         val density = LocalDensity.current
@@ -1375,9 +1415,9 @@ Column(
                 expanded = settingsOpen,
                 onDismiss = { settingsOpen = false },
                 viewMode = viewMode,
-                pageModeEnabled = isPdfBook && !viewLockedPage,
+                pageModeEnabled = (isPdfBook || isEpubBook) && !viewLockedPage,
                 onToggleView = {
-                    if (isPdfBook && !viewLockedPage) {
+                    if ((isPdfBook || isEpubBook) && !viewLockedPage) {
                         viewMode = if (viewMode == ReaderView.TEXT) ReaderView.PAGE else ReaderView.TEXT
                     }
                 },

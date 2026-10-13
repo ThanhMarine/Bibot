@@ -199,7 +199,9 @@ def load_ruler(path):
                 err = check_pattern(p)
                 assert err is None, f"{r['id']}: pattern bị cấm ({err}): {p}"
         if r["kind"] == "rewrite":
-            assert r.get("template"), f"{r['id']}: rewrite thiếu template"
+            # Template RỖNG ('') = xóa match (scope B: drop.pageno_inline) —
+            # chỉ yêu cầu CÓ key template, 3 engine đều thay bằng "".
+            assert "template" in r, f"{r['id']}: rewrite thiếu template"
     return doc
 
 
@@ -212,8 +214,12 @@ def run_tests(doc):
         for t in r.get("tests", []):
             src = t["in"]
             if kind == "rewrite":
-                got = pats[0].sub(
-                    lambda m: (apply_template(r["template"], m) or m.group(0)), src)
+                # Template rỗng ("") = xóa match — phân biệt None (hook lỗi,
+                # giữ nguyên) với "" (xóa có chủ ý, scope B).
+                def _rep(m, _tpl=r["template"]):
+                    got = apply_template(_tpl, m)
+                    return m.group(0) if got is None else got
+                got = pats[0].sub(_rep, src)
                 # sub chỉ thay match ĐẦU? Không — sub thay mọi match; test so toàn chuỗi.
                 if got != t["out"]:
                     fails.append(f"{r['id']}: {src!r} -> {got!r}, muốn {t['out']!r}")

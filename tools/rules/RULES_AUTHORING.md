@@ -23,6 +23,7 @@ Commit cả 2 file `.ruler` + `.json` (JSON là artifact có version, review đ�
    `{month:N}` (1–12); `{year:N}` (2 số→2000+, 4 số 1000–2999);
    `{num:N}` số thành chữ; `{roman:N}` La Mã thành chữ.
    Hook sai (ngày 32, tháng 13, roman `IIII`) → **bỏ cả match, giữ nguyên chữ**.
+   Template RỖNG (template co gia tri rong) = xóa match (lọc inline, VD số trang [Pg 62] trong scope B: display giữ nguyên bản, TTS không đọc) - validator + 3 engine đều nuốt template rỗng, test out viết đúng khoảng trắng còn lại.
 4. Viết `tests[]` (ít nhất 3 case, gồm case GIỮ NGUYÊN):
    rewrite `{in, out}`; drop_line `{in, drop: true/false}`;
    start_marker `{in, match: true/false}`.
