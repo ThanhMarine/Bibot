@@ -388,13 +388,16 @@ object TextCleaner {
     )
 
     /** True nếu chunk kết bằng viết tắt trích dẫn + "." (vd "xem minh họa (Fig."). */
-    fun endsWithCiteAbbrev(chunk: String): Boolean {
+    fun endsWithCiteAbbrev(chunk: String): Boolean = endsWithCiteAbbrev(chunk, citeAbbrevWords)
+
+    /** H2.3: cùng check trên với tập abbrev từ ruler (`chunkGuard().citeAbbrev`). */
+    fun endsWithCiteAbbrev(chunk: String, abbrev: Set<String>): Boolean {
         val t = chunk.trimEnd()
         if (!t.endsWith('.')) return false
         val w = t.dropLast(1).substringAfterLast(' ').substringAfterLast('(')
             .substringAfterLast('[').substringAfterLast('{').substringAfterLast('"')
             .substringAfterLast('“').trim().lowercase()
-        return w in citeAbbrevWords
+        return w in abbrev
     }
 
     // D6: "Fig. 5" → "hình 5" (VI) / "figure 5" (EN); "No. 12" → "số 12"/"number 12".

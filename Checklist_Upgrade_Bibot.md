@@ -686,10 +686,17 @@ JSON thắng về nhẹ + đa nền tảng 0-dependency.
   9 TtsSegments) + `assembleDemoDebug` SUCCESS, APK 58.881.939B (+107B).
 - [ ] H2.1 Xóa hàm cứng dates/degrees/roman/figure sau khi v2 chạy ổn định ngoài máy thật
   (port case sang `tests[]` xong ở H2.0; xóa dần `tts_test.go` trùng).
+  TRẠNG THÁI 2026-10-13: CHƯA ĐỦ ĐIỀU KIỆN — v2 mới verify máy ảo, chưa có máy thật
+  (đợi D1.7/D2.6/D3.3/D4.4); KHÔNG xóa lúc này để giữ fallback an toàn.
 - [ ] H2.2 `BlockTextReader` chỉ còn state machine buffer/discard (pattern đã lấy từ
   ruler ở vòng dòng từ H2.0; còn `dropPageNumberLines` vòng khối giữ code theo H2.0).
-- [ ] H2.3 Chunker đọc params (G2 còn lại): `VietnameseChunker`/producer đọc
-  `ReadingRules.chunkGuard()` thay hardcode (params đã có từ H2.0; API + test sẵn).
+- [x] H2.3 Chunker đọc params (XONG 2026-10-13): `VietnameseChunker` nhận
+  `guard: ChunkGuard = ReadingRules.chunkGuard()` (snapshot lúc dựng; mọi `split()`
+  dựng mới nên luôn tươi) — `insideBracketsOrQuote` đọc `bracketsOpen/Close/quotes`,
+  overrun đọc `overrunWords/overrunCharsMult`, cite-check đọc `citeAbbrev` (rỗng →
+  fallback `TextCleaner.endsWithCiteAbbrev` cũ; overload mới nhận tập rule).
+  Chưa init → default = hành vi cứng cũ (parity khóa bởi `chunkGuard_matchesHardcode`
+  + `VietnameseChunkerTest` 5 test mới). Full JVM 38/38.
   Đề mục đọc-pause (G3) giữ code (cần `pauseAfterMs` ở producer, chưa vào ruler).
 - [ ] H2.4 Mỗi H2.x xong: `go test`, `compile_rules.py` (thay `regex_check`),
   APK không tăng quá 0.2MB (JSON nhúng v2 ~4.3KB).

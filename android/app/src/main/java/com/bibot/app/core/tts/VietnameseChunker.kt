@@ -1,10 +1,16 @@
 package com.bibot.app.core.tts
 
+import com.bibot.app.core.text.ReadingRules
 import com.bibot.app.core.text.TextCleaner
 
 /**
  * Vietnamese chunker — yields chunks sized ~35-40 words, rounded to nearest . or ,.
  * Only ends audio chunk when encountering . or ./n for natural pausing.
+ *
+ * H2.3: guard ngoặc/trích dẫn/overrun đọc từ ruler (`ReadingRules.chunkGuard()`,
+ * rule `chunk.brackets`) thay hardcode — chưa init thì default = hành vi cứng cũ.
+ * Snapshot 1 lần lúc dựng (mọi `split()` dựng mới nên luôn tươi; instance giữ lâu
+ * như voice chat dùng guard lúc tạo ViewModel).
  */
 class VietnameseChunker(
     private val minWords: Int = 4,
@@ -12,7 +18,8 @@ class VietnameseChunker(
     private val maxChars: Int = 200,
     // P1 chat (blueprint TASK 2): ngắt cả ở , ; : để chunk ngắn → audio ra sớm.
     // Story/Book giữ false (chỉ ngắt câu . ! ?) — ngữ điệu kể chuyện mượt hơn.
-    private val yieldOnClause: Boolean = false
+    private val yieldOnClause: Boolean = false,
+    private val guard: ReadingRules.ChunkGuard = ReadingRules.chunkGuard()
 ) {
     private val buffer = StringBuilder()
 
@@ -36,10 +43,12 @@ class VietnameseChunker(
             if (wc < maxWords + 4) return false
         }
         // D6: gom đủ đoạn trong ngoặc/trích dẫn — không ngắt giữa "(Fig. 5 ...".
-        // Ép yield khi quá dài (vượt 8 từ / gấp đôi ký tự) để không kẹt chunk vô hạn.
-        if (insideBracketsOrQuote(t) && wc < maxWords + 8 && t.length < maxChars * 2) return false
+        // Ép yield khi quá dài (vượt overrun từ / gấp nhiều ký tự) để không kẹt chunk vô hạn.
+        if (insideBracketsOrQuote(t) && wc < maxWords + guard.overrunWords && t.length < maxChars * guard.overrunCharsMult) return false
         // D6: "Fig."/"No." cuối chunk không phải hết câu (kẻo chẻ "(Fig." | "5)").
-        if (TextCleaner.endsWithCiteAbbrev(t) &&
+        val citeHold = if (guard.citeAbbrev.isNotEmpty()) TextCleaner.endsWithCiteAbbrev(t, guard.citeAbbrev)
+        else TextCleaner.endsWithCiteAbbrev(t)
+        if (citeHold &&
             wc < maxWords + 4 && t.length < (maxChars * 1.5).toInt()
         ) return false
         if ((lastW in singleWords || lastW.all { it.isDigit() }) && !endsSentence) {
@@ -111,18 +120,21 @@ class VietnameseChunker(
 
     fun reset() { buffer.clear() }
 
-    // D6: còn mở ngoặc ([{ chưa đóng, hoặc trong cặp "..."/“...” → chưa gom đủ đoạn.
+    // D6: còn mở ngoặc chưa đóng, hoặc trong cặp trích dẫn → chưa gom đủ đoạn.
+    // Bộ ký tự đọc từ ruler (mặc định "([{" / ")]}" / "\"“”" = hành vi cứng cũ).
     private fun insideBracketsOrQuote(t: String): Boolean {
+        val opens = guard.bracketsOpen.toSet()
+        val closes = guard.bracketsClose.toSet()
+        val quotes = guard.quotes.toList()
         var depth = 0
         var straightQuote = false
         var curlyOpen = false
         for (c in t) {
-            when (c) {
-                '(', '[', '{' -> depth++
-                ')', ']', '}' -> if (depth > 0) depth--
-                '"' -> straightQuote = !straightQuote
-                '“' -> curlyOpen = true
-                '”' -> curlyOpen = false
+            when {
+                c in opens -> depth++
+                c in closes -> if (depth > 0) depth--
+                c == '"' -> straightQuote = !straightQuote
+                c in quotes -> if (quotes.indexOf(c) % 2 == 0) curlyOpen = true else curlyOpen = false
             }
         }
         return depth > 0 || straightQuote || curlyOpen
