@@ -36,8 +36,11 @@ data class ChatLog(
 data class BookProgress(
     @PrimaryKey val bookId: String, // hash path
     val path: String,
-    val position: Int, // câu index
+    val position: Int, // LEGACY chap*100+sent — giữ 1 bản để rollback, code mới không seek bằng nó
     val total: Int,
+    // A2.4b: vị trí vạn năng (đúng với chương >100 câu). -1 = chưa lưu theo schema mới.
+    val chapterIdx: Int = -1,
+    val sentenceIdx: Int = 0,
     val updatedAt: Long = System.currentTimeMillis(),
     // B3+F2 (Touch_point): điểm đọc CHỦ ĐỘNG của user + chế độ + hash file.
     // TEXT: anchorPage=chapterIdx, anchorOffset=sentIdx.
@@ -226,9 +229,10 @@ interface TtsSegmentDao {
 
 @Database(
     entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class, BookBookmark::class, BookTocEntry::class],
-    version = 5, exportSchema = false
+    version = 6, exportSchema = false
     // B1.1: 2→3 thêm bảng library_meta. B3+F2: 3→4 thêm cột anchor vào book_progress.
     // B4.1: 4→5 thêm bảng book_bookmark + book_toc.
+    // A2.4b: 5→6 thêm chapterIdx/sentenceIdx vào book_progress (backfill từ position).
     // (AutoMigration kẹt kapt-setup nên dùng Migration thủ công.)
 )
 abstract class BibotDatabase : RoomDatabase() {
@@ -309,10 +313,21 @@ abstract class BibotDatabase : RoomDatabase() {
             }
         }
 
+        // A2.4b: v5 → v6 thêm chapterIdx/sentenceIdx vào book_progress.
+        // ADD COLUMN có DEFAULT nên NOT NULL an toàn; backfill từ legacy position
+        // (chap=pos/100, sent=pos%100) cho dữ liệu cũ — code mới ghi cả 2 bản 1 thời gian.
+        val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `chapterIdx` INTEGER NOT NULL DEFAULT -1")
+                db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `sentenceIdx` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE `book_progress` SET `chapterIdx` = `position` / 100, `sentenceIdx` = `position` % 100 WHERE `position` > 0")
+            }
+        }
+
         @Volatile private var INSTANCE: BibotDatabase? = null
         fun get(context: Context): BibotDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(context.applicationContext, BibotDatabase::class.java, "bibot.db")
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
         }

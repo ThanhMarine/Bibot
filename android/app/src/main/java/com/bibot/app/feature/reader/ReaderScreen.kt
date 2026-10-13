@@ -49,6 +49,7 @@ import com.bibot.app.data.books.BookMeta
 import com.bibot.app.data.books.BookRepository
 import com.bibot.app.data.db.BibotDatabase
 import com.bibot.app.data.files.FilePaths
+import com.bibot.app.data.library.ReadingPosition
 import com.bibot.app.data.offline.OfflineTtsHelper
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.ui.player.PlayerViewModel
@@ -173,7 +174,8 @@ fun ReaderScreen(
     var bookFile by remember { mutableStateOf<File?>(null) }
     var fileHashState by remember { mutableStateOf("") } // SHA-1 (E1.3)
     var scanNoTts by remember { mutableStateOf(false) } // scan: disable loa
-    var savedPos by remember { mutableIntStateOf(0) } // position đã lưu (resume chip)
+    var savedPos by remember { mutableIntStateOf(0) } // legacy position (giữ hiển thị cũ)
+    var savedResume by remember { mutableStateOf(ReadingPosition()) } // A2.4: vị trí thật
     var savedAnchor by remember { mutableStateOf<ReadAnchor?>(null) }
     // A (tách display/TTS): chương đầu có mốc bắt đầu đọc (-1 = sách không mốc → đọc từ đầu).
     var firstMarkerChapIdx by remember { mutableIntStateOf(-1) }
@@ -236,6 +238,7 @@ fun ReaderScreen(
         viewLockedPage = false
         menuVisible = true
         savedPos = 0
+        savedResume = ReadingPosition()
         savedAnchor = null
         status = context.getString(strLoading)
         scope.launch {
@@ -249,6 +252,7 @@ fun ReaderScreen(
                 status = context.getString(R.string.reader_checking_progress)
                 val progress = db.book().get(book.id)
                 savedPos = progress?.position ?: 0
+                savedResume = if (progress != null) ReadingPosition.fromProgress(progress) else ReadingPosition()
 
                 // P1: hit `.prep` → bỏ hẳn resolveHeading + readChapters/clean (2 pass toàn file).
                 // Miss → build streaming (sink, không giữ sách RAM) → ghi đĩa.
@@ -285,13 +289,15 @@ fun ReaderScreen(
                 }
                 totalSentencesAll = session.sentenceTotal ?: session.estimateTotal
 
-                // Resume: load đúng chương đã đọc (session trả từ `.sent` nếu có, không split lại)
+                // Resume A2.4: đọc từ cột mới (đúng với chương >100 câu),
+                // fallback legacy/anchor cho dữ liệu cũ.
+                val resumePos = if (progress != null) ReadingPosition.fromProgress(progress) else ReadingPosition()
                 val startChap = if (progress != null && chapters.isNotEmpty())
-                    (progress.position / 100).coerceIn(0, chapters.lastIndex) else 0
+                    resumePos.chap.coerceIn(0, chapters.lastIndex) else 0
                 currentChapter = startChap
                 sentences = session.sentences(startChap)
                 currentSentence = if (progress != null)
-                    (progress.position % 100).coerceIn(0, (sentences.size - 1).coerceAtLeast(0)) else 0
+                    resumePos.sent.coerceIn(0, (sentences.size - 1).coerceAtLeast(0)) else 0
 
                 // B3+E1.1+F2: VIEW mặc định + fileHash + scan-lock + neo đã lưu.
                 // PDF → PAGE (ảnh); EPUB scan → PAGE rich-ảnh; còn lại TEXT.
@@ -335,16 +341,17 @@ fun ReaderScreen(
                     }
                 } else null
 
-                if (progress != null && progress.position > 0) {
+                if (progress != null && (resumePos.isStarted || progress.position > 0)) {
                     scope.launch {
                         val currentPos = progress.position
                         val totalNow = if (totalSentencesAll > 0) totalSentencesAll else progress.total
+                        val where = resumePos.resumeLabel()
                         // Thông báo resume đúng NGÔN NGỮ sách — trước đây sách EN bị đọc bằng câu tiếng Việt không dấu
                         val readLang = collection.resolveLang(book)
                         val announce = if (readLang == "en") {
-                            "You were listening to ${book.title} at sentence $currentPos of $totalNow. Continuing from sentence ${currentPos + 1}."
+                            "You were listening to ${book.title} at $where, sentence $currentPos of $totalNow."
                         } else {
-                            "Bạn đã nghe ${book.title} tới câu $currentPos trên $totalNow. Tiếp tục từ câu ${currentPos + 1}."
+                            "Bạn đã nghe ${book.title} tới $where, câu $currentPos trên $totalNow."
                         }
                         val useCloud = prefsState.ttsPriority != "offline"
                         // P0-1: key Cloud TTS riêng (Gemini key ≠ TTS key)
@@ -468,8 +475,10 @@ fun ReaderScreen(
                     com.bibot.app.data.db.BookProgress(
                         bookId = book.id,
                         path = book.localFile?.absolutePath ?: book.title,
-                        position = currentChapter * 100 + currentSentence,
+                        position = currentChapter * 100 + currentSentence, // legacy giữ 1 bản
                         total = totalSentencesAll,
+                        chapterIdx = currentChapter, // A2.4: vị trí thật
+                        sentenceIdx = currentSentence,
                         anchorPage = a?.page ?: -1,
                         anchorOffset = a?.offset ?: 0,
                         readMode = "read",
@@ -887,8 +896,10 @@ fun ReaderScreen(
                         com.bibot.app.data.db.BookProgress(
                             bookId = book.id,
                             path = book.localFile?.absolutePath ?: book.title,
-                            position = item.chapIdx * 100 + (item.sentIdx + 1),
+                            position = item.chapIdx * 100 + (item.sentIdx + 1), // legacy giữ 1 bản
                             total = totalSentences,
+                            chapterIdx = item.chapIdx, // A2.4: vị trí thật (đúng >100 câu/chương)
+                            sentenceIdx = item.sentIdx + 1,
                             anchorPage = selAnchor?.page ?: -1,
                             anchorOffset = selAnchor?.offset ?: 0,
                             readMode = "read",
@@ -1177,14 +1188,14 @@ fun ReaderScreen(
                 }
                 // F2.1: chip đọc tiếp khi mở sách đã đọc mà chưa neo.
                 if (readModeState == ReadMode.BROWSE && chapters.isNotEmpty() &&
-                    (savedAnchor != null || savedPos > 0)
+                    (savedAnchor != null || savedResume.isStarted || savedPos > 0)
                 ) {
                     TextButton(
                         onClick = {
                             val a = savedAnchor ?: ReadAnchor(
                                 ReaderView.TEXT,
-                                (savedPos / 100).coerceIn(chapters.indices),
-                                savedPos % 100
+                                savedResume.chap.coerceIn(chapters.indices),
+                                savedResume.sent.coerceAtLeast(0)
                             )
                             anchorConfirm = a
                         },
@@ -1197,7 +1208,7 @@ fun ReaderScreen(
                                     (savedAnchor?.page ?: 0) + 1,
                                     pageCount.coerceAtLeast(1)
                                 )
-                            else stringResource(R.string.chrome_resume, (savedPos % 100) + 1),
+                            else stringResource(R.string.chrome_resume, savedResume.sent.coerceAtLeast(0) + 1),
                             fontSize = 12.sp
                         )
                     }

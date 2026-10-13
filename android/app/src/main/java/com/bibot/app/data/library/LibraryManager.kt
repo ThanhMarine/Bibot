@@ -73,6 +73,43 @@ class LibraryManager(private val context: Context) {
         db.book().all().associateBy { it.bookId }
     }
 
+    // A2.4c: API vị trí đọc cho Shell_Manager + mọi kệ (không Compose).
+    // UI chỉ gọi, không tự tính `/100,%100` hay `*100` nữa.
+    suspend fun getPosition(bookId: String): ReadingPosition = withContext(Dispatchers.IO) {
+        val p = db.book().get(bookId) ?: return@withContext ReadingPosition()
+        ReadingPosition.fromProgress(p)
+    }
+
+    suspend fun savePosition(
+        bookId: String,
+        path: String,
+        pos: ReadingPosition,
+        total: Int,
+        readMode: String = "read",
+        fileHash: String = ""
+    ) = withContext(Dispatchers.IO) {
+        db.book().upsert(
+            BookProgress(
+                bookId = bookId,
+                path = path,
+                position = pos.toLegacy(), // giữ 1 bản để rollback/hiển thị cũ
+                total = total,
+                chapterIdx = pos.chap,
+                sentenceIdx = pos.sent,
+                anchorPage = pos.page,
+                anchorOffset = pos.offset,
+                readMode = readMode,
+                fileHash = fileHash
+            )
+        )
+    }
+
+    suspend fun resumeSnapshot(bookId: String): Pair<ReadingPosition, Int> = withContext(Dispatchers.IO) {
+        val p = db.book().get(bookId)
+        if (p == null) ReadingPosition() to 0
+        else ReadingPosition.fromProgress(p) to p.total
+    }
+
     /** Refresh full kệ + backfill tác giả EPUB (cap 30/lần, rẻ: chỉ OPF). */
     suspend fun refreshSnapshot(driveFolderId: String? = null): LibrarySnapshot =
         withContext(Dispatchers.IO) {

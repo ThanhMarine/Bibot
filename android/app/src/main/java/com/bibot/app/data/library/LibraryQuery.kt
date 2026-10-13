@@ -104,9 +104,13 @@ object LibraryQuery {
         val trashBooks = books.filter { isTrash(metas, it) }
         val base: List<BookMeta> = when (sel) {
             is LibSel.F -> when (sel.f) {
+                // A2.4c: Đang đọc = vị trí mới (chap/sent) đã bắt đầu; giữ điều kiện
+                // position/total cũ như fallback để không mất dữ liệu legacy.
                 LibFilter.READING -> nonTrash.mapNotNull { b ->
-                    progress[b.id]?.takeIf { it.position > 0 && (it.total <= 0 || it.position < it.total) }
-                        ?.let { b to it.updatedAt }
+                    val p = progress[b.id] ?: return@mapNotNull null
+                    val started = ReadingPosition.fromProgress(p).isStarted || p.position > 0
+                    val notDone = p.total <= 0 || p.position < p.total
+                    if (started && notDone) b to p.updatedAt else null
                 }.sortedByDescending { it.second }.map { it.first }
                 LibFilter.ALL -> nonTrash
                 LibFilter.FAV -> nonTrash.filter { metas[it.id]?.shelfFav == true }

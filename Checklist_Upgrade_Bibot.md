@@ -84,12 +84,32 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     `data/store/BibotPreferences.kt` (`ALLOWED_FONT_SIZES` + `readerFontSizeSp/...`),
     `feature/reader/ReaderScreen.kt` (`renderKey = derivedStateOf{...}`), UI slider ở
     `feature/settings/SettingsScreen.kt`.
-- [ ] A2.4 Đơn vị vạn năng `Hitbox + SearchWindow ±7 từ` (HẠ từ [x] xuống 2026-10-12):
+- [ ] A2.4 Đơn vị vạn năng `Hitbox + SearchWindow ±7 từ` + gộp Shell_Manager core (MỞ RỘNG 2026-10-13 — quyết user: tách progress khỏi UI vào manager chung):
   struct `Hitbox/SearchWindow` + `hitboxFromCharOffset/searchWindow` đã có trong
   `core/text/TextCleaner.kt` và search toàn sách (`runSearchFullBook`) đã dùng —
   NHƯNG progress vẫn `position = chap*100+sent` (`ReaderScreen` + `BookDetailScreen`
   còn `/100`, `%100` khắp nơi; sai khi chương >100 câu như B1.5/B3.4 đã ghi nhận).
-  File cũ `BookScreen/StoryScreen` đã xóa ở R0. Còn: migrate progress sang Hitbox/xpointer.
+  File cũ `BookScreen/StoryScreen` đã xóa ở R0.
+  - A2.4a MỚI `data/library/ReadingPosition.kt` (pure, kế `LibraryQuery`, có
+    `ReadingPositionTest`): `data class ReadingPosition(chap,sent,page?,offset?)` +
+    `fromLegacy(pos)` / `toLegacy()` / `isFinished(total)` / `resumeLabel()`.
+    Mọi Tab/kệ kiểu ReadEra sau này dùng chung, không tự tính `/100,%100`.
+  - A2.4b DB Migration 5→6 (`BibotDatabase.kt`): thêm `chapterIdx/sentenceIdx`
+    vào `book_progress` (ADD COLUMN có DEFAULT, giữ `position` cũ 1 bản để rollback;
+    backfill `chap=pos/100, sent=pos%100`).
+  - A2.4c `LibraryManager` thêm `getPosition/savePosition/resumeSnapshot()`
+    (facade suspend, không Compose) — `ReaderScreen/Detail` chỉ gọi, không tự tính;
+    `LibraryQuery.selectBooks` đổi sang đọc `ReadingPosition` (sửa luôn bug B1.5
+    sách dở rơi vào Đã đọc).
+  - Liên hệ B1.6: `data/library` (Query+Manager) chính là phôi Shell_Manager;
+    A2.4c hoàn thiện nhánh progress của nó để mọi Tab quản lý/hiển thị reuse.
+  - CODE XONG 2026-10-13 (chờ verify máy ảo ở A2.5): `ReadingPosition.kt` +
+    `ReadingPositionTest` 5/5; `BibotDatabase` v5→6 (`MIGRATION_5_6` backfill
+    `chapterIdx/sentenceIdx` từ `position`); `LibraryManager.getPosition/
+    savePosition/resumeSnapshot`; `ReaderScreen` resume/lưu/chip + announce dùng
+    `ReadingPosition` (legacy `position` giữ 1 bản); `BookDetailScreen` hiện
+    `resumeLabel()`; `LibraryQuery.READING` check `isStarted`. Full JVM 64/64
+    (59 cũ + 5 mới), `assembleDemoDebug` SUCCESS (APK ~58,7MB).
 - [ ] A2.5 Verify: mở sách 3–5MB không đơ; đổi font không relayout liên tục; resume nhảy đúng chương >100 câu.
 
 ### A3. P2 — Export + Player polish (học openreader)
@@ -430,7 +450,7 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [ ] C3 Không `readText()` toàn file; mọi list dùng `LazyColumn`; tab chương dài có search.
 - [ ] C4 Mỗi giai đoạn xong: `go vet` 0 + `assembleDemoDebug + assembleCommercialDebug` pass + test máy ảo (BibotTest) với sách 1.8MB/2545 trang.
 - [ ] C5 Thứ tự làm (đã chèn R0 + E1.1 + B5 + B6, xem Phần F):
-  `R0 → A1 → B1 → B3+E1.1 → B6 → B2 → A2 → B4 → B5 → A3`.
+  `R0 → A1 → B1 → B3+E1.1 → B6 → B2 → A2(+Shell_Manager core ở A2.4) → B4 → B5 → A3`.
   Mỗi bước build được APK, không phá voice chat. B6 là polish từ review screenshot,
   làm ngay sau B3 (nhỏ, không đảo roadmap).
 

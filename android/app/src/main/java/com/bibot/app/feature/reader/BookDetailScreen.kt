@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.bibot.app.R
 import com.bibot.app.data.books.BookMeta
 import com.bibot.app.data.db.BookProgress
+import com.bibot.app.data.library.ReadingPosition
 
 @Composable
 fun BookDetailScreen(
@@ -226,9 +227,9 @@ fun BookDetailScreen(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
-            // Bookmark + reading time
+            // Bookmark + reading time (A2.4: đọc từ cột mới, đúng >100 câu/chương)
             Text(
-                "Bookmark: Chương ${(p.position / 100) + 1} Câu ${(p.position % 100) + 1}  •  Đã đọc: ${formatReadTime(p.updatedAt)}",
+                "Bookmark: ${ReadingPosition.fromProgress(p).resumeLabel()}  •  Đã đọc: ${formatReadTime(p.updatedAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
