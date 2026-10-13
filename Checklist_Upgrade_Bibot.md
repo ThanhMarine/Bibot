@@ -323,6 +323,11 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   (`onBackHome`) + system-back ở kệ → Home (trước đó kẹt mode đọc vì chỉ còn đường back
   về list). Mode đọc giữ full-screen (ẩn Top_bar app, back bằng nút reader).
   Verify máy ảo: reader top-bar bắt đầu y=168 sát status bar, hết nav; banner hiển thị ở đáy; không còn ngắt quảng cáo interstitial giữa chừng khi đọc; logcat sạch FATAL.
+  B6.15b: kệ EN Books hiện 2 vạch loading khi kệ trống (đầu list `if (isLoading)` +
+  cuối list `if (isLoading && books.isEmpty())`) → bỏ vạch cuối, giữ status text.
+  Soát hết app: các màn khác mỗi loader riêng (story 1, Documents 3 loader khác nhau,
+  News/Voice/Weather/Settings mỗi màn 1, ReaderChrome 1 vạch progress) — không trùng.
+  Verify máy ảo (cold start → kệ đang tải): đúng 1 `ProgressBar`.
 - [x] B6.16 Nâng cấp EPUB rich + zoom (yêu cầu user 2026-10-13, verify máy ảo):
   1. Zoom ảnh: bấm ảnh EPUB → dialog fullscreen + pinch (`detectTransformGestures`
      + `graphicsLayer`, 0 lib); PDF double-tap trang → cùng dialog (bitmap pool).

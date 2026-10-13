@@ -978,7 +978,7 @@ fun ReaderScreen(
                 ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } })
             }
             item {
-                if (isLoading && books.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                // Chỉ 1 vạch loading (ở đầu list) — bỏ vạch cuối list (trùng khi kệ trống).
                 status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
             }
         }
