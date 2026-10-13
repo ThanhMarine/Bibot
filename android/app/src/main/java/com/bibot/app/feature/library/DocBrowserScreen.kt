@@ -1,12 +1,9 @@
-package com.bibot.app.feature.doc
+package com.bibot.app.feature.library
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.provider.OpenableColumns
-import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -47,23 +44,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.documentfile.provider.DocumentFile
 import com.bibot.app.R
-import com.bibot.app.core.text.EpubReader
 import com.bibot.app.data.books.BookMeta
-import com.bibot.app.data.books.BookRepository
-import com.bibot.app.data.db.BibotDatabase
 import com.bibot.app.data.db.BookProgress
 import com.bibot.app.data.db.LibraryMeta
-import com.bibot.app.data.files.FilePaths
+import com.bibot.app.data.library.DocFileItem
+import com.bibot.app.data.library.LibFilter
+import com.bibot.app.data.library.LibGroup
+import com.bibot.app.data.library.LibGroupKind
+import com.bibot.app.data.library.LibSel
+import com.bibot.app.data.library.LibraryManager
+import com.bibot.app.data.library.LibraryQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
 
 /**
- * B1 — Thư viện kiểu ReadEra (thay DocBrowserScreen cũ).
+ * B1 — Thư viện kiểu ReadEra.
  * - Drawer 12 mục: Đang đọc / Sách & tài liệu / Yêu thích / Đọc sau / Đã đọc /
  *   Tuyển tập / Tác giả / Series / Định dạng / Thư mục / Tải về / Thùng rác.
  * - Row: bìa (PDF render / EPUB cover / ô chữ) + tựa/tác giả/format-size +
@@ -72,35 +69,12 @@ import java.io.File
  *   full list (bỏ take(30) cắt ngầm) + auto-scan khi đã có quyền.
  * - PDF nằm chung grid (lọc Định dạng > PDF), hết mồ côi.
  * - Thùng rác mềm: chỉ ẩn ở library (reader tabs không đổi — ghi nhận B1.1).
+ *
+ * TÁCH TAB (quyết user): gỡ khỏi nav (trùng kệ đọc + không mở được sách);
+ * logic quản lý đã wire vào core `data.library` ([LibraryManager] +
+ * [LibraryQuery]) để Shell manager dùng chung — màn này giữ làm UI tham chiếu,
+ * mọi lọc/thao tác đi qua core (không logic riêng).
  */
-enum class LibFilter { READING, ALL, FAV, TOREAD, READ, DOWNLOADED, TRASH }
-
-enum class LibGroupKind { COLLECTION, AUTHOR, SERIES, FORMAT, FOLDER }
-
-data class LibGroup(val kind: LibGroupKind, val key: String, val label: String)
-
-sealed interface LibSel {
-    data class F(val f: LibFilter) : LibSel
-    data class G(val g: LibGroup) : LibSel
-}
-
-fun libFormatOf(book: BookMeta): String {
-    val ext = book.localFile?.extension?.lowercase()
-        ?: book.title.substringAfterLast('.', "").lowercase()
-    return when (ext) {
-        "pdf" -> "PDF"
-        "epub" -> "EPUB"
-        "md", "markdown" -> "MD"
-        "txt", "text" -> "TXT"
-        else -> when {
-            book.mimeType.contains("pdf") -> "PDF"
-            book.mimeType.contains("epub") -> "EPUB"
-            book.mimeType.contains("markdown") -> "MD"
-            book.mimeType.contains("plain") -> "TXT"
-            else -> "OTHER"
-        }
-    }
-}
 
 @Composable
 fun libFolderLabel(source: String): String = when (source) {
@@ -129,7 +103,6 @@ fun DocBrowserScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val db = remember { BibotDatabase.get(context) }
     var searchQuery by remember { mutableStateOf("") }
     // 9.4: search debounced 300ms — không filter mỗi keystroke trên Main
     var debouncedQuery by remember { mutableStateOf("") }
@@ -147,126 +120,66 @@ fun DocBrowserScreen(
     var menuFor by remember { mutableStateOf<String?>(null) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
 
-    val docRepo = remember { BookRepository(context) }
+    // Core quản lý (data.library) — UI chỉ giữ state hiển thị + status text.
+    // Mọi lọc/thao tác đi qua lib (Shell manager dùng chung module này).
+    val lib = remember { LibraryManager(context) }
 
-    suspend fun backfillAuthors() = withContext(Dispatchers.IO) {
-        // Parse tác giả/series cho EPUB đã tải chưa có meta (cap 30/lần, rẻ: chỉ OPF).
-        try {
-            var n = 0
-            for (b in bookstoreFiles) {
-                if (n >= 30) break
-                val f = b.localFile?.takeIf { it.exists() } ?: continue
-                if (!f.extension.equals("epub", ignoreCase = true)) continue
-                if (!metas[b.id]?.author.isNullOrBlank()) continue
-                val m = EpubReader.readMeta(f)
-                if (m.author.isNotBlank() || m.series.isNotBlank()) {
-                    db.library().insertIfMissing(LibraryMeta(bookId = b.id))
-                    db.library().setMeta(b.id, m.author, m.series)
-                    n++
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    suspend fun refreshLibrary(silentScan: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun refreshLibrary(silentScan: Boolean = false) {
         isLoadingBookstore = true
         try {
-            docRepo.refreshAll(selectedTreeUri?.lastPathSegment)
-            bookstoreFiles = docRepo.books.value
-            metas = db.library().all().associateBy { it.bookId }
-            progressMap = db.book().all().associateBy { it.bookId }
-            backfillAuthors()
-            metas = db.library().all().associateBy { it.bookId }
-            status = context.getString(R.string.doc_status, bookstoreFiles.size, storageFiles.size)
+            val snap = lib.refreshSnapshot(selectedTreeUri?.lastPathSegment)
+            bookstoreFiles = snap.books
+            metas = snap.metas
+            progressMap = snap.progress
+            status = lib.statusDocCount(bookstoreFiles.size, storageFiles.size)
         } catch (e: Exception) {
             status = context.getString(R.string.doc_refresh_fail, e.message ?: "")
         }
         isLoadingBookstore = false
     }
 
-    fun getExtension(name: String): String = name.substringAfterLast(".", "")
-    fun getMimeType(name: String): String {
-        val ext = getExtension(name)
-        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
-    }
-
-    fun scanDir(dir: File, acc: MutableList<DocFileItem>) {
-        try {
-            dir.listFiles()?.take(50)?.forEach { f ->
-                if (f.name.startsWith(".")) return@forEach
-                acc += DocFileItem(name = f.name, path = f.absolutePath,
-                    isDirectory = f.isDirectory, mimeType = if (f.isDirectory) "*/*" else getMimeType(f.name),
-                    sizeBytes = if (f.isDirectory) 0L else f.length(), documentFile = null)
-                if (f.isDirectory && acc.size < 200) scanDir(f, acc)
-            }
-        } catch (_: Exception) {}
-    }
-
-    suspend fun scanTree(treeUri: Uri, ctx: Context) = withContext(Dispatchers.IO) {
+    suspend fun scanTree(treeUri: Uri) {
         isLoadingStorage = true
         try {
-            val tree = DocumentFile.fromTreeUri(ctx, treeUri)
-            val files = mutableListOf<DocFileItem>()
-            tree?.listFiles()?.forEach { doc ->
-                val name = doc.name ?: return@forEach
-                val mimeType = doc.type ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(getExtension(name)) ?: "*/*"
-                val size = if (doc.isDirectory) 0L else doc.length()
-                files += DocFileItem(name = name, path = doc.uri.toString(),
-                    isDirectory = doc.isDirectory, mimeType = mimeType, sizeBytes = size, documentFile = doc)
-            }
-            val sorted = files.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
-            storageFiles = sorted
-            status = context.getString(R.string.doc_scanned_tree, sorted.size, treeUri.lastPathSegment ?: "")
+            storageFiles = lib.scanTree(treeUri)
+            status = context.getString(R.string.doc_scanned_tree, storageFiles.size, treeUri.lastPathSegment ?: "")
         } catch (e: Exception) { status = context.getString(R.string.doc_scan_fail, e.message ?: "") }
         isLoadingStorage = false
     }
 
-    suspend fun scanStorage(silent: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun scanStorage(silent: Boolean = false) {
         isLoadingStorage = true
         try {
-            val files = mutableListOf<DocFileItem>()
-            FilePaths.audioBooks(context).walkTopDown().filter { it.isFile }.forEach { f ->
-                files += DocFileItem(name = f.name, path = f.absolutePath,
-                    isDirectory = false, mimeType = getMimeType(f.name), sizeBytes = f.length(), documentFile = null)
-            }
-            val extDir = ContextCompat.getExternalFilesDirs(context, null).firstOrNull()
-            extDir?.let { base -> scanDir(base, files) }
-            storageFiles = files.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
-            status = if (silent) context.getString(R.string.lib_auto_scanned, files.size)
-            else context.getString(R.string.doc_scanned_storage, files.size)
+            storageFiles = lib.scanStorage()
+            status = if (silent) context.getString(R.string.lib_auto_scanned, storageFiles.size)
+            else context.getString(R.string.doc_scanned_storage, storageFiles.size)
         } catch (e: Exception) { status = context.getString(R.string.doc_scan_fail, e.message ?: "") }
         isLoadingStorage = false
     }
 
-    suspend fun addToBookstore(uri: Uri): String = withContext(Dispatchers.IO) {
-        val destName = getFileName(context, uri) ?: "file_${System.currentTimeMillis()}"
-        val dest = File(FilePaths.audioBooks(context), destName)
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            dest.outputStream().use { out -> input.copyTo(out) }
-        }
+    suspend fun addToBookstore(uri: Uri): String {
+        val destName = lib.importFile(uri)
         refreshLibrary()
-        context.getString(R.string.doc_added, destName)
+        return context.getString(R.string.doc_added, destName)
     }
 
     // B1.2: xoá mềm vào thùng rác (ẩn ở library, giữ file); xoá hẳn mới đụng file.
-    suspend fun trashBook(bookMeta: BookMeta): String = withContext(Dispatchers.IO) {
-        db.library().insertIfMissing(LibraryMeta(bookId = bookMeta.id))
-        db.library().setTrashed(bookMeta.id, true)
-        metas = db.library().all().associateBy { it.bookId }
-        context.getString(R.string.lib_moved_trash)
+    suspend fun trashBook(bookMeta: BookMeta): String {
+        lib.trashBook(bookMeta.id)
+        metas = lib.metas()
+        return context.getString(R.string.lib_moved_trash)
     }
 
-    suspend fun restoreBook(bookMeta: BookMeta): String = withContext(Dispatchers.IO) {
-        db.library().setTrashed(bookMeta.id, false)
-        metas = db.library().all().associateBy { it.bookId }
-        context.getString(R.string.lib_restored)
+    suspend fun restoreBook(bookMeta: BookMeta): String {
+        lib.restoreBook(bookMeta.id)
+        metas = lib.metas()
+        return context.getString(R.string.lib_restored)
     }
 
-    suspend fun deleteForever(bookMeta: BookMeta): String = withContext(Dispatchers.IO) {
-        try { docRepo.delete(bookMeta) } catch (_: Exception) {}
-        try { db.library().delete(bookMeta.id) } catch (_: Exception) {}
+    suspend fun deleteForever(bookMeta: BookMeta): String {
+        lib.deleteForever(bookMeta)
         refreshLibrary()
-        context.getString(R.string.lib_deleted_forever)
+        return context.getString(R.string.lib_deleted_forever)
     }
 
     fun isInBookstore(docFile: DocFileItem): Boolean {
@@ -275,7 +188,7 @@ fun DocBrowserScreen(
 
     // Collect bookstore books from BookRepository StateFlow + auto-scan khi đã có quyền
     LaunchedEffect(Unit) {
-        docRepo.seedDemo()
+        lib.seedDemo()
         refreshLibrary()
         try {
             val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
@@ -295,7 +208,7 @@ fun DocBrowserScreen(
             )
             selectedTreeUri = uri
             status = context.getString(R.string.doc_granted, uri.lastPathSegment ?: "root")
-            scope.launch { scanTree(uri, context) }
+            scope.launch { scanTree(uri) }
         }
     }
 
@@ -307,11 +220,7 @@ fun DocBrowserScreen(
             scope.launch {
                 try {
                     status = context.getString(R.string.doc_adding)
-                    val destName = getFileName(context, uri) ?: "file_${System.currentTimeMillis()}"
-                    val dest = File(FilePaths.audioBooks(context), destName)
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        dest.outputStream().use { out -> input.copyTo(out) }
-                    }
+                    val destName = lib.importFile(uri)
                     refreshLibrary()
                     status = context.getString(R.string.doc_added_to_books, destName)
                 } catch (e: Exception) {
@@ -334,84 +243,28 @@ fun DocBrowserScreen(
     }
 
     // ---- B1.1: lọc theo kệ/drawer + search (trash ẩn mọi nơi trừ Thùng rác) ----
-    fun isTrash(b: BookMeta) = metas[b.id]?.trashed == true
+    // Đi qua core LibraryQuery (Shell manager dùng chung).
+    fun isTrash(b: BookMeta) = LibraryQuery.isTrash(metas, b)
     val nonTrash = bookstoreFiles.filter { !isTrash(it) }
-    val trashBooks = bookstoreFiles.filter { isTrash(it) }
-
-    fun matchGroup(b: BookMeta, g: LibGroup): Boolean {
-        val m = metas[b.id]
-        return when (g.kind) {
-            LibGroupKind.COLLECTION -> when (g.key) {
-                "story" -> b.collection == "story"
-                "cotich" -> b.collection == "cotich"
-                "en" -> b.collection == "en" || (b.collection.isBlank() && b.lang == "en")
-                "thamkhao" -> b.collection == "thamkhao"
-                else -> b.collection.isBlank() && b.lang != "en" // local
-            }
-            LibGroupKind.AUTHOR -> (m?.author?.ifBlank { null }
-                ?: context.getString(R.string.lib_unknown)) == g.key
-            LibGroupKind.SERIES -> (m?.series?.ifBlank { null }
-                ?: context.getString(R.string.lib_unknown)) == g.key
-            LibGroupKind.FORMAT -> libFormatOf(b) == g.key
-            LibGroupKind.FOLDER -> when (g.key) {
-                "pdrive" -> b.source == "pdrive" || b.source == "drive"
-                "local" -> b.source == "local" || b.source == "demo"
-                "url" -> b.source == "url"
-                else -> b.source != "pdrive" && b.source != "drive" &&
-                    b.source != "local" && b.source != "demo" && b.source != "url"
-            }
-        }
-    }
-
-    fun matchQuery(b: BookMeta, q: String): Boolean {
-        if (q.isBlank()) return true
-        val m = metas[b.id]
-        return b.title.contains(q, ignoreCase = true) ||
-            (m?.author ?: "").contains(q, ignoreCase = true) ||
-            libFormatOf(b).contains(q, ignoreCase = true) ||
-            b.source.contains(q, ignoreCase = true)
-    }
-
-    val baseFiltered: List<BookMeta> = when (val s = sel) {
-        is LibSel.F -> when (s.f) {
-            LibFilter.READING -> nonTrash.mapNotNull { b ->
-                progressMap[b.id]?.takeIf { it.position > 0 && (it.total <= 0 || it.position < it.total) }
-                    ?.let { b to it.updatedAt }
-            }.sortedByDescending { it.second }.map { it.first }
-            LibFilter.ALL -> nonTrash
-            LibFilter.FAV -> nonTrash.filter { metas[it.id]?.shelfFav == true }
-            LibFilter.TOREAD -> nonTrash.filter { metas[it.id]?.shelfToRead == true }
-            LibFilter.READ -> nonTrash.filter { b ->
-                metas[b.id]?.shelfRead == true ||
-                    progressMap[b.id]?.let { it.total > 0 && it.position >= it.total } == true
-            }
-            LibFilter.DOWNLOADED -> nonTrash.filter { it.isDownloaded }
-            LibFilter.TRASH -> trashBooks
-        }
-        is LibSel.G -> nonTrash.filter { matchGroup(it, s.g) }
-    }
-    val visibleBooks = if (debouncedQuery.isBlank()) baseFiltered
-    else baseFiltered.filter { matchQuery(it, debouncedQuery) }
+    val unknownLabel = stringResource(R.string.lib_unknown)
+    val visibleBooks = LibraryQuery.selectBooks(
+        bookstoreFiles, metas, progressMap, sel, debouncedQuery, unknownLabel
+    )
 
     // Nhóm động cho drawer (đếm trên nonTrash)
-    val unknownLabel = stringResource(R.string.lib_unknown)
     val authorGroups = nonTrash.map { metas[it.id]?.author?.ifBlank { null } ?: unknownLabel }
         .groupingBy { it }.eachCount().toList().sortedByDescending { it.second }.take(15)
     val seriesGroups = nonTrash.map { metas[it.id]?.series?.ifBlank { null } ?: unknownLabel }
         .groupingBy { it }.eachCount().toList().sortedByDescending { it.second }.take(15)
-    val formatGroups = nonTrash.map { libFormatOf(it) }
+    val formatGroups = nonTrash.map { LibraryQuery.libFormatOf(it) }
         .groupingBy { it }.eachCount().toList().sortedByDescending { it.second }
-    val folderGroups = nonTrash.map {
-        when (it.source) {
-            "pdrive", "drive" -> "pdrive"
-            "local", "demo" -> "local"
-            "url" -> "url"
-            else -> "other"
-        }
-    }.groupingBy { it }.eachCount().toList().sortedByDescending { it.second }
+    val folderGroups = nonTrash.map { LibraryQuery.folderKeyOf(it.source) }
+        .groupingBy { it }.eachCount().toList().sortedByDescending { it.second }
     val collectionGroups = listOf("story", "cotich", "en", "thamkhao", "local").mapNotNull { k ->
         val g = LibGroup(LibGroupKind.COLLECTION, k, "")
-        val n = nonTrash.count { matchGroup(it, g) }
+        val n = nonTrash.count {
+            LibraryQuery.matchGroup(it, metas[it.id]?.author, metas[it.id]?.series, g, unknownLabel)
+        }
         if (n > 0) g to n else null
     }
 
@@ -563,7 +416,7 @@ fun DocBrowserScreen(
                     label = { Text(stringResource(R.string.lib_sec_trash)) },
                     selected = sel == LibSel.F(LibFilter.TRASH),
                     onClick = { drawerCloseAndGo(LibSel.F(LibFilter.TRASH)) },
-                    badge = badge(trashBooks.size),
+                    badge = badge(bookstoreFiles.count { LibraryQuery.isTrash(metas, it) }),
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
                 Spacer(Modifier.height(12.dp))
@@ -665,7 +518,7 @@ fun DocBrowserScreen(
                                     )
                                     Text(
                                         (meta?.author?.ifBlank { null } ?: "—") + " • " +
-                                            libFormatOf(book) + " • " + book.displaySize,
+                                            LibraryQuery.libFormatOf(book) + " • " + book.displaySize,
                                         style = MaterialTheme.typography.labelSmall, fontSize = 10.sp,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
@@ -709,11 +562,9 @@ fun DocBrowserScreen(
                                     if (!book.isDownloaded) {
                                         IconButton(
                                             onClick = {
-                                                scope.launch(Dispatchers.IO) {
+                                                scope.launch {
                                                     try {
-                                                        docRepo.download(book)
-                                                        db.library().insertIfMissing(LibraryMeta(bookId = book.id))
-                                                        db.library().stamp(book.id, System.currentTimeMillis())
+                                                        lib.downloadAndTrack(book)
                                                         refreshLibrary()
                                                         status = context.getString(R.string.book_download_done, book.title)
                                                     } catch (e: Exception) {
@@ -728,10 +579,9 @@ fun DocBrowserScreen(
                                     }
                                     IconButton(
                                         onClick = {
-                                            scope.launch(Dispatchers.IO) {
-                                                db.library().insertIfMissing(LibraryMeta(bookId = book.id))
-                                                db.library().setFav(book.id, !fav)
-                                                metas = db.library().all().associateBy { it.bookId }
+                                            scope.launch {
+                                                lib.setFav(book.id, !fav)
+                                                metas = lib.metas()
                                             }
                                         },
                                         modifier = Modifier.size(44.dp)
@@ -746,10 +596,9 @@ fun DocBrowserScreen(
                                     }
                                     IconButton(
                                         onClick = {
-                                            scope.launch(Dispatchers.IO) {
-                                                db.library().insertIfMissing(LibraryMeta(bookId = book.id))
-                                                db.library().setToRead(book.id, !toRead)
-                                                metas = db.library().all().associateBy { it.bookId }
+                                            scope.launch {
+                                                lib.setToRead(book.id, !toRead)
+                                                metas = lib.metas()
                                             }
                                         },
                                         modifier = Modifier.size(44.dp)
@@ -780,10 +629,9 @@ fun DocBrowserScreen(
                                                 leadingIcon = { Icon(Icons.Default.Check, contentDescription = null) },
                                                 onClick = {
                                                     menuFor = null
-                                                    scope.launch(Dispatchers.IO) {
-                                                        db.library().insertIfMissing(LibraryMeta(bookId = book.id))
-                                                        db.library().setRead(book.id, !isRead)
-                                                        metas = db.library().all().associateBy { it.bookId }
+                                                    scope.launch {
+                                                        lib.setRead(book.id, !isRead)
+                                                        metas = lib.metas()
                                                         status = context.getString(
                                                             if (!isRead) R.string.lib_marked_read else R.string.lib_marked_unread
                                                         )
@@ -851,7 +699,8 @@ fun DocBrowserScreen(
                                     Text(doc.name, style = MaterialTheme.typography.titleSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                     Text("${doc.sizeBytes / 1024} KB", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
                                 }
-                                TextButton(onClick = { scope.launch { scanTree(doc.documentFile?.uri ?: Uri.parse(doc.path), context) } }) { Text(stringResource(R.string.doc_open), fontSize = 12.sp) }
+                                TextButton(onClick = { scope.launch { scanTree(doc.documentFile?.uri ?: Uri.parse(doc.path)) } }) {
+                                    Text(stringResource(R.string.doc_open), fontSize = 12.sp) }
                             }
                         }
                     }
@@ -923,7 +772,7 @@ private fun LibraryCover(book: BookMeta) {
             modifier = Modifier.size(56.dp, 80.dp)
         )
     } else {
-        val emoji = when (libFormatOf(book)) {
+        val emoji = when (LibraryQuery.libFormatOf(book)) {
             "PDF" -> "📕"
             "EPUB" -> "📗"
             "MD", "TXT" -> "📝"
@@ -958,21 +807,4 @@ private fun filteredStorageEmpty(
             it.mimeType.contains(debouncedQuery, ignoreCase = true)
     }
 }
-
-data class DocFileItem(
-    val name: String,
-    val path: String,
-    val isDirectory: Boolean,
-    val mimeType: String,
-    val sizeBytes: Long,
-    val documentFile: DocumentFile?
-)
-
-fun getFileName(context: Context, uri: Uri): String? {
-    return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        if (cursor.moveToFirst()) {
-            val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (idx >= 0) cursor.getString(idx) else null
-        } else null
-    }
-}
+// (DocFileItem + getFileName đã dời vào data.library.LibraryManager — core dùng chung.)

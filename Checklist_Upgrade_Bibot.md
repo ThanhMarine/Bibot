@@ -143,6 +143,16 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   PDF/EPUB + backfill author mới review-code (không crash), chưa thấy ảnh thật;
   verify lại khi có mạng. `position=chap*100+sent` cũ khiến sách dở rơi vào Đã đọc
   (ghi nhận, sửa ở B3.4/A2.4).
+- [x] B1.6 GỠ TAB Documents khỏi nav (quyết user — trùng kệ đọc + Card không mở được
+  sách + fav/trash chỉ Documents đọc, kệ khác không thấy): xóa tile Home +
+  `BibotMode.PDF` (enum + nhánh + `inReader`) — PDF vẫn đọc được ở kệ EN Books.
+  Code GIỮ lại làm module quản lý cho Shell manager: `feature/doc` → dời sang
+  `feature/library` (DocBrowserScreen + LibraryCovers, nguyên logic, chưa nối lại);
+  tách core `data/library/` — `LibraryQuery` (lọc/nhóm/tìm pure, có unit test
+  `LibraryQueryTest` 7/7) + `LibraryManager` (facade suspend trên
+  BookRepository/Room/SAF/covers, không Compose); DocBrowserScreen đã chuyển sang
+  gọi core (không logic lọc/thao tác riêng). DB `library_meta` giữ nguyên (không
+  migration). Verify: build + JVM 59/59, cài máy ảo, Home còn 6 tiles, không FATAL.
 
 ### B2. Giai đoạn 2 — Màn About sách mới (`BookDetailScreen`) — [x] 2026-10-11
 
@@ -195,8 +205,8 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   tools/internal/assets đồng bộ, Go PASS, JVM pagenoInline test).
   Verify unit (display `cleanForDisplay` giữ `[Pg 62]`, apply bỏ).
 - **Nghe TTS**: producer `ReaderScreen` (Piper/Cloud/Offline + `TtsVoiceResolve`).
-- **Kệ sách**: tab Documents (`DocBrowserScreen` kiểu ReadEra: drawer lọc, bìa,
-  progress, yêu thích, search, SAF) + kệ từng kho trong `ReaderScreen`.
+- **Kệ sách**: kệ từng kho trong `ReaderScreen` (mở + đọc tại chỗ).
+  Tab Documents đã GỠ khỏi nav (quyết user — xem `Tab Documents` dưới).
 - **Status**: ✅ Đọc EN/VN (Drive, local, demo).
 
 #### Mode 2: MD/TXT (gọn nhẹ, tập trung TTS) — [x] đọc + TTS thật (ruler v2, xem Phần H)

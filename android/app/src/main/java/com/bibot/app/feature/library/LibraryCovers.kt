@@ -1,4 +1,4 @@
-package com.bibot.app.feature.doc
+package com.bibot.app.feature.library
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

@@ -21,7 +21,6 @@ import com.bibot.app.ui.components.TrongDongWatermark
 import com.bibot.app.ui.components.ads.AdsBanner
 import com.bibot.app.ui.components.ads.AdsInterstitialHelper
 import com.bibot.app.ui.components.ads.AdsRewardedHelper
-import com.bibot.app.feature.doc.DocBrowserScreen
 import com.bibot.app.feature.reader.ReaderCollection
 import com.bibot.app.feature.reader.ReaderScreen
 import com.bibot.app.feature.reader.BookDetailScreen
@@ -45,7 +44,6 @@ enum class BibotMode(val emoji: String, val titleRes: Int) {
     MUSIC("🎵", R.string.nav_music),
     WEATHER("⛅", R.string.nav_weather),
     NEWS("📰", R.string.nav_news),
-    PDF("📄", R.string.nav_pdf),
     SETTINGS("⚙️", R.string.nav_settings)
 }
 
@@ -92,7 +90,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
     // full-screen kiểu ReadEra; back bằng nút của reader/library. Banner VẪN hiện
     // ở đáy màn đọc (không ẩn banner); interstitial giữa chừng đã xoá (B6.14).
     val inReader = currentMode == BibotMode.BOOK || currentMode == BibotMode.STORY ||
-        currentMode == BibotMode.COTICH || currentMode == BibotMode.PDF
+        currentMode == BibotMode.COTICH
 
     // Nền trống đồng phủ FULL màn hình tới sát 4 góc — MỌI màn hình, phone & tablet.
     // Đặt NGOÀI Scaffold nên đi xuyên cả top bar (thanh trong suốt).
@@ -167,7 +165,6 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                             BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
                             BibotMode.WEATHER -> WeatherScreen()
                                 BibotMode.NEWS -> NewsScreen()
-                                BibotMode.PDF -> DocBrowserScreen(onBackHome = { goHome() })
                             BibotMode.SETTINGS -> SettingsScreen()
                             else -> HomeMenu(onModeSelected = { currentMode = it })
                         }
