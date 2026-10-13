@@ -1253,11 +1253,11 @@ fun ReaderScreen(
                                 defaultTitle = chapters.getOrNull(currentChapter)?.title
                                     ?: collection.fallbackTitle ?: "",
                                 fontSizeSp = prefsState.readerFontSizeSp,
-                                highlightPrefix = if (isReading) {
-                                    sentences.getOrNull(currentSentence)?.take(24)
-                                } else {
-                                    null
-                                },
+                                lineHeightMultiplier = prefsState.readerInterline,
+                                paragraphMarginDp = prefsState.readerParagraphMargin,
+                                sentences = sentences,
+                                currentSentence = currentSentence,
+                                karaokeActive = isReading && audioStarted,
                                 onTap = { menuVisible = !menuVisible }
                             )
                         } else {

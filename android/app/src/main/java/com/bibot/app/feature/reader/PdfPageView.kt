@@ -74,6 +74,8 @@ fun PdfPageView(
 
     var renderer by remember(file.absolutePath) { mutableStateOf<PdfRenderer?>(null) }
     var pfd by remember(file.absolutePath) { mutableStateOf<ParcelFileDescriptor?>(null) }
+    // B6.16: double-tap trang → zoom fullscreen (bitmap pool, đã render đúng).
+    var zoomIdx by remember(file.absolutePath) { mutableIntStateOf(-1) }
     // PdfRenderer KHÔNG thread-safe (1 Page mở tại 1 thời điểm) — mọi render
     // (effect chính + fallback từng item) phải qua mutex này, nếu không
     // "IllegalStateException: Current page not closed" rải rác (vd grimm10 p18/19).
@@ -198,6 +200,7 @@ fun PdfPageView(
                     )
                     .combinedClickable(
                         onClick = onPageTap,
+                        onDoubleClick = { zoomIdx = idx },
                         onLongClick = { onPageLongPress(idx) }
                     ),
                 contentAlignment = Alignment.Center
@@ -226,6 +229,21 @@ fun PdfPageView(
                     LaunchedEffect(idx) { renderPage(idx) }
                 }
             }
+        }
+    }
+
+    // B6.16: dialog zoom trang (pinch) — dùng bitmap pool đã render đúng
+    // (render mới trong dialog cho bitmap đen); thiếu/recycled → render bù.
+    if (zoomIdx in 0 until pageCount) {
+        val zb = bitmaps[zoomIdx]
+        if (zb != null && !zb.isRecycled) {
+            ZoomableImageDialog(
+                bitmap = zb,
+                contentDescription = stringResource(R.string.chrome_page_of, zoomIdx + 1, pageCount),
+                onDismiss = { zoomIdx = -1 }
+            )
+        } else {
+            LaunchedEffect(file.absolutePath, zoomIdx) { renderPage(zoomIdx) }
         }
     }
 }

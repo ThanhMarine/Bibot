@@ -323,6 +323,20 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   (`onBackHome`) + system-back ở kệ → Home (trước đó kẹt mode đọc vì chỉ còn đường back
   về list). Mode đọc giữ full-screen (ẩn Top_bar app, back bằng nút reader).
   Verify máy ảo: reader top-bar bắt đầu y=168 sát status bar, hết nav; banner hiển thị ở đáy; không còn ngắt quảng cáo interstitial giữa chừng khi đọc; logcat sạch FATAL.
+- [x] B6.16 Nâng cấp EPUB rich + zoom (yêu cầu user 2026-10-13, verify máy ảo):
+  1. Zoom ảnh: bấm ảnh EPUB → dialog fullscreen + pinch (`detectTransformGestures`
+     + `graphicsLayer`, 0 lib); PDF double-tap trang → cùng dialog (bitmap pool).
+     Bắt được 2 bug khi verify: (a) key LazyColumn trùng crash `Key "rule:11"` →
+     key theo index; (b) dialog PDF đen thui — bitmap `PdfRenderer` TRONG SUỐT
+     (không nền giấy) nên trên nền đen tưởng mất ảnh → nền trắng sau ảnh là hiện
+     giấy (list trước đó "thấy" nhờ watermark xuyên qua).
+  2. Style prefs đầy đủ trong rich: `fontSize` + `interline` → lineHeight +
+     `paragraphMargin` → cách khối (ngang TEXT view).
+  3. Karaoke chính xác: truyền `sentences` + `currentSentence`, match có thứ tự
+     từ khối câu trước (`findSentenceBlock`, có unit test) — vẫn mức khối/câu
+     (engine TTS không trả timestamp từng từ).
+  Verify: ảnh đầu máy + caption, zoom pinch dialog, highlight khối khi đọc,
+  PDF zoom trang 1, JVM + ruler + Go xanh, logcat không FATAL mới.
 - [x] B6.2 Gọn menu reader: brightness vào popup nút ⚙ (bỏ hàng cố định);
   popup gồm toggle Xem chữ/Xem trang + slider + Auto. Giữ 5 nút top-bar theo ReadEra.
   (Popup mới, không bấm thử từng control — slider/window-attr là API chuẩn; ghi nhận.)

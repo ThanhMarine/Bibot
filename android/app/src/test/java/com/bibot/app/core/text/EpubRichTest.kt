@@ -1,5 +1,6 @@
 package com.bibot.app.core.text
 
+import com.bibot.app.feature.reader.findSentenceBlock
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
@@ -120,5 +121,29 @@ class EpubRichTest {
         } finally {
             f.delete()
         }
+    }
+
+    // ---- B6.16: karaoke match có thứ tự ----
+
+    @Test
+    fun sentenceBlock_orderedRepeat() {
+        // Đoạn lặp nguyên văn ở 2 khối → câu sau match khối sau (không nhầm khối trước).
+        val blocks = listOf("Mở đầu.", "Lặp lại.", "Giữa.", "Lặp lại.", "Kết.")
+        val sents = listOf("Mở đầu.", "Lặp lại.", "Giữa.", "Lặp lại.", "Kết.")
+        assertEquals(1, findSentenceBlock(blocks, sents, 1, 0))
+        // Thực tế start = khối của câu trước (cache) → câu sau match khối sau.
+        assertEquals(2, findSentenceBlock(blocks, sents, 2, 1))
+        assertEquals(3, findSentenceBlock(blocks, sents, 3, 2))
+    }
+
+    @Test
+    fun sentenceBlock_prefixAndFallback() {
+        val blocks = listOf("Alpha beta gamma.", "Delta epsilon.")
+        // Tiền tố câu (chunker trim) vẫn khớp.
+        assertEquals(1, findSentenceBlock(blocks, listOf("  Delta epsilon.  "), 0, 0))
+        // Không thấy → -1; hết biên → -1.
+        assertEquals(-1, findSentenceBlock(blocks, listOf("Không có."), 0, 0))
+        assertEquals(-1, findSentenceBlock(blocks, listOf("Alpha."), 5, 0))
+        assertEquals(-1, findSentenceBlock(emptyList(), listOf("A."), 0, 0))
     }
 }
