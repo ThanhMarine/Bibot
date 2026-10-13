@@ -114,6 +114,11 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B0.3 Reader sepia + đáy `✕|⚙|x of N|‹ ›` + FAB TTS + hint center-tap — đã chụp `re7`.
 - [x] B0.4 Center-tap menu (top bar 5 nút + brightness + `< to page N/CLEAR` + scrubber vạch chương) — đã chụp `re13`.
 - [x] B0.5 Dialog đổi vị trí TTS (`NO/YES`) — đã chụp `re9`.
+- [x] B0.6 Script chạy máy ảo `run_bibot_emulator.bat` (repo root, double-click):
+  kiểm tra emulator → boot cold AVD `BibotTest` nếu chưa chạy → chờ boot ≤5 phút →
+  `install -r` APK demoDebug → mở app. Đã chạy thử end-to-end (emulator sẵn:
+  bỏ qua boot, cài + mở app OK). Lưu ý: file `.bat` phải CRLF; `)` trong `echo`
+  nằm trong khối `(...)` phải tránh (đã vấp 1 lần).
 
 ### B1. Giai đoạn 1 — Thư viện kiểu ReadEra (thay `DocBrowserScreen`) — [x] 2026-10-11
 
