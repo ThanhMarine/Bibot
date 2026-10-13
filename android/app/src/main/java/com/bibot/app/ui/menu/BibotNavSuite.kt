@@ -25,7 +25,6 @@ import com.bibot.app.feature.doc.DocBrowserScreen
 import com.bibot.app.feature.reader.ReaderCollection
 import com.bibot.app.feature.reader.ReaderScreen
 import com.bibot.app.feature.reader.BookDetailScreen
-import com.bibot.app.feature.reader.ViewScreen
 import com.bibot.app.feature.music.MusicScreen
 import com.bibot.app.feature.news.NewsScreen
 import com.bibot.app.feature.settings.SettingsScreen
@@ -46,7 +45,6 @@ enum class BibotMode(val emoji: String, val titleRes: Int) {
     MUSIC("🎵", R.string.nav_music),
     WEATHER("⛅", R.string.nav_weather),
     NEWS("📰", R.string.nav_news),
-    VIEW("👁️", R.string.nav_view),
     PDF("📄", R.string.nav_pdf),
     SETTINGS("⚙️", R.string.nav_settings)
 }
@@ -168,9 +166,8 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                             BibotMode.ABOUT -> BookDetailScreen(onBack = { goHome() })
                             BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
                             BibotMode.WEATHER -> WeatherScreen()
-                            BibotMode.NEWS -> NewsScreen()
-                            BibotMode.VIEW -> ViewScreen(onBack = { goHome() })
-                            BibotMode.PDF -> DocBrowserScreen(onBackHome = { goHome() })
+                                BibotMode.NEWS -> NewsScreen()
+                                BibotMode.PDF -> DocBrowserScreen(onBackHome = { goHome() })
                             BibotMode.SETTINGS -> SettingsScreen()
                             else -> HomeMenu(onModeSelected = { currentMode = it })
                         }

@@ -151,9 +151,23 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [ ] B2.3 Verify: mở Detail <1s; bấm ĐỌC vào đúng vị trí bookmark; nút loa đọc từ đầu.
 - [x] B2.4 Add `BibotMode.ABOUT` to navigation + `BookDetailScreen.kt` creation + `nav_about` strings (EN/VN) + wire in `BibotNavSuite.kt`.
 
-### PHẦN MỚI — 2 Chế Độ Đọc (đính chính 2026-10-12: bản cũ ghi quá tay, đã đối chiếu code)
+### PHẦN MỚI — 2 Chế Độ Đọc (đính chính 2026-10-13: tách theo ĐỊNH DẠNG + TÔN TRỌNG BẢN GỐC)
 
-#### Mode 1: Text Documents (.md, .txt) — [x] đọc + TTS thật (ruler v2, xem Phần H)
+> Nguyên tắc (quyết user): 2 nhóm, không phải 2 tab.
+> 1. **EPUB + PDF = có format** (layout, ảnh, font nền…) → tôn trọng tác phẩm gốc:
+>    xem đúng bản gốc + nghe TTS.
+> 2. **MD/TXT = text thuần** → gọn nhẹ, tập trung cho TTS.
+
+#### Mode 1: EPUB/PDF (có format) — [x] xem + TTS thật
+- **Xem đúng bản gốc**: `ReaderScreen` đã có 2 VIEW TEXT/PAGE (F1.1) — PDF render
+  `PdfPageView` (PdfRenderer framework + pool 3 + prefetch), EPUB spine-order
+  (`EpubReader` + detect scan + cover/bìa + tác giả OPF).
+- **Nghe TTS**: producer `ReaderScreen` (Piper/Cloud/Offline + `TtsVoiceResolve`).
+- **Kệ sách**: tab Documents (`DocBrowserScreen` kiểu ReadEra: drawer lọc, bìa,
+  progress, yêu thích, search, SAF) + kệ từng kho trong `ReaderScreen`.
+- **Status**: ✅ Đọc EN/VN (Drive, local, demo).
+
+#### Mode 2: MD/TXT (gọn nhẹ, tập trung TTS) — [x] đọc + TTS thật (ruler v2, xem Phần H)
 - **Engine**: `BlockTextReader` (16KB blocks) + `TextCleaner.cleanForTts` (+ `ReadingRules.applyIfReady` từ H2.0).
 - **TTS**: producer `ReaderScreen` (Piper/Cloud/Offline + `TtsVoiceResolve`) — LƯU Ý: `TtsSegments` (A1)
   làm identity/cache audio, KHÔNG gọi `ReadingRules.apply()` (bản cũ ghi nhầm).
@@ -164,17 +178,18 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   `cleanForTts` + vòng dòng `BlockTextReader` thử ruler trước (fallback code cứng).
 - **Status**: ✅ Đọc EN/VN (Drive, local, demo).
 
-#### Mode 2: "Xem" View Mode — [x] ĐÃ WIRE SÁCH THẬT (2026-10-13, verify máy ảo)
-- **EPUB/PDF engine**: có thật (`EpubReader` spine-order + detect scan; `PdfTextCleaner` +
-  font-kind SIMPLE/TCVN3/Type3/ToUnicode) và `ReaderScreen` đã có VIEW TEXT/PAGE (F1.1).
-- **UI**: `ViewScreen.kt` đã wire thật — kệ sách từ `BookRepository` (44 cuốn trên máy
-  ảo), chương = `BlockTextReader.readChapters` (đã qua `ReadingRules.applyIfReady`),
-  bìa = `LibraryCovers` (PDF/EPUB thật), tác giả OPF/EXTH, PAGE: PDF dùng `PdfPageView`
-  thật / EPUB-MD phân trang text, nút loa/play/pause đọc thử bằng `OfflineTtsHelper`;
-  marker `PAUSE2SEC` hiển thị "…". Tile "Xem" đã vào grid Home.
-- **Verify máy ảo**: kệ 44 sách → mở `Linh Nam Chích Quái.md` (Mục lục 1 + full text
-  thật), mở `test_mobi.mobi` tự dựng (Mục lục 1 + text thật, hết "Error: empty" sau khi
-  sửa file test sai entry 7B).
+#### Tab "Xem" (VIEW) — [x] ĐÃ GỠ (2026-10-13): TRÙNG CHỨC NĂNG, không phải chế độ đọc
+- Đối chiếu code: mọi khả năng của `ViewScreen.kt` đã có ở tab khác, sâu hơn —
+  kệ sách ⊂ (Documents + kệ `ReaderScreen`), chương text ⊂ render BROWSE của
+  `ReaderScreen` (cùng `BlockTextReader.readChapters` + ruler), `PdfPageView` là cùng
+  1 component `ReaderScreen` đang dùng, TTS xem trước ⊂ pipeline TTS `ReaderScreen`
+  (Piper/Cloud/Offline + resume + bookmark + search — View không có).
+- Đã xóa: `feature/reader/ViewScreen.kt` + `BibotMode.VIEW` (enum + nhánh nav) +
+  tile grid Home. Không đụng `MobiReader`/`EpubReader`/`PdfPageView` (dùng chung).
+- `nav_view` trong strings để lại (không ảnh hưởng build).
+- Lịch sử trung thực: 2026-10-12 View là mock tĩnh → 2026-10-13 đã wire sách thật
+  (verify máy ảo: kệ 44 sách, `Linh Nam Chích Quái.md` + `test_mobi.mobi` đọc được) →
+  cùng ngày xác nhận trùng lặp nên gỡ luôn thay vì giữ 2 đường làm một việc.
 
 #### Ruler là engine dùng chung cho text đã-clean (không phải renderer ảnh) — không cần repo ngoài
 

@@ -66,8 +66,6 @@ fun HomeMenu(
         // B1.4: PDF/thư viện vào grid chính — hết tình trạng PDF mồ côi
         // (BibotMode.PDF tồn tại nhưng chưa có ô nào vào được).
         HomeItem(BibotMode.PDF, MaterialTheme.colorScheme.tertiaryContainer),
-        // Mode 2 "Xem" (ViewScreen wire sách thật: EpubReader/PdfPageView + TTS xem trước).
-        HomeItem(BibotMode.VIEW, MaterialTheme.colorScheme.secondaryContainer),
     )
     val allItems = items
 
