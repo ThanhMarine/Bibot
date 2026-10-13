@@ -4,8 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,8 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import com.bibot.app.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.bibot.app.ui.adaptive.isTablet
 import com.bibot.app.ui.components.TrongDongWatermark
 import com.bibot.app.ui.components.ads.AdsBanner
 import com.bibot.app.ui.components.ads.AdsInterstitialHelper
@@ -78,29 +77,27 @@ private fun AdsHelpers(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
     // null = Home dashboard tinh gọn (mặc định), không phải VOICE
     var currentMode by remember { mutableStateOf<BibotMode?>(null) }
-    // 11.3: tablet landscape → NavigationRail bên trái; phone giữ NavigationBar dưới
     val context = LocalContext.current
     val activity = context as? ComponentActivity
-    val windowSize = activity?.let { calculateWindowSizeClass(activity = it) }
-    val tablet = isTablet(windowSize)
     fun goHome() { playerViewModel.stopPlayback(); currentMode = null }
+    // Back ở Home = thoát app (như nút Back hệ thống).
+    fun pressBack() { try { activity?.onBackPressedDispatcher?.onBackPressed() } catch (_: Exception) {} }
 
     // Ads preferences for banner/interstitial/rewarded
     val adsPrefs = remember { AdsPreferences(context) }
-    // B6.1: mode đọc (sách/truyện/PDF) ẩn chrome app (topBar/bottomBar/Rail) →
+    // B6.1: mode đọc (sách/truyện/PDF) ẩn chrome app (topBar) →
     // full-screen kiểu ReadEra; back bằng nút của reader/library. Banner VẪN hiện
     // ở đáy màn đọc (không ẩn banner); interstitial giữa chừng đã xoá (B6.14).
     val inReader = currentMode == BibotMode.BOOK || currentMode == BibotMode.STORY ||
         currentMode == BibotMode.COTICH || currentMode == BibotMode.PDF
 
     // Nền trống đồng phủ FULL màn hình tới sát 4 góc — MỌI màn hình, phone & tablet.
-    // Đặt NGOÀI Scaffold nên đi xuyên cả top bar / thanh điều hướng (2 thanh trong suốt).
-    val barColor = Color.Transparent
+    // Đặt NGOÀI Scaffold nên đi xuyên cả top bar (thanh trong suốt).
     Box(Modifier.fillMaxSize()) {
         TrongDongWatermark()
         // containerColor transparent — M3 Scaffold mặc định vẽ Surface(background)
@@ -108,10 +105,11 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                // B6.1 + Home gọn: chỉ hiện topBar app ở mode chức năng
-                // (Music/Weather/News/Settings/Voice) — Home có header riêng,
-                // mode đọc có top-bar riêng.
-                if (!inReader && currentMode != null) {
+                // Top_bar thống nhất (Home + mọi mode chức năng, trừ mode đọc):
+                // trái = Back (mode → về Home; Home → thoát app),
+                // phải = icon Chat (Mic) + Settings.
+                // Không còn nút Home / bottom bar / NavigationRail riêng.
+                if (!inReader) {
                 // Top bar gọn 52dp + title titleMedium (gốc M3: 64dp + titleLarge 22sp)
                 // — giảm khoảng cách các dòng đề mục, nhường chỗ cho nội dung chính.
                 Row(
@@ -121,100 +119,64 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { playerViewModel.stopPlayback(); currentMode = null }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
+                    if (currentMode == null) {
+                        IconButton(onClick = { pressBack() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back))
+                        }
+                    } else {
+                        IconButton(onClick = { playerViewModel.stopPlayback(); currentMode = null }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
+                        }
                     }
                     Text(
-                        "${currentMode!!.emoji} ${currentMode!!.label()}",
+                        if (currentMode == null) stringResource(R.string.app_name)
+                        else "${currentMode!!.emoji} ${currentMode!!.label()}",
                         Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1
                     )
-                    Spacer(Modifier.width(48.dp))
-                }
-                }
-            },
-            bottomBar = {
-                // 11.3: tablet dùng Rail (bên trái) nên ẩn bottom bar
-                // B6.1 + Home gọn: ẩn trong mode đọc và ở Home (Mic/Settings lên header).
-                if (!tablet && !inReader && currentMode != null) {
-                    NavigationBar(containerColor = barColor, tonalElevation = 0.dp) {
-                        NavigationBarItem(
-                            selected = currentMode == null,
-                            onClick = { goHome() },
-                            icon = { Text("🏠", fontSize = 20.sp) },
-                            label = { Text(stringResource(R.string.nav_home), fontSize = 10.sp) }
-                        )
-                        if (BuildConfig.ENABLE_VOICE) {
-                            NavigationBarItem(
-                                selected = currentMode == BibotMode.VOICE,
-                                onClick = { currentMode = BibotMode.VOICE },
-                                icon = { Text("🎙️", fontSize = 20.sp) },
-                                label = { Text(stringResource(R.string.nav_voice), fontSize = 10.sp) }
-                            )
+                    if (BuildConfig.ENABLE_VOICE) {
+                        IconButton(
+                            onClick = { currentMode = BibotMode.VOICE },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.nav_voice))
                         }
-                        NavigationBarItem(
-                            selected = currentMode == BibotMode.SETTINGS,
-                            onClick = { currentMode = BibotMode.SETTINGS },
-                            icon = { Text("⚙️", fontSize = 20.sp) },
-                            label = { Text(stringResource(R.string.nav_settings), fontSize = 10.sp) }
-                        )
                     }
+                    IconButton(
+                        onClick = { currentMode = BibotMode.SETTINGS },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
+                    }
+                }
                 }
             }
         ) { innerPadding ->
             Column(Modifier.fillMaxSize().padding(innerPadding)) {
-                Row(Modifier.fillMaxSize().weight(1f)) {
-                    // 11.3: NavigationRail landscape cho tablet (WindowSizeClass Adaptive)
-                    // B6.1 + Home gọn: ẩn trong mode đọc và ở Home.
-                    if (tablet && !inReader && currentMode != null) {
-                        NavigationRail(containerColor = barColor) {
-                            NavigationRailItem(
-                                selected = currentMode == null,
-                                onClick = { goHome() },
-                                icon = { Text("🏠", fontSize = 22.sp) },
-                                label = { Text(stringResource(R.string.nav_home), fontSize = 11.sp) }
-                            )
-                            if (BuildConfig.ENABLE_VOICE) {
-                                NavigationRailItem(
-                                    selected = currentMode == BibotMode.VOICE,
-                                    onClick = { currentMode = BibotMode.VOICE },
-                                    icon = { Text("🎙️", fontSize = 22.sp) },
-                                    label = { Text(stringResource(R.string.nav_voice), fontSize = 11.sp) }
-                                )
-                            }
-                            NavigationRailItem(
-                                selected = currentMode == BibotMode.SETTINGS,
-                                onClick = { currentMode = BibotMode.SETTINGS },
-                                icon = { Text("⚙️", fontSize = 22.sp) },
-                                label = { Text(stringResource(R.string.nav_settings), fontSize = 11.sp) }
-                            )
-                        }
-                    }
-                    Box(Modifier.fillMaxSize().weight(1f)) {
-                        if (BuildConfig.ENABLE_VOICE && currentMode == BibotMode.VOICE) {
-                            VoiceScreen(playerVm = playerViewModel)
-                        } else {
-                            when (currentMode) {
-                                null -> HomeMenu(onModeSelected = { currentMode = it })
-                                BibotMode.BOOK -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.EN)
-                                BibotMode.STORY -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.STORY_VI)
-                                BibotMode.COTICH -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.COTICH)
-                                BibotMode.ABOUT -> BookDetailScreen(onBack = { goHome() })
-                                BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
-                                BibotMode.WEATHER -> WeatherScreen()
-                                BibotMode.NEWS -> NewsScreen()
-                                BibotMode.VIEW -> ViewScreen(onBack = { goHome() })
-                                BibotMode.PDF -> DocBrowserScreen(onBackHome = { goHome() })
-                                BibotMode.SETTINGS -> SettingsScreen()
-                                else -> HomeMenu(onModeSelected = { currentMode = it })
-                            }
+                Box(Modifier.fillMaxSize().weight(1f)) {
+                    if (BuildConfig.ENABLE_VOICE && currentMode == BibotMode.VOICE) {
+                        VoiceScreen(playerVm = playerViewModel)
+                    } else {
+                        when (currentMode) {
+                            null -> HomeMenu(onModeSelected = { currentMode = it })
+                                BibotMode.BOOK -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.EN, onBackHome = { goHome() })
+                                BibotMode.STORY -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.STORY_VI, onBackHome = { goHome() })
+                                BibotMode.COTICH -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.COTICH, onBackHome = { goHome() })
+                            BibotMode.ABOUT -> BookDetailScreen(onBack = { goHome() })
+                            BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
+                            BibotMode.WEATHER -> WeatherScreen()
+                            BibotMode.NEWS -> NewsScreen()
+                            BibotMode.VIEW -> ViewScreen(onBack = { goHome() })
+                            BibotMode.PDF -> DocBrowserScreen(onBackHome = { goHome() })
+                            BibotMode.SETTINGS -> SettingsScreen()
+                            else -> HomeMenu(onModeSelected = { currentMode = it })
                         }
                     }
                 }
-                // Banner ad (dưới content, trên navigation bar) — B6.1: HIỆN cả khi
+                // Banner ad (dưới content) — B6.1: HIỆN cả khi
                 // đọc (không ẩn banner ở màn đọc); interstitial giữa chừng đã xoá,
                 // chỉ giữ banner + rewarded Cloud TTS + VIP bypass.
                 AdsBanner(adsPreferences = adsPrefs)

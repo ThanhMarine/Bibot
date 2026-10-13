@@ -268,6 +268,13 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 
 - [x] B6.1 Ẩn chrome app trong mode đọc: `BibotNavSuite` ẩn topBar/bottomBar/Rail khi
   `BOOK/STORY/COTICH/PDF` (back bằng nút reader) + **khôi phục `AdsBanner` ở mode đọc** (không ẩn banner, vẫn hiển thị banner ở đáy màn đọc) + **giữ `AdsRewarded` bonus cho Cloud TTS** + **xoá hoàn toàn phase-based interstitial ads** (xoá `PhaseTracker`, `phaseTracker.reset()`, `adBreakActive`, logic ngắt 8-10' + interstitial + bonus trước ad). Giữ `AdsRewarded` bonus cho Cloud TTS chapter (demo) + VIP bypass. Thêm nút back cho `DocBrowserScreen` (kẻo kẹt thư viện).
+- [x] B6.15 Top_bar thống nhất (yêu cầu user 2026-10-13, verify máy ảo bằng screenshot):
+  BỎ nút Home (bottom `NavigationBar` + `NavigationRail` tablet + header Home) —
+  Back nằm góc trái Top_bar (mode → về Home; Home → thoát app như Back hệ thống);
+  BỎ nút Chat/Mic + Settings ở header — thay bằng icon tương đương góc phải Top_bar
+  (hiện cả ở Home). Kệ sách `ReaderScreen` (BOOK/STORY/COTICH) thêm hàng Back về Home
+  (`onBackHome`) + system-back ở kệ → Home (trước đó kẹt mode đọc vì chỉ còn đường back
+  về list). Mode đọc giữ full-screen (ẩn Top_bar app, back bằng nút reader).
   Verify máy ảo: reader top-bar bắt đầu y=168 sát status bar, hết nav; banner hiển thị ở đáy; không còn ngắt quảng cáo interstitial giữa chừng khi đọc; logcat sạch FATAL.
 - [x] B6.2 Gọn menu reader: brightness vào popup nút ⚙ (bỏ hàng cố định);
   popup gồm toggle Xem chữ/Xem trang + slider + Auto. Giữ 5 nút top-bar theo ReadEra.

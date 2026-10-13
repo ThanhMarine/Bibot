@@ -14,8 +14,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -43,8 +41,8 @@ import com.bibot.app.ui.adaptive.isTablet
 
 /**
  * Main menu tinh gọn — Home đặt trên nền trống đồng FULL màn hình (crop phủ kín).
- * - Không còn nút Hero "Trò chuyện cùng AI": đã có sẵn ở thanh điều hướng dưới
- *   (foot bar / NavigationRail) nên bỏ để tránh trùng lặp, nhường chỗ cho lưới chức năng.
+ * - Điều hướng gom hết lên Top_bar (Back trái; Chat/Settings phải) — không còn
+ *   header riêng, nút Home, bottom bar hay NavigationRail.
  * - Grid adaptive 150dp phone / 190dp tablet, ô cách nhau 14dp; tile nền trong suốt
  *   45% + viền mảnh → thấy rõ hoa văn trống đồng; icon & chữ căn giữa tuyệt đối.
  */
@@ -57,8 +55,7 @@ fun HomeMenu(
 ) {
     val haptic = LocalHapticFeedback.current
     // Tên nút NGẮN GỌN 1 dòng (subtitle đã bỏ cho gọn) — BOOK: "EN Books"
-    // VOICE không nằm trong grid — mở từ foot bar / NavigationRail "Trò chuyện"
-    // để tránh trùng nhiệm vụ với nút Hero cũ (đã loại bỏ theo yêu cầu UI).
+    // VOICE không nằm trong grid — mở từ icon Mic góc phải Top_bar.
     val items = listOf(
         HomeItem(BibotMode.BOOK, MaterialTheme.colorScheme.primaryContainer),
         HomeItem(BibotMode.STORY, MaterialTheme.colorScheme.secondaryContainer),
@@ -79,32 +76,10 @@ fun HomeMenu(
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
     ) {
-        // Header Home: tên app + Mic (voice) + Settings — thay bottom-bar ở Home
-        // (B6: Home không cần nút Home; Mic/Setting tích hợp ở đây).
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                if (BuildConfig.ENABLE_VOICE) {
-                    IconButton(onClick = { onModeSelected(BibotMode.VOICE) }, modifier = Modifier.size(44.dp)) {
-                        Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.nav_voice))
-                    }
-                }
-                IconButton(onClick = { onModeSelected(BibotMode.SETTINGS) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
-                }
-            }
-        }
+        // Header Home (tên app + Mic + Settings) đã dời lên Top_bar —
+        // grid chỉ còn banner NPT + các ô chức năng.
 
         // Banner thong bao NPT (pull JSON, co badge tin chua xem) — tu an khi khong co tin
         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {

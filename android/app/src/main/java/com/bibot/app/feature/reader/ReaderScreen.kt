@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Pause
@@ -104,6 +105,8 @@ data class Chapter(val title: String)
 fun ReaderScreen(
     playerVm: PlayerViewModel = viewModel(),
     collection: ReaderCollection = ReaderCollection.EN,
+    // Kệ sách (chưa mở sách): Back → về Home (không còn nút Home ở bottom bar).
+    onBackHome: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -175,6 +178,12 @@ fun ReaderScreen(
     val strPlay = if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read
     val strDone = if (collection.useStoryStrings) R.string.reader_done_telling else R.string.reader_done_reading
     val strStatus = if (collection.useStoryStrings) R.string.reader_status_telling else R.string.reader_status_reading
+    // Tiêu đề kệ sách theo kho (hàng Back về Home).
+    val strListTitle = when (collection) {
+        ReaderCollection.EN -> R.string.nav_book
+        ReaderCollection.COTICH -> R.string.nav_cotich
+        else -> R.string.nav_story
+    }
 
     // A2.3: RenderIfDirty key — chỉ relayout khi cài đặt hiển thị thay đổi (Snap config)
     // Tránh jank khi đổi font sách dày: chỉ recompose khi fontSize/interline/paragraphMargin thực sự thay đổi
@@ -864,6 +873,21 @@ fun ReaderScreen(
         val otherBooks = books.filterNot { it.lang == "en" || (it.lang == "vi" && it.source == "pdrive") }
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
+                // Hàng Back về Home (thay nút Home đã bỏ ở bottom bar).
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { stopAll(); onBackHome() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
+                    }
+                    Text(
+                        stringResource(strListTitle),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            item {
                 // Gọn UI: bỏ tiêu đề + chú thích (đã có trên top bar) — chỉ giữ 1 dòng đếm EN
                 if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 Text(stringResource(R.string.home_book_count, enBooks.size + otherBooks.size), style = MaterialTheme.typography.labelMedium)
@@ -917,6 +941,21 @@ fun ReaderScreen(
         val listEmoji = if (collection == ReaderCollection.COTICH) "\uD83E\uDDDA" else "\uD83D\uDCD6"
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
+                // Hàng Back về Home (thay nút Home đã bỏ ở bottom bar).
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { stopAll(); onBackHome() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
+                    }
+                    Text(
+                        stringResource(strListTitle),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            item {
                 if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 Text(stringResource(R.string.home_story_count, visibleBooks.size), style = MaterialTheme.typography.labelMedium)
                 if (visibleBooks.isEmpty()) {
@@ -965,11 +1004,12 @@ fun ReaderScreen(
         val activity = context as? android.app.Activity
         // TEMP (B6 test aid): nút Back hệ thống về list khi đang mở sách
         // (ưu tiên đóng dialog/sheet trước). B2 sẽ đổi thành về Detail.
+        // Ở kệ sách (chưa mở sách): Back → về Home (không còn nút Home dưới).
         val backDispatcher = (context as? androidx.activity.ComponentActivity)?.onBackPressedDispatcher
         DisposableEffect(selectedBook) {
-            if (selectedBook == null) return@DisposableEffect onDispose {}
             val cb = object : androidx.activity.OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (selectedBook == null) { stopAll(); onBackHome(); return }
                     when {
                         tocOpen -> tocOpen = false
                         anchorConfirm != null -> anchorConfirm = null
