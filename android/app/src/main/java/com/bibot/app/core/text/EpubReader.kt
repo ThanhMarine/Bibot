@@ -361,6 +361,9 @@ object EpubReader {
         val n = html.length
         var skipDepth = 0
         var skipTag = ""
+        // Số trang in (Gutenberg `<span class="x-ebookmaker-pageno">[Pg 62]</span>`)
+        // không phải nội dung — ẩn cả display lẫn TTS (ReadEra cũng ẩn).
+        var pageNoDepth = 0
         while (i < n) {
             val c = html[i]
             if (c == '<') {
@@ -370,12 +373,12 @@ object EpubReader {
                     i = if (e < 0) n else e + 3
                     continue
                 }
-                // CDATA → giữ text bên trong
+                // CDATA → giữ text bên trong (trừ khi đang bỏ span số trang)
                 if (html.startsWith("<![CDATA[", i)) {
                     val e = html.indexOf("]]>", i + 9)
                     val inner = if (e < 0) html.substring(i + 9) else html.substring(i + 9, e)
                     i = if (e < 0) n else e + 3
-                    if (skipDepth == 0 && inner.isNotEmpty()) {
+                    if (skipDepth == 0 && pageNoDepth == 0 && inner.isNotEmpty()) {
                         out.append(inner)
                         lastBreak = false
                     }
@@ -393,6 +396,17 @@ object EpubReader {
                 val closing = tag.startsWith("/")
                 val name = tag.trimStart('/').substringBefore(' ').substringBefore('\t')
                     .substringBefore('\n').substringBefore('/').lowercase()
+                if (pageNoDepth > 0) {
+                    if (!closing && name == "span") pageNoDepth++
+                    else if (closing && name == "span") pageNoDepth--
+                    i = e + 1
+                    continue
+                }
+                if (!closing && name == "span" && tag.lowercase().contains("pageno")) {
+                    pageNoDepth = 1
+                    i = e + 1
+                    continue
+                }
                 if (skipDepth > 0) {
                     if (!closing && name == skipTag) skipDepth++
                     else if (closing && name == skipTag) {
@@ -416,7 +430,7 @@ object EpubReader {
                 i = e + 1
                 continue
             }
-            if (skipDepth > 0) {
+            if (skipDepth > 0 || pageNoDepth > 0) {
                 i++
                 continue
             }

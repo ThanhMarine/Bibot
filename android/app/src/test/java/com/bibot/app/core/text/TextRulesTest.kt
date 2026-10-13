@@ -57,6 +57,82 @@ class TextRulesTest {
         assertFalse(TextCleaner.endsWithCiteAbbrev("xong!"))
     }
 
+    // ---- A: tách display-faithful vs TTS-smart ----
+
+    @Test
+    fun display_keepsOriginalPunctuation() {
+        // Dấu —, số, TOC chấm: display giữ nguyên (TTS mới rewrite ở speak-time).
+        val t = TextCleaner.cleanForDisplay("How the cut-off is managed—Limit of working.... 17")
+        assertTrue(t.contains("—"))
+        assertTrue(t.contains("17"))
+        assertFalse(t.contains("PAUSE"))
+        // Trái lại đường TTS vẫn đổi — → phẩy.
+        assertFalse(TextCleaner.cleanForTts("a—b", "en").contains("—"))
+    }
+
+    @Test
+    fun display_stripsTagsButKeepsWords() {
+        val t = TextCleaner.cleanForDisplay("<p>Xin <b>chào</b> &amp; tạm biệt.</p>")
+        assertEquals("Xin chào & tạm biệt.", t)
+    }
+
+    @Test
+    fun originalChapters_keepTocAndFrontMatter() {
+        val f = File.createTempFile("orig", ".md")
+        try {
+            f.writeText(
+                "Tác giả NXB\nMục lục\n1 TRUYỆN MỞ ĐẦU .... 3\n\n## Chương 1\nNội dung — vẫn giữ.\n"
+            )
+            val smart = BlockTextReader.readChapters(f, "T", BlockTextReader.Heading.MARKDOWN_OR_STORY)
+            val orig = BlockTextReader.readOriginalChapters(f, "T", BlockTextReader.Heading.MARKDOWN_OR_STORY)
+            // Titles shaping tương đồng: smart ⊂ faithful theo thứ tự
+            // (faithful giữ thêm chương phần đầu mà smart đã bỏ + filter trắng).
+            val st = smart.map { it.title }
+            val ot = orig.map { it.title }
+            var j = 0
+            for (t in st) {
+                while (j < ot.size && ot[j] != t) j++
+                assertTrue("mất title smart: $t", j < ot.size)
+                j++
+            }
+            // Content nguyên bản: giữ TOC chấm + dấu —, giữ phần đầu.
+            val body = orig.joinToString("\n") { it.content }
+            assertTrue(body.contains("...."))
+            assertTrue(body.contains("—"))
+            assertTrue(body.contains("Tác giả NXB"))
+            // Đường smart thì bỏ phần đầu + TOC.
+            val smartBody = smart.joinToString("\n") { it.content }
+            assertFalse(smartBody.contains("TRUYỆN MỞ ĐẦU"))
+            assertFalse(smartBody.contains("...."))
+        } finally {
+            f.delete()
+        }
+    }
+
+    @Test
+    fun ttsSpeakable_stripsJunkLines() {
+        // Dòng số trang / TOC chấm: TTS lướt.
+        assertEquals("", BlockTextReader.ttsSpeakable("17"))
+        assertEquals("", BlockTextReader.ttsSpeakable("1 THE GOLDEN BIRD ........ 17"))
+        // Câu thường giữ nguyên để cleanForTts xử tiếp.
+        assertEquals("Xin chào các bạn.", BlockTextReader.ttsSpeakable("Xin chào các bạn."))
+        // Dòng rác lẫn trong câu nhiều dòng → chỉ bỏ dòng rác.
+        val mixed = "Mở đầu.\n23\nKết thúc."
+        val out = BlockTextReader.ttsSpeakable(mixed)
+        assertTrue(out.contains("Mở đầu."))
+        assertTrue(out.contains("Kết thúc."))
+        assertFalse(out.lines().any { it.trim() == "23" })
+    }
+
+    @Test
+    fun epubPagenoSpan_hidden() {
+        val html = "<p>Text Tam<span class=\"x-ebookmaker-pageno\" title=\"[Pg 62]\"><a id=\"Page_62\"></a></span> continues.</p>"
+        val t = EpubReader.xhtmlToText(html)
+        assertTrue(t.contains("Text Tam"))
+        assertTrue(t.contains("continues."))
+        assertFalse(t.contains("Pg 62"))
+    }
+
     private fun chaptersOf(text: String): List<String> {
         val f = File.createTempFile("g3rule", ".md")
         try {

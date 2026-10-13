@@ -200,8 +200,29 @@ object TextCleaner {
         return t
     }
 
-    fun cleanForTts(raw: String, lang: String = "vi"): String {
+    /**
+     * Làm sạch cho HIỂN THỊ nguyên bản (chế độ đọc gốc .pdf/.epub + .md/.txt):
+     * giữ nguyên chữ/số/dấu câu (—, …, dấu chấm TOC, số trang), chỉ bỏ thứ không
+     * phải nội dung: tag/comment HTML, entities decode, ký tự điều khiển, TCVN3
+     * (PDF cũ) và chuẩn hóa khoảng trắng (giữ \n cấu trúc dòng).
+     * KHÔNG drop dòng, KHÔNG verbalize (ngày/số/La Mã/Fig), KHÔNG dash→phẩy —
+     * những cái đó thuộc đường TTS ([cleanForTts], speak-time).
+     */
+    fun cleanForDisplay(raw: String): String {
         if (raw.isBlank()) return ""
+        var t = raw
+        t = PdfTextCleaner.convertTcvn3VniToUtf8(t)
+        t = stripHtml(t)
+        // Ký tự điều khiển (trừ \n \t) — rác giải mã font PDF.
+        t = t.filter { c -> c == '\n' || c == '\t' || c >= ' ' }
+        // Gộp khoảng trắng trong dòng (giữ \n), gộp 3+ xuống dòng → 2, trim.
+        t = Regex("""[ \t\u00A0\u2000-\u200B\u3000]+""").replace(t, " ")
+        t = Regex("""\n[ \t]*\n[ \t]*\n+""").replace(t, "\n\n")
+        t = t.lines().joinToString("\n") { it.trimEnd() }.trim()
+        return t
+    }
+
+    fun cleanForTts(raw: String, lang: String = "vi"): String {        if (raw.isBlank()) return ""
         var text = raw
         // 0. HTML/markup thừa (comment CHAPTER-BREAK, <a id=...>, &nbsp;, bảng, # heading)
         //    phải chạy TRƯỚC mọi regex khác — nếu không `=` trong comment bị đổi thành "bằng".

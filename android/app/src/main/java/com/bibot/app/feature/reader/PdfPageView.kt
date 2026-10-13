@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.bibot.app.R
 import com.bibot.app.ui.player.contentBottomInset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -72,6 +74,10 @@ fun PdfPageView(
 
     var renderer by remember(file.absolutePath) { mutableStateOf<PdfRenderer?>(null) }
     var pfd by remember(file.absolutePath) { mutableStateOf<ParcelFileDescriptor?>(null) }
+    // PdfRenderer KHÔNG thread-safe (1 Page mở tại 1 thời điểm) — mọi render
+    // (effect chính + fallback từng item) phải qua mutex này, nếu không
+    // "IllegalStateException: Current page not closed" rải rác (vd grimm10 p18/19).
+    val renderMutex = remember(file.absolutePath) { Mutex() }
     var pageCount by remember(file.absolutePath) { mutableIntStateOf(0) }
     var openError by remember(file.absolutePath) { mutableStateOf<String?>(null) }
     val bitmaps = remember(file.absolutePath) { mutableStateMapOf<Int, Bitmap>() }
@@ -135,24 +141,12 @@ fun PdfPageView(
         if (bitmaps.containsKey(idx) || failed.containsKey(idx)) return
         val r = renderer ?: return
         try {
-            val bmp = withContext(Dispatchers.IO) {
-                var page: PdfRenderer.Page? = null
-                try {
-                    page = r.openPage(idx)
-                    val w = page.width
-                    val h = page.height
-                    if (w <= 0 || h <= 0) return@withContext null
-                    val scale = widthPx.toFloat() / w
-                    val bw = widthPx
-                    val bh = (h * scale).toInt().coerceIn(1, 2400)
-                    // PdfRenderer framework bắt buộc ARGB_8888 (xem kdoc E1.5).
-                    val b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
-                    page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    b
-                } catch (_: Exception) {
-                    null
-                } finally {
-                    try { page?.close() } catch (_: Exception) {}
+            val bmp = renderMutex.withLock {
+                withContext(Dispatchers.IO) {
+                    renderPdfBitmap(r, idx, widthPx)
+                        // Trang nặng (Type3/ảnh lớn, vd grimm10) OOM/lỗi ở full-width →
+                        // thử lại nửa chiều rộng thay vì bỏ trang (tôn trọng bản gốc).
+                        ?: renderPdfBitmap(r, idx, widthPx / 2)
                 }
             }
             if (bmp != null) bitmaps[idx] = bmp else failed[idx] = true
@@ -171,8 +165,9 @@ fun PdfPageView(
     }
 
     // Trang hiện tại + prefetch ±1 (port getPage(i,decode)+free của ReadEra).
-    // TUẦN TỰ trong 1 effect (PdfRenderer không thread-safe — từng race khi
-    // prefetch song song); đổi trang sẽ cancel effect cũ rồi render lại.
+    // Mọi render qua renderMutex (PdfRenderer không thread-safe: 1 Page mở tại
+    // 1 thời điểm — effect chính + fallback từng item mà song song là
+    // "IllegalStateException: Current page not closed"); đổi trang cancel effect cũ.
     LaunchedEffect(listState.firstVisibleItemIndex, pageCount) {
         val v = listState.firstVisibleItemIndex.coerceIn(0, pageCount - 1)
         onVisiblePage(v)
@@ -232,5 +227,38 @@ fun PdfPageView(
                 }
             }
         }
+    }
+}
+
+/**
+ * Render 1 trang PDF ở bề rộng [targetW]px, GIỮ đúng tỷ lệ khung hình
+ * (bản cũ cap chiều cao 2400 làm trang dài bị bẹp). Null khi lỗi/OOM.
+ */
+private fun renderPdfBitmap(r: PdfRenderer, idx: Int, targetW: Int): Bitmap? {
+    var page: PdfRenderer.Page? = null
+    return try {
+        page = r.openPage(idx)
+        val w = page.width
+        val h = page.height
+        if (w <= 0 || h <= 0) return null
+        var bw = targetW.coerceIn(240, 1600)
+        var bh = (h * (bw.toFloat() / w)).toInt()
+        if (bh > 2400) {
+            // Trang quá dài: thu nhỏ CẢ 2 chiều (giữ aspect), tránh OOM.
+            val s = 2400f / bh
+            bw = (bw * s).toInt().coerceAtLeast(240)
+            bh = 2400
+        }
+        if (bw <= 0 || bh <= 0) return null
+        // PdfRenderer framework bắt buộc ARGB_8888 (xem kdoc E1.5).
+        val b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+        page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        b
+    } catch (t: Throwable) {
+        // Log nguyên nhân (Type3/OOM/...) để chẩn đoán trang lỗi — UI vẫn placeholder.
+        try { android.util.Log.w("PdfPageView", "render p$idx @${targetW}px fail: ${t::class.java.simpleName}: ${t.message}") } catch (_: Exception) {}
+        null
+    } finally {
+        try { page?.close() } catch (_: Exception) {}
     }
 }

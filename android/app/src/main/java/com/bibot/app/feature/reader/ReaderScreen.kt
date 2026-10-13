@@ -172,6 +172,8 @@ fun ReaderScreen(
     var scanNoTts by remember { mutableStateOf(false) } // scan: disable loa
     var savedPos by remember { mutableIntStateOf(0) } // position đã lưu (resume chip)
     var savedAnchor by remember { mutableStateOf<ReadAnchor?>(null) }
+    // A (tách display/TTS): chương đầu có mốc bắt đầu đọc (-1 = sách không mốc → đọc từ đầu).
+    var firstMarkerChapIdx by remember { mutableIntStateOf(-1) }
     // R0: chuoi UI theo collection (EN/sach vs Ke chuyen/Co tich)
     val strLoading = if (collection.useStoryStrings) R.string.reader_loading_story else R.string.reader_loading_book
     val strAtStart = if (collection.useStoryStrings) R.string.reader_at_start_story else R.string.reader_at_start_book
@@ -210,6 +212,7 @@ fun ReaderScreen(
         isReading = false
         chapters = emptyList()
         sentences = emptyList()
+        firstMarkerChapIdx = -1
         prepSession?.close()
         prepSession = null
         // B3+F2: về BROWSE khi mở sách (chỉ render, chưa chunking/TTS).
@@ -261,15 +264,20 @@ fun ReaderScreen(
                     }
                     session = if (built != null) BookPrepStore.PrepSession.of(built, null)
                     else {
-                        // Fallback in-memory khi cache đĩa lỗi (giữ hành vi bản cũ, không mất sách)
+                        // Fallback in-memory khi cache đĩa lỗi (giữ hành vi bản cũ, không mất sách).
+                        // A: content nguyên bản (display-faithful); TTS-smart ở speak-time.
                         val chaps = withContext(Dispatchers.IO) {
-                            BlockTextReader.readChapters(file, collection.fallbackTitle ?: book.title, heading)
+                            BlockTextReader.readOriginalChapters(file, collection.fallbackTitle ?: book.title, heading)
                         }
                         BookPrepStore.PrepSession.inMemory(chaps.map { it.title }, chaps.map { it.content })
                     }
                 }
                 prepSession = session
                 chapters = session.titles.map { Chapter(it) }
+                // A: mốc bắt đầu đọc cho TTS (lướt phần đầu/mục lục) — display vẫn giữ đủ.
+                firstMarkerChapIdx = chapters.indexOfFirst {
+                    com.bibot.app.core.text.BlockTextReader.isReadingStartMarker(it.title)
+                }
                 totalSentencesAll = session.sentenceTotal ?: session.estimateTotal
 
                 // Resume: load đúng chương đã đọc (session trả từ `.sent` nếu có, không split lại)
@@ -590,8 +598,10 @@ fun ReaderScreen(
             val book = selectedBook ?: return@withContext emptyList()
             val file = book.localFile ?: return@withContext emptyList()
             
-            // Lấy tất cả nội dung sách (suspend call)
-            val content = session.contentAll() ?: BlockTextReader.iterCleanedBlocks(file).joinToString(" ") { it }
+            // Lấy tất cả nội dung sách (suspend call) — nguyên bản (khớp display).
+            val content = session.contentAll() ?: BlockTextReader.readOriginalChapters(
+                file, book.title, BlockTextReader.Heading.MARKDOWN_OR_STORY
+            ).joinToString("\n") { it.content }
             val low = content.lowercase()
             
             // Tìm tất cả vị trí
@@ -714,6 +724,9 @@ fun ReaderScreen(
             var chapIdx = currentChapter
             var sentIdx = currentSentence
             var localSentences = sentences
+            // A (tách display/TTS): chưa tới mốc bắt đầu (Lời giới thiệu/Chương 1)
+            // thì lướt (không đọc phần đầu/mục lục); display vẫn hiện đủ.
+            var ttsStarted = firstMarkerChapIdx < 0 || currentChapter >= firstMarkerChapIdx
             try {
                 while (isActive && isReading && chapIdx < chapters.size) {
                     val jc = jumpChapterReq.intValue
@@ -725,6 +738,7 @@ fun ReaderScreen(
                         sentences = localSentences
                         sentIdx = jumpSentenceReq.intValue.coerceIn(0, (localSentences.size - 1).coerceAtLeast(0))
                         currentSentence = sentIdx
+                        ttsStarted = firstMarkerChapIdx < 0 || chapIdx >= firstMarkerChapIdx
                         continue
                     }
                     val seqAtStart = jumpSeq.intValue
@@ -741,11 +755,25 @@ fun ReaderScreen(
                         sentences = localSentences
                         sentIdx = 0
                         currentSentence = 0
+                        if (firstMarkerChapIdx >= 0 && chapIdx >= firstMarkerChapIdx) ttsStarted = true
                         rewardedForChap = rewardedLeft > 0
                         delay(READER_PAUSE_BETWEEN_MS)
                         continue
                     }
-                    val clean = com.bibot.app.core.text.TextCleaner.cleanForTts(localSentences[sentIdx], readLang)
+                    val rawSent = localSentences[sentIdx]
+                    if (!ttsStarted && firstMarkerChapIdx >= 0) {
+                        if (com.bibot.app.core.text.BlockTextReader.isReadingStartMarker(chapters.getOrNull(chapIdx)?.title ?: "") ||
+                            com.bibot.app.core.text.BlockTextReader.isReadingStartMarker(rawSent)
+                        ) {
+                            ttsStarted = true
+                        } else {
+                            sentIdx++; continue
+                        }
+                    }
+                    // Bỏ dòng rác (số trang đứng riêng, mục-lục-dòng) còn sót trong câu.
+                    val speakable = com.bibot.app.core.text.BlockTextReader.ttsSpeakable(rawSent)
+                    if (speakable.isBlank()) { sentIdx++; continue }
+                    val clean = com.bibot.app.core.text.TextCleaner.cleanForTts(speakable, readLang)
                     if (clean.isBlank()) { sentIdx++; continue }
                     if (com.bibot.app.core.text.TextCleaner.looksLikeThinking(clean)) { sentIdx++; continue }
                     val (plain, needPause) = com.bibot.app.core.text.TextCleaner.splitPause(clean)

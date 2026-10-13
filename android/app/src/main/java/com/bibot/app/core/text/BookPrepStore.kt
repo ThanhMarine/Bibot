@@ -38,7 +38,9 @@ object BookPrepStore {
     // v2 (2026-10-10): trích PDF bám font (ToUnicode CID + TCVN3 + xuống dòng Td/Tm),
     // PDF scan/ảnh trả rỗng + báo rõ — cache salad bản cũ phải build lại.
     // v3 (2026-10-11, B6.4): chunk sách 60 từ/300 ký tự cho liền mạch (quyết định user).
-    const val PREP_VERSION = 3
+    // v4 (A tách display/TTS): `.prep` lưu NGUYÊN BẢN (was smart-clean) — TTS-smart
+    // chạy ở speak-time; cache cũ tự rebuild (version gate sẵn).
+    const val PREP_VERSION = 4
 
     // Ước tính tổng câu — TB ~95 ký tự/câu (dùng khi sentence cache chưa build xong)
     const val EST_CHARS_PER_SENT = 95
@@ -135,8 +137,9 @@ object BookPrepStore {
     }
 
     /**
-     * Build `.prep` bằng readChapters streaming (onChapter sink — KHÔNG tích lũy content trong RAM),
+     * Build `.prep` bằng readOriginalChapters streaming (onChapter sink — KHÔNG tích lũy content trong RAM),
      * ghi tmp → rename atomic. Trả null nếu build lỗi (caller fallback legacy in-memory).
+     * A: `.prep` lưu NGUYÊN BẢN (display-faithful); TTS-smart chạy ở speak-time.
      */
     fun build(
         dir: File,
@@ -152,7 +155,7 @@ object BookPrepStore {
             if (!dir.exists() && !dir.mkdirs()) throw IOException("mkdir")
             tmp.delete()
             writer = PrepWriter(tmp, srcFile.length(), srcFile.lastModified(), heading)
-            BlockTextReader.readChapters(srcFile, defaultTitle, heading, onChapter = writer::append)
+            BlockTextReader.readOriginalChapters(srcFile, defaultTitle, heading, onChapter = writer::append)
             if (writer.count == 0) writer.append(defaultTitle, "")
             writer.finish(dest)
             writer = null

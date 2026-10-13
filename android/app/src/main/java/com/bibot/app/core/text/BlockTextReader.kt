@@ -149,8 +149,11 @@ object BlockTextReader {
         return pageNumberLineRegex.matches(trimmed)
     }
 
-    /** Số trang/header/footer/mục-lục-dòng → bỏ mọi lúc, mọi mode. */
-    private fun isDroppableLine(trimmed: String): Boolean {
+    /**
+     * Số trang/header/footer/mục-lục-dòng → bỏ ở ĐƯỜNG TTS (mọi mode).
+     * Public để producer TTS lọc speak-time (display giữ nguyên bản).
+     */
+    fun isDroppableLine(trimmed: String): Boolean {
         if (trimmed.isEmpty()) return false
         // H2 ruler: thử rulepack trước (drop.page_number + drop.toc_leader);
         // chưa init → fallback code cứng (giữ nguyên hành vi).
@@ -159,8 +162,8 @@ object BlockTextReader {
         return tocLeaderRegex.containsMatchIn(trimmed)
     }
 
-    /** True nếu dòng/tiêu đề là mốc bắt đầu đọc (lời giới thiệu hoặc chương 1). */
-    private fun isReadingStartMarker(text: String): Boolean {
+    /** True nếu dòng/tiêu đề là mốc bắt đầu đọc (lời giới thiệu hoặc chương 1). Public cho producer TTS. */
+    fun isReadingStartMarker(text: String): Boolean {
         if (text.isBlank()) return false
         // H2 ruler: thử rulepack trước (start.intro + start.first_chapter).
         ReadingRules.isStartMarkerReady(text)?.let { return it }
@@ -176,6 +179,36 @@ object BlockTextReader {
         } catch (_: Exception) {
             s
         }
+    }
+
+    /**
+     * Làm sạch 1 khối cho HIỂN THỊ nguyên bản: giữ chữ/số/dấu (—, …, TOC chấm,
+     * số trang), chỉ bỏ tag/entities rác + TCVN3 + ký tự điều khiển.
+     * Dùng cho `.prep`/display; TTS-smart chạy riêng ở speak-time.
+     */
+    fun cleanBlockDisplay(s: String): String {
+        if (s.isBlank()) return ""
+        return try {
+            TextCleaner.cleanForDisplay(s)
+        } catch (_: Exception) {
+            s
+        }
+    }
+
+    /**
+     * Text để TTS đọc 1 câu display: bỏ các dòng rác (số trang đứng riêng,
+     * mục-lục-dòng) còn sót trong câu; "" = lướt qua không đọc.
+     * Chạy ở speak-time (producer) trên câu display-faithful.
+     */
+    fun ttsSpeakable(rawSentence: String): String {
+        if (rawSentence.isBlank()) return ""
+        if ('\n' !in rawSentence) {
+            return if (isDroppableLine(rawSentence.trim())) "" else rawSentence
+        }
+        val kept = rawSentence.lineSequence()
+            .filter { !isDroppableLine(it.trim()) }
+            .joinToString("\n")
+        return if (kept.isBlank()) "" else kept
     }
 
     /**
@@ -214,14 +247,23 @@ object BlockTextReader {
         file: File,
         defaultTitle: String = "Nội dung",
         heading: Heading = Heading.MARKDOWN,
-        onChapter: ((String, String) -> Unit)? = null
+        onChapter: ((String, String) -> Unit)? = null,
+        /**
+         * A — tách display/TTS: faithful=true giữ nguyên bản cho HIỂN THỊ
+         * (không drop dòng số trang/TOC, không bỏ phần đầu trước mốc, không
+         * rewrite smart). TTS-smart chạy riêng ở speak-time
+         * ([ttsSpeakable] + `cleanForTts` trong producer). Titles giữ nguyên
+         * shaping (cùng headings) nên resume/progress không vỡ.
+         */
+        faithful: Boolean = false
     ): List<ChapterBlock> {
         if (!file.exists()) return listOf(ChapterBlock(defaultTitle, ""))
         // EPUB: chương = spine item (đã đúng thứ tự sách), clean từng chương
         // qua pipeline 2.5 (kể cả TCVN3 text-level cho EPUB đời cũ).
-        if (file.extension.equals("epub", true)) {            val out = ArrayList<ChapterBlock>()
+        if (file.extension.equals("epub", true)) {
+            val out = ArrayList<ChapterBlock>()
             for (ch in EpubReader.chapters(file, defaultTitle).take(MAX_CHAPTERS)) {
-                val c = cleanBlock(ch.text)
+                val c = if (faithful) cleanBlockDisplay(ch.text) else cleanBlock(ch.text)
                 // Trang bìa/mục lục/bản quyền không chữ → bỏ, khỏi đọc trang trắng
                 if (c.isBlank() && epubSkippableTitleRegex.containsMatchIn(ch.title)) continue
                 val content = if (c.isNotBlank()) c else ""
@@ -239,7 +281,7 @@ object BlockTextReader {
         if (MobiReader.isMobiExt(file.name)) {
             val out = ArrayList<ChapterBlock>()
             for (ch in MobiReader.chapters(file, defaultTitle).take(MAX_CHAPTERS)) {
-                val c = cleanBlock(ch.text)
+                val c = if (faithful) cleanBlockDisplay(ch.text) else cleanBlock(ch.text)
                 if (c.isBlank() && epubSkippableTitleRegex.containsMatchIn(ch.title)) continue
                 val content = if (c.isNotBlank()) c else ""
                 onChapter?.invoke(ch.title, content)
@@ -254,7 +296,7 @@ object BlockTextReader {
         if (file.extension.equals("pdf", true)) {
             val sb = StringBuilder()
             for (blk in iterPdfText(file)) {
-                val c = cleanBlock(blk)
+                val c = if (faithful) cleanBlockDisplay(blk) else cleanBlock(blk)
                 if (c.isNotBlank()) {
                     if (sb.isNotEmpty()) sb.append(' ')
                     sb.append(c)
@@ -276,12 +318,12 @@ object BlockTextReader {
         fun flushFullBlocks() {
             while (raw.length >= BLOCK_CHARS) {
                 val part = cutPart(raw) ?: break
-                appendClean(part, content)
+                appendClean(part, content, faithful)
             }
         }
 
         fun closeChapter() {
-            drain(raw, content)
+            drain(raw, content, faithful)
             val c = content.toString().trim()
             if (c.isNotBlank() || out.isEmpty()) {
                 onChapter?.invoke(title, c)
@@ -294,7 +336,9 @@ object BlockTextReader {
         // Nguyên tắc đọc sách: phần mở đầu (tựa/mục lục/số trang/liệt kê số)
         // buffer lại, gặp mốc (Lời giới thiệu/Chương 1) thì bỏ hết, đọc từ đó.
         // PARAGRAPH (không heading chuẩn) thì không áp — chỉ bỏ dòng số trang.
-        val useFrontMatter = mode != Heading.PARAGRAPH
+        // A: faithful (display nguyên bản) bỏ qua toàn bộ cơ chế này — TTS lọc
+        // riêng ở speak-time, display giữ từ đầu sách.
+        val useFrontMatter = mode != Heading.PARAGRAPH && !faithful
         var readingStarted = false
         val pendingFront = ArrayDeque<String>()
         var pendingChars = 0
@@ -330,7 +374,7 @@ object BlockTextReader {
                         mode == Heading.PARAGRAPH -> {
                             // Không có ## cũng không có "Chương..." → tách theo đoạn trống ("Đoạn N")
                             if (trimmed.isEmpty() && out.size < MAX_CHAPTERS) {
-                                drain(raw, content)
+                                drain(raw, content, faithful)
                                 if (content.isNotBlank()) {
                                     title = "Đoạn ${++paraIdx}"
                                     val c = content.toString().trim()
@@ -341,7 +385,8 @@ object BlockTextReader {
                                 raw.setLength(0)
                             } else if (trimmed.isNotEmpty()) {
                                 // PARAGRAPH: chỉ bỏ dòng số trang, còn lại đọc từ đầu như cũ
-                                if (!isDroppableLine(trimmed)) {
+                                // (faithful giữ hết cho display).
+                                if (faithful || !isDroppableLine(trimmed)) {
                                     raw.append(cur).append('\n')
                                     flushFullBlocks()
                                 }
@@ -366,7 +411,9 @@ object BlockTextReader {
                             }
                         }
                         else -> {
-                            if (isDroppableLine(trimmed)) {
+                            // A: display-faithful giữ mọi dòng (kể cả TOC/số trang);
+                            // TTS bỏ ở speak-time qua ttsSpeakable.
+                            if (!faithful && isDroppableLine(trimmed)) {
                                 // số trang/header/footer/mục-lục-dòng → bỏ mọi lúc
                             } else if (useFrontMatter && !readingStarted) {
                                 if (trimmed.isEmpty()) {
@@ -394,7 +441,7 @@ object BlockTextReader {
             // file hỏng/encoding lạ → trả phần đã nạp được
         }
         if (mode == Heading.PARAGRAPH) {
-            drain(raw, content)
+            drain(raw, content, faithful)
             if (content.isNotBlank()) {
                 title = "Đoạn ${++paraIdx}"
                 val c = content.toString().trim()
@@ -414,6 +461,18 @@ object BlockTextReader {
         val nonBlank = if (onChapter == null) out.filter { it.content.isNotBlank() } else out
         return nonBlank.ifEmpty { listOf(ChapterBlock(defaultTitle, "")) }
     }
+
+    /**
+     * A — đọc nguyên bản cho HIỂN THỊ + `.prep` (display-faithful).
+     * Cùng shaping titles với [readChapters], content giữ nguyên
+     * (dấu —, TOC chấm, số trang). TTS-smart chạy riêng ở speak-time.
+     */
+    fun readOriginalChapters(
+        file: File,
+        defaultTitle: String = "Nội dung",
+        heading: Heading = Heading.MARKDOWN,
+        onChapter: ((String, String) -> Unit)? = null
+    ): List<ChapterBlock> = readChapters(file, defaultTitle, heading, onChapter, faithful = true)
 
     /**
      * Chọn mode trước khi tách — đúng thứ tự parse của bản cũ (BookScreen/StoryScreen):
@@ -1344,21 +1403,21 @@ object BlockTextReader {
         return true
     }
 
-    private fun appendClean(part: String, out: StringBuilder) {
-        val c = cleanBlock(part)
+    private fun appendClean(part: String, out: StringBuilder, faithful: Boolean = false) {
+        val c = if (faithful) cleanBlockDisplay(part) else cleanBlock(part)
         if (c.isNotBlank()) {
             if (out.isNotEmpty()) out.append(' ')
             out.append(c)
         }
     }
 
-    private fun drain(raw: StringBuilder, out: StringBuilder) {
+    private fun drain(raw: StringBuilder, out: StringBuilder, faithful: Boolean = false) {
         while (true) {
             val part = cutPart(raw) ?: break
-            appendClean(part, out)
+            appendClean(part, out, faithful)
         }
         if (raw.isNotEmpty()) {
-            appendClean(raw.toString(), out)
+            appendClean(raw.toString(), out, faithful)
             raw.setLength(0)
         }
     }

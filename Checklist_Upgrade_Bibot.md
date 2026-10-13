@@ -162,6 +162,22 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - **Xem đúng bản gốc**: `ReaderScreen` đã có 2 VIEW TEXT/PAGE (F1.1) — PDF render
   `PdfPageView` (PdfRenderer framework + pool 3 + prefetch), EPUB spine-order
   (`EpubReader` + detect scan + cover/bìa + tác giả OPF).
+- **A — tách display-faithful vs TTS-smart (xong 2026-10-13, user chọn scope A,
+  verify máy ảo bằng screenshot)**: trước đây display hiện text đã smart-clean
+  (ngày→chữ, `—`→`,`, `(Fig.5)`→`(hình 5)`, `[Pg 62]` đọc "P g") — sai bản gốc.
+  Nay `.prep` lưu NGUYÊN BẢN (`readOriginalChapters` + `cleanForDisplay`: giữ
+  chữ/số/dấu/TOC/số trang, chỉ bỏ tag/entities-rác + TCVN3 + ký tự điều khiển);
+  TTS-smart chạy ở speak-time (producer: lướt phần đầu trước mốc + `ttsSpeakable`
+  bỏ dòng rác + `cleanForTts` như cũ) — karaoke giữ nguyên index. `PREP_VERSION`
+  3→4 (cache cũ tự rebuild; resume cũ lệch câu là chấp nhận được).
+  EPUB ẩn span số trang in ở extractor (cả display lẫn TTS).
+  Verify: "How it Works" hiện `April 10, 2009 [#28553]`, TOC `—` + xuống dòng
+  (hết dính `managed,Limit`), TTS bấm play synth en-US, không FATAL.
+- **PDF grimm10**: trang scan render ảnh đúng gốc; bug race `Current page not
+  closed` (effect chính + fallback từng item render song song trên 1 PdfRenderer —
+  lỗi rải rác p8/9/11/15/18/19) → serialize bằng Mutex + retry nửa chiều rộng +
+  giữ aspect (bản cũ cap cao 2400 làm bẹp trang dài) + log nguyên nhân.
+  Verify: lướt tới Page 18/301 render đẹp, logcat hết `PdfPageView fail`.
 - **Nghe TTS**: producer `ReaderScreen` (Piper/Cloud/Offline + `TtsVoiceResolve`).
 - **Kệ sách**: tab Documents (`DocBrowserScreen` kiểu ReadEra: drawer lọc, bìa,
   progress, yêu thích, search, SAF) + kệ từng kho trong `ReaderScreen`.

@@ -292,8 +292,8 @@ class BookRepository(private val context: Context) {
     suspend fun buildToc(bookId: String, file: File): List<BookTocEntry> = withContext(Dispatchers.IO) {
         val db = BibotDatabase.get(context)
         val tocDao = db.toc()
-        // Đọc heading từ file qua BlockTextReader
-        val chapters = BlockTextReader.readChapters(file, "", BlockTextReader.Heading.MARKDOWN_OR_STORY)
+        // Đọc heading từ file qua BlockTextReader (A: titles nguyên bản, shaping như cũ)
+        val chapters = BlockTextReader.readOriginalChapters(file, "", BlockTextReader.Heading.MARKDOWN_OR_STORY)
         val entries = chapters.mapIndexed { idx, ch ->
             BookTocEntry(
                 bookId = bookId,
