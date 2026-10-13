@@ -110,7 +110,15 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     `ReadingPosition` (legacy `position` giữ 1 bản); `BookDetailScreen` hiện
     `resumeLabel()`; `LibraryQuery.READING` check `isStarted`. Full JVM 64/64
     (59 cũ + 5 mới), `assembleDemoDebug` SUCCESS (APK ~58,7MB).
-- [ ] A2.5 Verify: mở sách 3–5MB không đơ; đổi font không relayout liên tục; resume nhảy đúng chương >100 câu.
+- [ ] A2.5 Verify (đã xong resume+migration 2026-10-13 trên AVD BibotTest, còn mở sách 3–5MB/đổi font):
+  + Migration v5→6: cài đè giữ data, 3 dòng cũ giữ nguyên + backfill đúng
+    (`3→(0,3)`, `4→(0,4)`, `112→(1,12)`), schema có `chapterIdx/sentenceIdx`.
+  + Resume >100: sách test `resume150.md` (chương 150 câu) gieo legacy `pos=120`
+    (code cũ đọc thành Chương 2/câu 21) → reader hiện đúng `Chapter 1/3` +
+    chip `Resume sentence 121` + dialog `C1 • câu 121`; Yes → READ lưu
+    `chapterIdx/sentenceIdx` thật; kill app mở lại chip giữ đúng; logcat sạch FATAL.
+  + Drawer badge/kệ Đang đọc: N/A trên nav hiện tại (module library chưa vào nav) —
+    logic `READING` cover bởi JVM `LibraryQueryTest` + chip resume trên máy ảo.
 
 ### A3. P2 — Export + Player polish (học openreader)
 
