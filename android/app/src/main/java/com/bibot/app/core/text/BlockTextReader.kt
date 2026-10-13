@@ -219,11 +219,27 @@ object BlockTextReader {
         if (!file.exists()) return listOf(ChapterBlock(defaultTitle, ""))
         // EPUB: chương = spine item (đã đúng thứ tự sách), clean từng chương
         // qua pipeline 2.5 (kể cả TCVN3 text-level cho EPUB đời cũ).
-        if (file.extension.equals("epub", true)) {
-            val out = ArrayList<ChapterBlock>()
+        if (file.extension.equals("epub", true)) {            val out = ArrayList<ChapterBlock>()
             for (ch in EpubReader.chapters(file, defaultTitle).take(MAX_CHAPTERS)) {
                 val c = cleanBlock(ch.text)
                 // Trang bìa/mục lục/bản quyền không chữ → bỏ, khỏi đọc trang trắng
+                if (c.isBlank() && epubSkippableTitleRegex.containsMatchIn(ch.title)) continue
+                val content = if (c.isNotBlank()) c else ""
+                onChapter?.invoke(ch.title, content)
+                out.add(ChapterBlock(ch.title, if (onChapter != null) "" else content))
+            }
+            if (out.isEmpty()) {
+                onChapter?.invoke(defaultTitle, "")
+                out.add(ChapterBlock(defaultTitle, ""))
+            }
+            return out
+        }
+        // A2.2 MOBI: chương = chunk PalmDoc đã strip tag (Mobi6 không có NCX như
+        // EPUB), clean từng chương qua pipeline 2.5 rồi reuse luồng EPUB.
+        if (MobiReader.isMobiExt(file.name)) {
+            val out = ArrayList<ChapterBlock>()
+            for (ch in MobiReader.chapters(file, defaultTitle).take(MAX_CHAPTERS)) {
+                val c = cleanBlock(ch.text)
                 if (c.isBlank() && epubSkippableTitleRegex.containsMatchIn(ch.title)) continue
                 val content = if (c.isNotBlank()) c else ""
                 onChapter?.invoke(ch.title, content)

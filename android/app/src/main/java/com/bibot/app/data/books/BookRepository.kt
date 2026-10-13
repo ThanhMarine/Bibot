@@ -186,19 +186,26 @@ class BookRepository(private val context: Context) {
         FilePaths.pdfInbox(context).listFiles()?.forEach { f ->
             if (f.isFile) {
                 val isEpub = f.extension.equals("epub", ignoreCase = true)
-                val mime = if (isEpub) "application/epub+zip" else "application/pdf"
+                // A2.2: .mobi/.azw trong inbox → MobiReader (convert EPUB khi đọc)
+                val isMobi = com.bibot.app.core.text.MobiReader.isMobiExt(f.name)
+                val mime = if (isEpub) "application/epub+zip"
+                else if (isMobi) com.bibot.app.core.text.MobiReader.MIME_MOBI
+                else "application/pdf"
                 out += BookMeta("local-${f.name}", f.name, "vi", "local", mime, sizeBytes = f.length(), localFile = f)
             }
         }
         FilePaths.audioBooks(context).walkTopDown().filter {
-            it.isFile && (it.extension == "md" || it.extension == "pdf" || it.extension.equals("epub", ignoreCase = true))
+            it.isFile && (it.extension == "md" || it.extension == "pdf" || it.extension.equals("epub", ignoreCase = true) ||
+                com.bibot.app.core.text.MobiReader.isMobiExt(it.name))
         }.forEach { f ->
             val isMd = f.extension == "md"
             val isEpub = f.extension.equals("epub", ignoreCase = true)
+            val isMobi = com.bibot.app.core.text.MobiReader.isMobiExt(f.name)
             // EPUB đoán ngôn ngữ từ dc:language/text mẫu (EPUB VI trong audioBooks
             // vẫn về đúng module Kể chuyện thay vì kẹt ở tab EN)
             val lang = if (isMd) "vi" else if (isEpub) com.bibot.app.core.text.EpubReader.sniffLang(f) else "en"
-            val mime = if (isMd) "text/markdown" else if (isEpub) "application/epub+zip" else "application/pdf"
+            val mime = if (isMd) "text/markdown" else if (isEpub) "application/epub+zip"
+            else if (isMobi) com.bibot.app.core.text.MobiReader.MIME_MOBI else "application/pdf"
             out += BookMeta("local-${f.name}", f.name, lang, "local", mime, sizeBytes = f.length(), localFile = f)
         }
         return out
@@ -245,6 +252,14 @@ class BookRepository(private val context: Context) {
         // EPUB: text từng spine item → clean → chunk
         if (file.extension.equals("epub", true)) {
             for (blk in com.bibot.app.core.text.EpubReader.iterText(file)) {
+                val cleaned = TextCleaner.cleanForTts(PdfTextCleaner.cleanPdfText(blk))
+                for (s in VietnameseChunker.split(cleaned)) if (s.isNotBlank()) emit(s)
+            }
+            return@flow
+        }
+        // A2.2 MOBI: text từng chunk PalmDoc → clean → chunk (reuse pipeline EPUB)
+        if (com.bibot.app.core.text.MobiReader.isMobiExt(file.name)) {
+            for (blk in com.bibot.app.core.text.MobiReader.iterText(file)) {
                 val cleaned = TextCleaner.cleanForTts(PdfTextCleaner.cleanPdfText(blk))
                 for (s in VietnameseChunker.split(cleaned)) if (s.isNotBlank()) emit(s)
             }

@@ -86,14 +86,18 @@ enum class ReaderCollection(
             book.collection != "thamkhao" &&
             (book.mimeType.contains("markdown") || book.mimeType.contains("plain") ||
                 book.mimeType.contains("pdf") || book.mimeType.contains("epub") ||
+                book.mimeType.contains("mobipocket") ||
                 book.title.endsWith(".md") || book.title.endsWith(".txt") ||
                 book.title.endsWith(".pdf", ignoreCase = true) ||
+                com.bibot.app.core.text.MobiReader.isMobiExt(book.title) ||
                 book.title.endsWith(".epub", ignoreCase = true))
         COTICH -> book.collection == "cotich"
         THAMKHAO -> book.collection == "thamkhao"
         LOCAL_PDF -> book.source == "local" &&
             (book.mimeType.contains("pdf") || book.mimeType.contains("epub") ||
+                book.mimeType.contains("mobipocket") ||
                 book.title.endsWith(".pdf", ignoreCase = true) ||
+                com.bibot.app.core.text.MobiReader.isMobiExt(book.title) ||
                 book.title.endsWith(".epub", ignoreCase = true))
     }
 

@@ -68,11 +68,17 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   - File chạm: `core/text/BlockTextReader.kt` (block 16KB/CARRY 256 + `free()` tường minh),
     `core/text/PdfTextCleaner.kt` (đính chính: không tồn tại file `PdfToMarkdownHelper.kt`),
     `BookRepository.kt` (đã hết `readText()/readBytes()` toàn file — verify 2026-10-12).
-- [ ] A2.2 MOBI → EPUB rồi reuse renderer (HẠ từ [x] xuống 2026-10-12 — đối chiếu code:
-  `core/text/MobiReader.kt` mới là draft CHƯA COMMIT (untracked) + 0 caller;
-  `BookRepository`/`PublicDriveSource` không nhắc gì tới mobi → sách .mobi chưa convert được).
-  Xong phần khung parser; còn: wire vào `BookRepository` (detect `.mobi/.azw` → convert
-  rồi reuse luồng EPUB) + test + commit file.
+- [x] A2.2 MOBI → EPUB rồi reuse renderer (XONG 2026-10-13 — draft sai-format cũ đã
+  viết lại theo PalmDB thật + verify máy ảo):
+  `core/text/MobiReader.kt` (PalmDB BOOK/MOBI detect + PalmDoc LZ77/raw + EXTH
+  503-title/100-author + từ chối rõ DRM/HuffCdic + `convertToEpub` tối thiểu để
+  `EpubReader` đọc lại; Mobi6 chunk 32k, KF8 dual-format chỉ đọc phần Mobi6);
+  wire: `BookRepository` (scan `.mobi/.azw/.azw3` + `iterSentences`),
+  `BlockTextReader.readChapters` nhánh mobi, `PublicDriveSource.mimeFor`,
+  `ReaderCollection` STORY_VI/LOCAL_PDF, `ViewScreen` (kệ + tác giả EXTH).
+  Test JVM `MobiReaderTest` 10/10 (file MOBI dựng tổng hợp + PalmDoc vectors +
+  convert→EpubReader roundtrip); full suite 33/33. Máy ảo: `test_mobi.mobi`
+  tự dựng hiện kệ (44 sách) + mở đọc text thật.
 - [x] A2.3 Snap config + `RenderIfDirty` (copy `ALLOWED_FONT_SIZES/INTERLINE/PARAGRAPH_MARGINS` của `eraepub`): chỉ relayout khi setting đổi, hết jank khi đổi font sách dày.
   - File chạm (đính chính 2026-10-12: `BookScreen/StoryScreen` đã xóa ở R0):
     `data/store/BibotPreferences.kt` (`ALLOWED_FONT_SIZES` + `readerFontSizeSp/...`),
@@ -158,14 +164,17 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   `cleanForTts` + vòng dòng `BlockTextReader` thử ruler trước (fallback code cứng).
 - **Status**: ✅ Đọc EN/VN (Drive, local, demo).
 
-#### Mode 2: "Xem" View Mode — [ ] MỚI LÀ MOCK (bản cũ ghi "[x] Hoàn thành" là sai)
+#### Mode 2: "Xem" View Mode — [x] ĐÃ WIRE SÁCH THẬT (2026-10-13, verify máy ảo)
 - **EPUB/PDF engine**: có thật (`EpubReader` spine-order + detect scan; `PdfTextCleaner` +
   font-kind SIMPLE/TCVN3/Type3/ToUnicode) và `ReaderScreen` đã có VIEW TEXT/PAGE (F1.1).
-- **UI**: `ViewScreen.kt` HIỆN CHỈ LÀ MOCK TĨNH — bìa chữ + list "Chương $i" giả x10 +
-  nút play/pause/loa `onClick = {}` rỗng + "© Unknown"; KHÔNG đọc file thật, KHÔNG gọi
-  `ReadingRules`, nav `VIEW` không truyền sách (luôn preview stub).
-- **Việc còn lại**: hoặc wire `ViewScreen` vào sách thật (EpubReader/PdfPageView +
-  prepSession), hoặc gỡ khỏi nav để khỏi gây hiểu lầm. Chưa làm.
+- **UI**: `ViewScreen.kt` đã wire thật — kệ sách từ `BookRepository` (44 cuốn trên máy
+  ảo), chương = `BlockTextReader.readChapters` (đã qua `ReadingRules.applyIfReady`),
+  bìa = `LibraryCovers` (PDF/EPUB thật), tác giả OPF/EXTH, PAGE: PDF dùng `PdfPageView`
+  thật / EPUB-MD phân trang text, nút loa/play/pause đọc thử bằng `OfflineTtsHelper`;
+  marker `PAUSE2SEC` hiển thị "…". Tile "Xem" đã vào grid Home.
+- **Verify máy ảo**: kệ 44 sách → mở `Linh Nam Chích Quái.md` (Mục lục 1 + full text
+  thật), mở `test_mobi.mobi` tự dựng (Mục lục 1 + text thật, hết "Error: empty" sau khi
+  sửa file test sai entry 7B).
 
 #### Ruler là engine dùng chung cho text đã-clean (không phải renderer ảnh) — không cần repo ngoài
 

@@ -135,6 +135,7 @@ class PublicDriveSource(private val context: Context) {
         "md" -> "text/markdown"
         "txt" -> "text/plain"
         "epub" -> "application/epub+zip"
+        "mobi", "azw", "azw3" -> "application/x-mobipocket-ebook"
         else -> "application/octet-stream"
     }
 
