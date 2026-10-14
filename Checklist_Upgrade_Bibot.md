@@ -489,12 +489,13 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   (`bibot_ads.preferences_pb` chưa từng tồn tại) nên không trigger được UX hết hạn —
    phần đó thuộc verify relay E2E của phiên kia.
 - [x] B6.18 Lề hẹp + căn đều kiểu ReadEra (yêu cầu user 2026-10-14, theo ảnh mẫu
-  ReadEra nền giấy — code xong, build release thành công, còn nợ walkthrough máy):
-  TEXT (`ReaderScreen.kt:~1498,1532`) + EPUB rich (`EpubRichView.kt:150`) lề ngang
-  `16dp→10dp` (thêm ~12dp cho font lớn, `BODY Start→Justify`); PDF
-  (`PdfPageView.kt:195-202`) khung `horizontal 8dp→4dp` + viền tờ giấy `0.4dp
-  outlineVariant` bo 2dp (user chốt viền = 40% của 1dp). Giữ `MaterialTheme`
-  (không ép nền be — nền giấy sepia để ở E2.4).
+  ReadEra nền giấy — VERIFY MÁY 2026-10-14 đêm, demoDebug 58.6MB):
+  TEXT + EPUB rich lề ngang `16dp→10dp` (chữ sát mép 2 bên, thấy rõ ở Lĩnh Nam/Khe Sanh/
+  How it Works); PAGE rich (`How it Works` Ch.2): đậm/nghiêng/căn giữa giữ đúng gốc,
+  `April 10, 2009 [#28553]` hiện nguyên bản, đoạn body b metals đều 2 biên (Justify);
+  PDF (`grimm10` Page 1/301): render đủ trang ngay, khung hẹp + viền tờ giấy mảnh,
+  tách khỏi nền trống đồng. FAB B6.17 + resume chip + banner cùng hiện, không che chữ,
+  logcat sạch FATAL. Giữ `MaterialTheme` (nền giấy sepia để ở E2.4).
 - [x] B6.17 Cụm FAB một tay ở màn đọc (yêu cầu user 2026-10-14, code xong — còn nợ verify máy):
   thêm nút Back nằm trên nút Play (`ReaderScreen.kt:1571-1597`, `Column` +
   `SmallFloatingActionButton` Back + `FloatingActionButton` Play/Pause, cùng kiểu FAB
