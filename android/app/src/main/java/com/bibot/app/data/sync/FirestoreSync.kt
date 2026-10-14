@@ -144,6 +144,72 @@ object FirestoreSync {
         return count
     }
 
+    // B5.7: wiki tóm tắt công cộng — collection PUBLIC `wiki_summaries/{hash}_{model}_{promptVer}`
+    // (khác `bibot/{uid}/...` per-user). Mỗi chương chỉ người đầu tiên trả token,
+    // N người sau đọc free. Rules phía server (đặt tay ở Firebase console):
+    // public read, auth write, doc ≤ vài KB. App KHÔNG BAO GIỜ upload nguyên văn sách,
+    // chỉ tóm tắt phái sinh ngắn + có nút tắt trong Settings.
+    const val WIKI_SUMMARIES = "wiki_summaries"
+
+    data class WikiSummary(
+        val text: String,
+        val model: String = "",
+        val promptVer: Int = 1,
+        val chapterTitle: String = "",
+        val lang: String = "vi",
+        val hits: Long = 0,
+        val updatedAt: Long = 0L
+    )
+
+    /** Đọc tóm tắt chia sẻ (0 token). Null = miss/lỗi/chưa cấu hình. */
+    suspend fun getWikiSummary(context: Context, docId: String): WikiSummary? = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext null
+            uid(context) // cần auth (rule: public read nhưng client vẫn cần app hợp lệ)
+            val d = Tasks.await(store(context).collection(WIKI_SUMMARIES).document(docId).get())
+            if (!d.exists()) return@withContext null
+            WikiSummary(
+                text = d.getString("text")?.take(8000) ?: return@withContext null,
+                model = d.getString("model") ?: "",
+                promptVer = (d.getLong("promptVer") ?: 1L).toInt(),
+                chapterTitle = d.getString("chapterTitle") ?: "",
+                lang = d.getString("lang") ?: "vi",
+                hits = d.getLong("hits") ?: 0L,
+                updatedAt = d.getLong("updatedAt") ?: 0L
+            )
+        } catch (_: Exception) { null }
+    }
+
+    /** Ghi tóm tắt lên wiki (first-writer-wins: có rồi thì thôi, không đè). */
+    suspend fun putWikiSummary(context: Context, docId: String, s: WikiSummary): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext false
+            uid(context) // rule: auth write
+            val ref = store(context).collection(WIKI_SUMMARIES).document(docId)
+            if (Tasks.await(ref.get()).exists()) return@withContext true // người khác viết trước
+            Tasks.await(ref.set(mapOf(
+                "text" to s.text.take(8000),
+                "model" to s.model,
+                "promptVer" to s.promptVer,
+                "chapterTitle" to s.chapterTitle.take(200),
+                "lang" to s.lang,
+                "hits" to 1L,
+                "updatedAt" to System.currentTimeMillis()
+            )))
+            true
+        } catch (_: Exception) { false }
+    }
+
+    /** Đếm lượt đọc ké (best-effort, không chặn luồng chính). */
+    suspend fun bumpWikiHits(context: Context, docId: String) = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext
+            uid(context)
+            val ref = store(context).collection(WIKI_SUMMARIES).document(docId)
+            Tasks.await(ref.update("hits", com.google.firebase.firestore.FieldValue.increment(1)))
+        } catch (_: Exception) {}
+    }
+
     /**
      * Realtime collection `core` — collect trong scope màn hình mở (không auto-start ở BibotApp
      * để đỡ tốn pin; Worker định kỳ đã bao phủ sync nền).

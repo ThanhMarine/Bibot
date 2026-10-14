@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MenuBook
@@ -385,29 +386,62 @@ fun ReaderTocSheet(
     titles: List<String>,
     current: Int,
     onPick: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    // B5.5/B5.8: tóm tắt từng chương + tiến độ wiki (null = tắt).
+    onSummarize: ((Int) -> Unit)? = null,
+    summarized: Set<Int> = emptySet(),
+    onSummarizeBook: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            stringResource(R.string.chrome_toc),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.chrome_toc),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            if (onSummarizeBook != null && titles.isNotEmpty()) {
+                TextButton(onClick = onSummarizeBook) {
+                    Text(
+                        if (summarized.isEmpty()) stringResource(R.string.summary_book_btn)
+                        else stringResource(R.string.summary_progress, summarized.size, titles.size),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
         LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             itemsIndexed(titles) { idx, t ->
-                TextButton(
-                    onClick = { onPick(idx) },
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "${idx + 1}. $t",
-                        maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth(),
-                        color = if (idx == current) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (idx == current) FontWeight.Bold else FontWeight.Normal
-                    )
+                    TextButton(
+                        onClick = { onPick(idx) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            "${idx + 1}. $t",
+                            maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (idx == current) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (idx == current) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                    if (onSummarize != null) {
+                        IconButton(onClick = { onSummarize(idx) }, modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                Icons.Default.Description,
+                                contentDescription = stringResource(R.string.summary_title),
+                                tint = if (idx in summarized) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }

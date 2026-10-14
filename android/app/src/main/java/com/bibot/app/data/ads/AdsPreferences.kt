@@ -17,6 +17,8 @@ object AdPrefKeys {
     val AD_BANNER_ENABLED = booleanPreferencesKey("ad_banner_enabled")
     val AD_REWARDED_CLAIMED = booleanPreferencesKey("ad_rewarded_claimed")
     val REWARDED_CLOUD_CHAPTERS = intPreferencesKey("rewarded_cloud_chapters")
+    // B5.4: lượt tóm tắt AI đổi từ rewarded ad (mirror cloud chapters, trần 9)
+    val REWARDED_SUMMARY = intPreferencesKey("rewarded_summary")
     val VIP_TIER = stringPreferencesKey("vip_tier")
     val VIP_UNTIL = longPreferencesKey("vip_until")
     val AD_DAILY_QUOTA_EXHAUSTED = booleanPreferencesKey("ad_daily_quota_exhausted")
@@ -54,6 +56,7 @@ data class AdsState(
     val isBannerEnabled: Boolean = true,
     val isRewardedClaimed: Boolean = false,
     val rewardedCloudChapters: Int = 0,
+    val rewardedSummary: Int = 0,
     /** Tier VIP ("month"/"lifetime", rong = khong VIP). Quyen con han khi vipUntil > now. */
     val vipTier: String = "",
     /** Han VIP millis (Long.MAX_VALUE = vinh vien). */
@@ -70,6 +73,7 @@ class AdsPreferences(private val context: Context) {
             isBannerEnabled = p[AdPrefKeys.AD_BANNER_ENABLED] ?: true,
             isRewardedClaimed = p[AdPrefKeys.AD_REWARDED_CLAIMED] ?: false,
             rewardedCloudChapters = p[AdPrefKeys.REWARDED_CLOUD_CHAPTERS] ?: 0,
+            rewardedSummary = p[AdPrefKeys.REWARDED_SUMMARY] ?: 0,
             vipTier = p[AdPrefKeys.VIP_TIER] ?: "",
             vipUntil = p[AdPrefKeys.VIP_UNTIL] ?: 0L,
             isDailyQuotaExhausted = p[AdPrefKeys.AD_DAILY_QUOTA_EXHAUSTED] ?: false
@@ -93,6 +97,18 @@ class AdsPreferences(private val context: Context) {
     suspend fun claimRewardedCloudChapters(n: Int = 3) = context.bibotAdsDataStore.edit {
         val cur = it[AdPrefKeys.REWARDED_CLOUD_CHAPTERS] ?: 0
         it[AdPrefKeys.REWARDED_CLOUD_CHAPTERS] = (cur + n).coerceAtMost(9)
+        it[AdPrefKeys.AD_LAST_SHOW_TIME] = System.currentTimeMillis()
+    }
+    // B5.4: lượt tóm tắt (đọc 1 chương trừ 1; VIP bypass ở caller)
+    suspend fun getRewardedSummary(): Int = try {
+        context.bibotAdsDataStore.data.first()[AdPrefKeys.REWARDED_SUMMARY] ?: 0
+    } catch (_: Exception) { 0 }
+    suspend fun setRewardedSummary(v: Int) = context.bibotAdsDataStore.edit {
+        it[AdPrefKeys.REWARDED_SUMMARY] = v.coerceAtLeast(0)
+    }
+    suspend fun claimRewardedSummary(n: Int = 3) = context.bibotAdsDataStore.edit {
+        val cur = it[AdPrefKeys.REWARDED_SUMMARY] ?: 0
+        it[AdPrefKeys.REWARDED_SUMMARY] = (cur + n).coerceAtMost(9)
         it[AdPrefKeys.AD_LAST_SHOW_TIME] = System.currentTimeMillis()
     }
 

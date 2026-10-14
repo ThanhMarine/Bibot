@@ -80,4 +80,29 @@ object BotPromptManager {
     )
 
     fun preview(prefs: BibotPrefs): String = buildFromPrefs(prefs).take(220) + if (buildFromPrefs(prefs).length > 220) "..." else ""
+
+    // B5.2: prompt tóm tắt sách versioned (promptVer đi vào key cache + doc wiki;
+    // prompt mới KHÔNG đè bản cũ — mỗi ver là 1 doc/cache riêng).
+    const val SUMMARY_PROMPT_VER = 1
+    const val SUMMARY_SYS_V1 =
+        "Bạn là trợ lý tóm tắt sách Bibot. Tóm tắt trung thực bằng tiếng Việt, " +
+            "chỉ dùng thông tin trong đoạn trích, KHÔNG bịa tên/sự kiện; " +
+            "không biết thì bỏ qua thay vì đoán. Trả về đoạn văn ngắn, không markdown."
+    const val SUMMARY_MAX_CHARS = 6000 // cap input/chương (chặn đốt token sách dày)
+    const val SUMMARY_MAX_OUTPUT_TOKENS = 512
+
+    /** Prompt user cho tóm tắt 1 chương: tiêu đề + nội dung (đã cắt cap). */
+    fun summaryChapterUser(title: String, text: String): String {
+        val body = text.take(SUMMARY_MAX_CHARS)
+        return "Tóm tắt chương \"$title\" dưới đây trong 5-8 câu, nêu ý chính và " +
+            "tên/sự kiện quan trọng:\n\n$body"
+    }
+
+    /** Prompt user cho tóm tắt cấp sách (map-reduce): dồn các tóm tắt chương. */
+    fun summaryBookUser(bookTitle: String, chapterSummaries: List<String>): String {
+        val joined = chapterSummaries.joinToString("\n\n").take(SUMMARY_MAX_CHARS * 2)
+        return "Dưới đây là tóm tắt từng chương của sách \"$bookTitle\". " +
+            "Hãy dồn thành tóm tắt toàn sách trong 8-12 câu (ý chính, tuyến truyện, " +
+            "kết thúc nếu có), không bịa thêm:\n\n$joined"
+    }
 }

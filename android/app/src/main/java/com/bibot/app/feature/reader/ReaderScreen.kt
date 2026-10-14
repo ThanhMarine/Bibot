@@ -49,12 +49,16 @@ import com.bibot.app.data.books.BookMeta
 import com.bibot.app.data.books.BookRepository
 import com.bibot.app.data.db.BibotDatabase
 import com.bibot.app.data.files.FilePaths
+import com.bibot.app.data.store.BotPromptManager
+import com.bibot.app.data.summary.SummaryRepository
+import com.bibot.app.data.summary.SummaryWorker
 import com.bibot.app.data.library.ReadingPosition
 import com.bibot.app.data.offline.OfflineTtsHelper
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.ui.player.PlayerViewModel
 import com.bibot.app.ui.player.contentBottomInset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -159,6 +163,15 @@ fun ReaderScreen(
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
     var pendingJump by remember { mutableStateOf<JumpConfirm?>(null) } // B3.3
     var tocOpen by remember { mutableStateOf(false) }
+    // B5: tóm tắt AI theo chương + cấp sách (dialog 4 trạng thái, nền WorkManager).
+    var summaryOpen by remember { mutableStateOf(false) }
+    var summaryIsBook by remember { mutableStateOf(false) }
+    var summaryIdx by remember { mutableIntStateOf(0) }
+    var summaryTitle by remember { mutableStateOf("") }
+    var summaryState by remember { mutableStateOf<SummaryUiState>(SummaryUiState.Loading()) }
+    var summarizedIdx by remember { mutableStateOf(setOf<Int>()) }
+    var summaryBusyAd by remember { mutableStateOf(false) }
+    var summaryJob by remember { mutableStateOf<Job?>(null) }
     // Tìm kiếm trong chương (nút Search): B4.2 mở rộng ra toàn sách sau.
     var searchOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -415,6 +428,166 @@ fun ReaderScreen(
             sentences = list
             currentSentence = if (wantLast) (list.size - 1).coerceAtLeast(0)
             else sentence.coerceIn(0, (list.size - 1).coerceAtLeast(0))
+        }
+    }
+
+    // B5: tải tập chương đã có tóm tắt (badge tiến độ wiki ở TOC).
+    fun refreshSummarized(bookId: String) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                summarizedIdx = db.summaries().getByBook(bookId)
+                    .map { it.chapterIdx }.filter { it >= 0 }.toSet()
+            } catch (_: Exception) {}
+        }
+    }
+
+    // B5: tóm tắt 1 chương (local → wiki → LLM). Mất key/offline → Gate giữ vị trí đọc.
+    fun fetchChapterSummary(idx: Int) {
+        val book = selectedBook ?: return
+        val session = prepSession ?: return
+        if (idx !in chapters.indices) return
+        summaryJob?.cancel()
+        summaryIsBook = false
+        summaryIdx = idx
+        summaryTitle = chapters[idx].title
+        summaryOpen = true
+        summaryState = SummaryUiState.Loading()
+        summaryJob = scope.launch(Dispatchers.IO) {
+            try {
+                val readLang = collection.resolveLang(book)
+                val text = try {
+                    session.content(idx).take(BotPromptManager.SUMMARY_MAX_CHARS)
+                } catch (_: Exception) { "" }
+                if (text.isBlank()) { summaryState = SummaryUiState.Error("empty"); return@launch }
+                val keys = SummaryRepository.LlmKeys(
+                    prefsState.geminiApiKey, prefsState.geminiModel, prefsState.openRouterKey
+                )
+                when (val r = SummaryRepository.summarizeChapter(
+                    context, book.id, idx, chapters[idx].title, text, readLang,
+                    keys, vipActive, prefsState.summaryShareEnabled
+                )) {
+                    is SummaryRepository.Outcome.Ready -> {
+                        summaryState = SummaryUiState.Content(r.text, r.fromShared)
+                        refreshSummarized(book.id)
+                    }
+                    is SummaryRepository.Outcome.NoCredit ->
+                        summaryState = SummaryUiState.Gate(false, adsPrefs.getRewardedSummary())
+                    is SummaryRepository.Outcome.NeedKey -> summaryState = SummaryUiState.Gate(true, 0)
+                    is SummaryRepository.Outcome.Failed -> summaryState = SummaryUiState.Error(r.msg)
+                }
+            } catch (_: Exception) { summaryState = SummaryUiState.Error("error") }
+        }
+    }
+
+    // B5: xem rewarded ad lấy lượt tóm tắt (mirror Cloud chapters: +3, trần 9).
+    fun watchAdForSummary(retry: () -> Unit) {
+        val activity = context as? android.app.Activity ?: return
+        if (!com.bibot.app.ui.components.ads.canShowRewarded(adsState)) return
+        if (summaryBusyAd) return
+        summaryBusyAd = true
+        com.bibot.app.data.ads.AdManager.onRewardedClaimed = {
+            scope.launch {
+                try {
+                    adsPrefs.claimRewardedSummary(3)
+                    retry()
+                } catch (_: Exception) {
+                } finally {
+                    summaryBusyAd = false
+                }
+            }
+        }
+        val shown = try {
+            com.bibot.app.data.ads.AdManager.showRewarded(activity)
+        } catch (_: Exception) { false }
+        if (!shown) {
+            try { com.bibot.app.data.ads.AdManager.loadRewarded(activity) } catch (_: Exception) {}
+            summaryBusyAd = false
+        }
+    }
+
+    // B5: nghe tóm tắt bằng chain TTS hiện có (offline-first, Cloud nếu có key).
+    fun listenSummary(text: String) {
+        val book = selectedBook ?: return
+        scope.launch {
+            try {
+                playerVm.stopPlayback()
+                try { offlineTts.stop() } catch (_: Exception) {}
+                val readLang = collection.resolveLang(book)
+                val sp = if (readLang == "vi") prefsState.storySpeed else prefsState.voiceSpeed
+                val key = prefsState.cloudTtsApiKey.takeIf { it.isNotBlank() }
+                if (prefsState.ttsPriority != "offline" && !key.isNullOrBlank()) {
+                    val voice = if (readLang == "en") com.bibot.app.core.tts.CloudTtsBridge.DEFAULT_EN_VOICE
+                    else com.bibot.app.core.tts.CloudTtsBridge.DEFAULT_VI_VOICE
+                    val bytes = try {
+                        com.bibot.app.core.tts.CloudTtsBridge.synthesize(text, key, voice = voice, speakingRate = sp)
+                    } catch (_: Exception) { null }
+                    if (bytes != null) {
+                        playerVm.playBytes(bytes)
+                        return@launch
+                    }
+                }
+                try { offlineTts.speakOffline(text, sp, lang = readLang) } catch (_: Exception) {}
+            } catch (_: Exception) {}
+        }
+    }
+
+    // B5: tóm tắt cấp sách chạy nền (WorkManager) + poll tiến trình vào dialog.
+    fun startBookSummary() {
+        val book = selectedBook ?: return
+        summaryJob?.cancel()
+        summaryIsBook = true
+        summaryTitle = book.title
+        summaryOpen = true
+        summaryState = SummaryUiState.Loading(0, chapters.size.coerceAtLeast(1))
+        com.bibot.app.data.summary.SummaryWorker.schedule(context, book.id)
+        summaryJob = scope.launch(Dispatchers.IO) {
+            try {
+                val wm = androidx.work.WorkManager.getInstance(context)
+                val name = com.bibot.app.data.summary.SummaryWorker.uniqueName(book.id)
+                while (true) {
+                    delay(2500)
+                    val infos = try {
+                        wm.getWorkInfosForUniqueWork(name)
+                            .get(30, java.util.concurrent.TimeUnit.SECONDS)
+                    } catch (_: Exception) { break }
+                    val info = infos.lastOrNull() ?: break
+                    when (info.state) {
+                        androidx.work.WorkInfo.State.SUCCEEDED -> {
+                            val t = info.outputData.getString(
+                                com.bibot.app.data.summary.SummaryWorker.OUT_TEXT
+                            )
+                            summaryState = if (!t.isNullOrBlank()) SummaryUiState.Content(t, false)
+                            else SummaryUiState.Error("error")
+                            refreshSummarized(book.id)
+                            break
+                        }
+                        androidx.work.WorkInfo.State.FAILED -> {
+                            when (info.outputData.getString(
+                                com.bibot.app.data.summary.SummaryWorker.OUT_ERROR
+                            )) {
+                                "nocredit" -> summaryState =
+                                    SummaryUiState.Gate(false, adsPrefs.getRewardedSummary())
+                                "nokey" -> summaryState = SummaryUiState.Gate(true, 0)
+                                else -> summaryState = SummaryUiState.Error("error")
+                            }
+                            break
+                        }
+                        androidx.work.WorkInfo.State.CANCELLED -> {
+                            summaryState = SummaryUiState.Error("cancelled")
+                            break
+                        }
+                        else -> {
+                            val d = info.progress.getInt(
+                                com.bibot.app.data.summary.SummaryWorker.PROG_DONE, 0
+                            )
+                            val t = info.progress.getInt(
+                                com.bibot.app.data.summary.SummaryWorker.PROG_TOTAL, 0
+                            )
+                            if (t > 0) summaryState = SummaryUiState.Loading(d, t)
+                        }
+                    }
+                }
+            } catch (_: Exception) { summaryState = SummaryUiState.Error("error") }
         }
     }
 
@@ -1423,7 +1596,34 @@ Column(
                     titles = chapters.map { it.title },
                     current = currentChapter,
                     onPick = { tocOpen = false; requestJump(it) },
-                    onDismiss = { tocOpen = false }
+                    onDismiss = { tocOpen = false },
+                    onSummarize = { idx -> tocOpen = false; fetchChapterSummary(idx) },
+                    summarized = summarizedIdx,
+                    onSummarizeBook = { tocOpen = false; startBookSummary() }
+                )
+            }
+            // B5: dialog tóm tắt (4 trạng thái) + nút Nghe bằng chain TTS hiện có.
+            if (summaryOpen) {
+                SummaryDialog(
+                    title = summaryTitle,
+                    isBook = summaryIsBook,
+                    state = summaryState,
+                    vipActive = vipActive,
+                    creditsLeft = adsState.rewardedSummary,
+                    busyAd = summaryBusyAd,
+                    onDismiss = {
+                        summaryJob?.cancel()
+                        if (summaryIsBook) selectedBook?.let {
+                            com.bibot.app.data.summary.SummaryWorker.cancel(context, it.id)
+                        }
+                        summaryOpen = false
+                    },
+                    onRetry = { if (summaryIsBook) startBookSummary() else fetchChapterSummary(summaryIdx) },
+                    onListen = { listenSummary(it) },
+                    onWatchAd = {
+                        watchAdForSummary { if (summaryIsBook) startBookSummary() else fetchChapterSummary(summaryIdx) }
+                    },
+                    onBookLevel = if (!summaryIsBook) ({ startBookSummary() }) else null
                 )
             }
             // B6.2: popup ⚙ (toggle view + brightness).
@@ -1440,6 +1640,16 @@ Column(
                 brightness = brightness,
                 onBrightness = { brightness = it }
             )
+            // B5: preload tập đã tóm tắt + rewarded ad khi mở sách.
+            LaunchedEffect(selectedBook?.id) {
+                val id = selectedBook?.id ?: return@LaunchedEffect
+                refreshSummarized(id)
+                try {
+                    (context as? android.app.Activity)?.let {
+                        com.bibot.app.data.ads.AdManager.loadRewarded(it)
+                    }
+                } catch (_: Exception) {}
+            }
             // B6.3: popup hint lần đầu mỗi máy (nhớ DataStore, có nút xác nhận).
             LaunchedEffect(chapters.size, prefsState.readerHintSeen) {
                 if (chapters.isNotEmpty() && !prefsState.readerHintSeen) hintOpen = true

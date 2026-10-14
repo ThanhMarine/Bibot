@@ -48,6 +48,8 @@ object PrefKeys {
     val READER_FONT_SIZE_SP = floatPreferencesKey("reader_font_size_sp") // 16sp default
     val READER_INTERLINE = floatPreferencesKey("reader_interline") // 1.2 default
     val READER_PARAGRAPH_MARGIN = floatPreferencesKey("reader_paragraph_margin") // 8dp default
+    // B5.7: chia sẻ tóm tắt do máy sinh lên wiki công cộng (mặc định bật, tắt được)
+    val SUMMARY_SHARE_ENABLED = booleanPreferencesKey("summary_share_enabled")
 }
 
 // A2.3: Allowed values from ReadEra eraepub
@@ -78,7 +80,9 @@ data class BibotPrefs(
     // A2.3: Snap config
     val readerFontSizeSp: Float = 16f,
     val readerInterline: Float = 1.2f,
-    val readerParagraphMargin: Float = 8f
+    val readerParagraphMargin: Float = 8f,
+    // B5.7: chia sẻ tóm tắt lên wiki công cộng
+    val summaryShareEnabled: Boolean = true
 )
 
 class BibotPreferences(private val context: Context) {
@@ -106,7 +110,8 @@ class BibotPreferences(private val context: Context) {
             // A2.3: Snap config
             readerFontSizeSp = p[PrefKeys.READER_FONT_SIZE_SP] ?: 16f,
             readerInterline = p[PrefKeys.READER_INTERLINE] ?: 1.2f,
-            readerParagraphMargin = p[PrefKeys.READER_PARAGRAPH_MARGIN] ?: 8f
+            readerParagraphMargin = p[PrefKeys.READER_PARAGRAPH_MARGIN] ?: 8f,
+            summaryShareEnabled = p[PrefKeys.SUMMARY_SHARE_ENABLED] ?: true
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }
@@ -130,6 +135,8 @@ class BibotPreferences(private val context: Context) {
     suspend fun setReaderFontSizeSp(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_FONT_SIZE_SP] = v } }
     suspend fun setReaderInterline(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_INTERLINE] = v } }
     suspend fun setReaderParagraphMargin(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_PARAGRAPH_MARGIN] = v } }
+    // B5.7: tắt/mở chia sẻ tóm tắt lên wiki công cộng
+    suspend fun setSummaryShareEnabled(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.SUMMARY_SHARE_ENABLED] = v } }
 
     // API keys lưu EncryptedSharedPreferences nếu cần; ở đây lưu DataStore + backupRules exclude
     suspend fun setGeminiKey(v: String) { context.bibotDataStore.edit { it[PrefKeys.GEMINI_API_KEY] = v } }

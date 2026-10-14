@@ -308,23 +308,32 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 > export audiobook có thể kèm track tóm tắt. Tốn token Cloud thật → gating là
 > yêu cầu bắt buộc, không phải optional.
 
-- [ ] B5.1 Scope v1 (chống phình): đúng 2 mức — tóm tắt **Chương** + tóm tắt **Sách**
-  (map-reduce: tóm tắt từng chương rồi dồn thành tóm tắt sách). KHÔNG làm mức
-  "truyện trong sách", KHÔNG hỏi-đáp, KHÔNG trợ lý đọc sách.
-- [ ] B5.2 Ống LLM: reuse `core/llm/LlmBridge.kt` (Gemini `streamGenerateContent` +
-  fallback OpenRouter); key riêng `geminiApiKey` (≠ key TTS), model theo
-  `geminiModel`; prompt tóm tắt tiếng Việt versioned trong `BotPromptManager`.
-- [ ] B5.3 Cache (triết lý A1): tóm tắt theo content-hash chương + model; Room bảng
-  mới `chapter_summary (chapterHash PK, bookId, model, promptVer, text, updatedAt)`.
-  Cap input: tối đa N chương/lần + cắt ngắn ký tự/chương (chặn đốt token sách dày).
-- [ ] B5.4 Gating (reuse, không dựng hệ thứ hai): VIP mở full; non-VIP xem rewarded
-  ad lấy lượt (mirror `rewardedCloudChapters`, key riêng `rewarded_summary`, trần 9).
-  Mất key/offline → ẩn/disable nút + báo rõ (triết lý A1.4: probe trước, không mất
-  vị trí đọc). Hết lượt → chặn + mời xem ad.
-- [ ] B5.5 UI: nút `Tóm tắt` ở Detail (B2) + mục trong màn B4; đủ 4 trạng thái C2
-  (loading/empty/error+Retry/content); kết quả đọc được bằng chain TTS hiện có
-  (`Nghe tóm tắt`); tóm tắt cấp sách chạy nền bằng WorkManager.
-- [ ] B5.7 Pipeline tóm tắt dùng chung (giảm token toàn cục): key chia sẻ =
+- [x] B5.1 Scope v1 (XONG 2026-10-14, chống phình): đúng 2 mức — tóm tắt **Chương** +
+  tóm tắt **Sách** (map-reduce trong `SummaryRepository.summarizeBook`, cap
+  `MAX_BOOK_CHAPTERS=20`). KHÔNG mức "truyện trong sách", KHÔNG hỏi-đáp.
+- [x] B5.2 Ống LLM (XONG 2026-10-14): reuse `LlmBridge.generateStreamRest`
+  (Gemini→Proxy→OpenRouter) qua `SummaryRepository.collectLlm` (gom stream + timeout
+  120s + loại fallback persona); key riêng `geminiApiKey` (≠ key TTS), model theo
+  `geminiModel`; prompt versioned `SUMMARY_SYS_V1/SUMMARY_PROMPT_VER=1` trong
+  `BotPromptManager` (+ cap `SUMMARY_MAX_CHARS=6000`, output 512).
+- [x] B5.3 Cache (XONG 2026-10-14): Room `chapter_summary` (DB v6→7,
+  `MIGRATION_6_7` — bài học: DDL KHỚP BYTE Room codegen, không DEFAULT, index dạng
+  `index_<bảng>_<cột>`; đồng thời sửa tên index 4→5 cho đường v4→v7) + cap
+  6000 ký tự/chương + 20 chương/lần. Bắt được bug thật: migration sai tên index →
+  Room từ chối (đã sửa, verify sqlite trên máy ảo).
+- [x] B5.4 Gating (XONG 2026-10-14): VIP full; non-VIP `rewarded_summary` (+3/ad,
+  trần 9, trừ 1/call); mất key/offline → Gate báo rõ (giữ vị trí đọc); hết lượt →
+  chặn + mời xem ad (xem xong tự retry). Verify máy ảo end-to-end (dưới).
+- [x] B5.5 UI (XONG 2026-10-14 — LỆCH: Detail B2 vẫn mock chưa nối nên entry đặt ở
+  `ReaderScreen`: icon tóm tắt từng dòng TOC + nút `Tóm tắt cả sách` ở header TOC
+  (kèm tiến độ `Đã tóm tắt n/N`); dialog `SummaryDialog` đủ 4 trạng thái C2;
+  `Nghe tóm tắt` bằng chain TTS (offline-first, Cloud nếu có key); cấp sách chạy
+  `SummaryWorker` (1 work/sách, poll tiến trình vào dialog).
+- [x] B5.7 Pipeline tóm tắt dùng chung (CODE XONG 2026-10-14, chạy local-only đến khi
+  có Firebase — `FirestoreSync.getWikiSummary/putWikiSummary/bumpWikiHits` + thứ tự
+  local → wiki → LLM → local + upload trong `SummaryRepository`; first-writer-wins;
+  `summaryShareEnabled` (mặc định bật, pref đã có — UI toggle trong Settings còn nợ) +
+  KHÔNG BAO GIỜ upload nguyên văn): key chia sẻ =
   content-hash chương + model + promptVer (kế thừa B5.3/A1) → document ID cố định
   trong collection PUBLIC mới `wiki_summaries/{hash}_{model}_{promptVer}`
   (khác `bibot/{uid}/...` per-user hiện tại). Thứ tự đọc: cache local → Firestore
@@ -340,14 +349,21 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   chương thiếu). Ghi nhãn "AI tóm tắt, có thể sai" + nguồn model/ver; prompt mới
   (promptVer khác) không đè bản cũ; nút báo xấu → ẩn chờ duyệt. Tuân thủ gỡ nội
   dung khi khiếu nại bản quyền.
-- [ ] B5.6 Verify: spot-check tay 3 sách (sử Việt, cổ tích, EN) — đúng ý chính,
-  tên/sự kiện chính có mặt, không bịa; mở lại chương đã tóm tắt → hiện ngay từ
-  cache (không gọi mạng); hết key/offline → nút disable, không crash, giữ vị trí
-  đọc; non-VIP hết lượt → chặn đúng, xem ad xong được lượt; sách 500 chương không
-  đốt token cả sách một lần; máy B mở sách máy A đã tóm tắt → hiện ngay từ
-  `wiki_summaries` (0 token, check logcat/quota); tắt chia sẻ trong Settings →
-  không upload nhưng vẫn đọc được; hết key/offline vẫn đọc wiki đã cache;
-  C4 chung (2 flavor + máy ảo).
+  TRẠNG THÁI 2026-10-14: B5.8-minimal — dialog gắn nhãn "AI tóm tắt, có thể sai" +
+  badge "Từ cache cộng đồng (0 token)" khi đọc wiki + tiến độ `Đã tóm tắt n/N` ở
+  header TOC (đóng vai trò % wiki + nút "đóng góp" đúng nghĩa); promptVer tách key
+  nên prompt mới không đè bản cũ. Tab Wiki riêng trong Detail + nút báo xấu + web
+  public để sau (Detail còn mock). Rules Firestore (`wiki_summaries`: public read,
+  auth write, size vài KB) ĐẶT TAY ở Firebase console — chưa làm (Firebase
+  `FIREBASE_*` đang trống nên lớp share tự skip, app chạy local-only bình thường).
+- [ ] B5.6 Verify (MỘT PHẦN 2026-10-14, máy ảo BibotTest — còn live LLM + wiki +
+  worker khi có key/Firebase/máy thật): TOC icon + dialog NoCredit (`0 lượt`) →
+  xem Test Ad (`Reward granted`) → tự retry → NeedKey gate (`Summary turns left:
+  3`), không crash, giữ vị trí đọc, logcat sạch FATAL; JVM `SummaryRepositoryTest`
+  3/3 (key tách model/ver, sanitize OpenRouter) + full suite 69/69 + ruler 64/64 +
+  Go PASS + APK demoDebug SUCCESS. Chưa: spot-check nội dung 3 sách (cần key),
+  cache-hit mở lại (cần 1 tóm tắt thật), wiki 2 máy (cần Firebase + key), cap 500
+  chương, opt-out upload, C4 2 flavor.
 
 ### B6. Tối ưu vùng hiển thị + liền mạch đọc (review screenshot 5 màn, 2026-10-11) — [x]
 
