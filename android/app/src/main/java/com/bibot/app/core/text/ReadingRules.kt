@@ -58,6 +58,18 @@ object ReadingRules {
     /** True nếu rulepack đã nạp xong (sẵn sàng reuse). */
     fun isReady(): Boolean = cached != null
 
+    /** Test-only (H2.1): nạp rulepack đã parse (đọc JSON thật, không Context) để
+     * cleanForTts/applyIfReady/isDropLineReady chạy được trên JVM thường. */
+    fun initForTest(rules: List<Rule>): List<Rule> {
+        cached = rules
+        return rules
+    }
+
+    /** Test-only: trả cache về chưa-init để không rò rỉ giữa các test class. */
+    fun resetForTest() {
+        cached = null
+    }
+
     /** Rewrite qua ruler nếu đã init, chưa thì trả nguyên (caller chạy code cứng tiếp). */
     fun applyIfReady(text: String, lang: String = "vi"): String {
         val rules = cached ?: return text

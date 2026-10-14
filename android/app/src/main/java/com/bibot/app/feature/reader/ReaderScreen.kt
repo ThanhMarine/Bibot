@@ -810,6 +810,11 @@ fun ReaderScreen(
                         sentIdx++; continue
                     }
                     val pauseMs = if (needPause) 2000L else 0L
+                    // D-verify máy thật (tạm, gated DEBUG): text cuối gửi engine + ruler sẵn sàng?
+                    if (com.bibot.app.BuildConfig.DEBUG) android.util.Log.d(
+                        "BibotDbg",
+                        "speak c$chapIdx s$sentIdx ruler=${com.bibot.app.core.text.ReadingRules.isReady()} lang=$readLang text=$plain"
+                    )
                     var pcm: ByteArray? = null
                     var mime = "audio/mp3"
                     // A1.2: lookup content-addressed TRƯỚC khi synth — cùng text+voice

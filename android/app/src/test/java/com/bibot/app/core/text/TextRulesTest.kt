@@ -1,7 +1,9 @@
 package com.bibot.app.core.text
 
 import com.bibot.app.core.tts.VietnameseChunker
+import org.junit.AfterClass
 import org.junit.Assert.*
+import org.junit.BeforeClass
 import org.junit.Test
 import java.io.File
 
@@ -10,6 +12,30 @@ import java.io.File
  * Chạy: :app:testDemoDebugUnitTest. BlockTextReader/TextCleaner pure-JVM.
  */
 class TextRulesTest {
+
+    companion object {
+        // H2.1: hàm cứng đã xóa — cleanForTts chỉ còn đường ruler; nạp JSON thật
+        // (giống ReadingRulesTest) để test chạy đường production. Reset sau để
+        // không rò rỉ sang test class khác (chunkGuard default).
+        @BeforeClass
+        @JvmStatic
+        fun setupRules() {
+            val candidates = listOf(
+                File("src/main/assets/reading-rules.json"),
+                File("app/src/main/assets/reading-rules.json")
+            )
+            val f = requireNotNull(candidates.firstOrNull { it.exists() }) {
+                "thiếu assets reading-rules.json (chạy từ module :app)"
+            }
+            ReadingRules.initForTest(ReadingRules.parse(f.readText(Charsets.UTF_8)))
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun teardownRules() {
+            ReadingRules.resetForTest()
+        }
+    }
 
     @Test
     fun chunker_keepsParentheticalWhole() {
@@ -38,15 +64,13 @@ class TextRulesTest {
 
     @Test
     fun figureRefs_viEn() {
-        assertEquals("Xem (hình 5) nhé.", TextCleaner.readFigureRefs("Xem (Fig. 5) nhé.", "vi"))
-        assertEquals("Trích số 12 hay.", TextCleaner.readFigureRefs("Trích No. 12 hay.", "vi"))
-        assertEquals("See (figure 5).", TextCleaner.readFigureRefs("See (Fig. 5).", "en"))
-        assertEquals("Bảng number 3.", TextCleaner.readFigureRefs("Bảng No. 3.", "en"))
-        // Không chấm → giữ nguyên (không ăn "no 5" tiếng Anh).
-        assertEquals("There is no 5 here.", TextCleaner.readFigureRefs("There is no 5 here.", "en"))
-        // Qua pipeline đầy đủ.
+        // H2.1: readFigureRefs đã xóa — khóa hành vi qua pipeline đầy đủ (ruler fig/no).
         assertEquals("Xem (hình 5) nhé.", TextCleaner.cleanForTts("Xem (Fig. 5) nhé.", "vi"))
+        assertEquals("Trích số 12 hay.", TextCleaner.cleanForTts("Trích No. 12 hay.", "vi"))
         assertEquals("See (figure 5).", TextCleaner.cleanForTts("See (Fig. 5).", "en"))
+        assertEquals("Bảng number 3.", TextCleaner.cleanForTts("Bảng No. 3.", "en"))
+        // Không chấm → giữ nguyên (không ăn "no 5" tiếng Anh).
+        assertEquals("There is no 5 here.", TextCleaner.cleanForTts("There is no 5 here.", "en"))
     }
 
     @Test

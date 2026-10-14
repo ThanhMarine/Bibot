@@ -139,9 +139,16 @@ object BlockTextReader {
     private val firstChapterRegex = Regex(
         """(?i)^\s*(?:#+\s*)?(chương|phần|tập|hồi|quyển|truyện|chuyện|mục|book|part|chapter)\s+(1|01|một|nhất|đầu|thứ nhất|first|one|i)\b"""
     )
-    // Trang bìa/mục lục/bản quyền của EPUB không chữ (spine đã bỏ nav/linear=no)
+    // Trang bìa/mục lục/bản quyền của EPUB không chữ (spine đã bỏ nav/linear=no).
+    // H2.2: GIỮ code có lý do — điều kiện kép (content blank + title match) gắn với
+    // cấu trúc spine, không biểu diễn được bằng rule dòng của rulepack (không có
+    // rule nào khớp tiêu đề spine). Extract hàm pure để test được.
     private val epubSkippableTitleRegex =
         Regex("""(?i)^\s*(bìa|cover|mục lục|table of contents|contents|toc|copyright|bản quyền)\b""")
+
+    /** Spine EPUB/MOBI không chữ mà tiêu đề là bìa/mục lục/bản quyền → bỏ, khỏi đọc trang trắng. */
+    fun isSkippableEpubTitle(title: String): Boolean =
+        epubSkippableTitleRegex.containsMatchIn(title.trim())
 
     private fun isPageNumberLine(trimmed: String): Boolean {
         if (trimmed.isEmpty()) return false
@@ -265,7 +272,7 @@ object BlockTextReader {
             for (ch in EpubReader.chapters(file, defaultTitle).take(MAX_CHAPTERS)) {
                 val c = if (faithful) cleanBlockDisplay(ch.text) else cleanBlock(ch.text)
                 // Trang bìa/mục lục/bản quyền không chữ → bỏ, khỏi đọc trang trắng
-                if (c.isBlank() && epubSkippableTitleRegex.containsMatchIn(ch.title)) continue
+                if (c.isBlank() && isSkippableEpubTitle(ch.title)) continue
                 val content = if (c.isNotBlank()) c else ""
                 onChapter?.invoke(ch.title, content)
                 out.add(ChapterBlock(ch.title, if (onChapter != null) "" else content))
@@ -282,7 +289,7 @@ object BlockTextReader {
             val out = ArrayList<ChapterBlock>()
             for (ch in MobiReader.chapters(file, defaultTitle).take(MAX_CHAPTERS)) {
                 val c = if (faithful) cleanBlockDisplay(ch.text) else cleanBlock(ch.text)
-                if (c.isBlank() && epubSkippableTitleRegex.containsMatchIn(ch.title)) continue
+                if (c.isBlank() && isSkippableEpubTitle(ch.title)) continue
                 val content = if (c.isNotBlank()) c else ""
                 onChapter?.invoke(ch.title, content)
                 out.add(ChapterBlock(ch.title, if (onChapter != null) "" else content))

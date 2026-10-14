@@ -485,8 +485,9 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
   (`epubSkippableTitleRegex`; spine nav/`linear=no` vốn đã bỏ).
 - [x] D1.6 Đánh đổi đã ghi nhận: dòng số đứng riêng trong NỘI DUNG (thơ, `(1984)`)
   cũng bị bỏ; sách không mốc chuẩn thì phần đầu vẫn đọc như cũ.
-- [ ] D1.7 Verify máy thật: sách Việt có trang bìa + mục lục chấm + `Trang x` footer
-  → TTS vào thẳng Lời giới thiệu/Chương 1, không đọc số trang.
+- [x] D1.7 Verify máy thật (XONG 2026-10-14, Xiaomi + offline voice): sách `dverify.md`
+  (bìa `12`/`- 7 -`/`Trang 3` + mục lục chấm + NXB) → chunk đầu là Lời giới thiệu,
+  không đọc số trang (log BibotDbg + tai user).
 
 ### D2. Ngày tháng (`TextCleaner.readDates` + Go `readDatesGo`) — [x]
 
@@ -500,7 +501,9 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
 - [x] D2.4 Go giữ chữ số cho engine (`ngày 31 tháng 12 năm 2026`); Kotlin đọc chữ.
 - [x] D2.5 Đánh đổi đã ghi nhận: phân số `3/5` → đọc thành ngày (trước đây `3 5` cũng sai);
   ISBN/front-matter nhiều số được D1.3 bỏ trước nên không tới đây.
-- [ ] D2.6 Verify máy thật: nghe `31/12`, `31-12-2026`, `1.440 đồng`, `12:30`.
+- [x] D2.6 Verify máy thật (XONG 2026-10-14): `31/12`→*ngày ba mươi mốt tháng mười
+  hai*, `31-12-2026`→*…năm hai nghìn hai mươi sáu*, `1.440 đồng`→*1440 đồng*
+  (thoát đúng), `12:30` giữ (log + tai).
 
 ### D3. Nhiệt độ (`normalizeDegrees` 2 bên) + vá chữ chẻ — [x]
 
@@ -509,7 +512,8 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
 - [x] D3.2 BUG PHÁT HIỆN KHI TEST: quy tắc vá chữ chẻ `M èo→Mèo` ăn luôn
   `độ C hôm nay` → `độ Chôm nay` (lỗi cũ, cả 2 bên). Fix: giữ nguyên token
   chữ đơn `A-F/K/O/X/Y` (`vitamin C`, `tia X quang`, `điểm B`) — `SOLO_TOKEN_LETTERS`.
-- [ ] D3.3 Verify máy thật: `25-30 độ C`, `vitamin C mỗi ngày`, `M èo` (PDF kern).
+- [x] D3.3 Verify máy thật (XONG 2026-10-14): `25-30 độ C`→*25 đến 30 độ C*,
+  `25°C`→*25 độ C*, `vitamin C` giữ, `M èo`→*Mèo* (log + tai).
 
 ### D4. Số La Mã (`readRomanNumerals` + Go `readRomanGo`) — [x]
 
@@ -520,7 +524,10 @@ Thứ tự đọc chuẩn: **tựa sách/tác giả** (đọc từ metadata — 
 - [x] D4.2 Phi chuẩn sách cũ `Phần IIX` → `phần tám` (map `IIX→8`; sai khác như
   `IIII` vẫn giữ nguyên). Go giữ chữ số (`Phần 8`).
 - [x] D4.3 Chỉ sau từ khóa nên `Louis XIV`, `I` đứng riêng giữ nguyên.
-- [ ] D4.4 Verify máy thật: `Chương X`, `thế kỷ XX`, `Phụ lục VII`, `Phần IIX`.
+- [x] D4.4 Verify máy thật (XONG 2026-10-14): `Phụ lục VII`→*bảy*, `thế kỷ XX`→
+  *hai mươi*, `Phần IIX`→*tám*, `Fig. 5`→*hình 5*, `No. 12`→*số 12*,
+  `thứ XVIII` giữ (đúng D4.3); nit duy nhất "bảy dính tóm" là prosody engine,
+  text đúng (log + tai user).
 
 ### D5. Verify code (đã chạy)
 
@@ -800,12 +807,32 @@ JSON thắng về nhẹ + đa nền tảng 0-dependency.
   `MiniJson` thuần (~90 dòng, đủ schema sinh bởi script, 0 dep). Verify: compile
   61/61 + Go `-count=1` 3 package + JVM 23/23 (5 ReadingRules + 9 TextRules +
   9 TtsSegments) + `assembleDemoDebug` SUCCESS, APK 58.881.939B (+107B).
-- [ ] H2.1 Xóa hàm cứng dates/degrees/roman/figure sau khi v2 chạy ổn định ngoài máy thật
-  (port case sang `tests[]` xong ở H2.0; xóa dần `tts_test.go` trùng).
-  TRẠNG THÁI 2026-10-13: CHƯA ĐỦ ĐIỀU KIỆN — v2 mới verify máy ảo, chưa có máy thật
-  (đợi D1.7/D2.6/D3.3/D4.4); KHÔNG xóa lúc này để giữ fallback an toàn.
-- [ ] H2.2 `BlockTextReader` chỉ còn state machine buffer/discard (pattern đã lấy từ
-  ruler ở vòng dòng từ H2.0; còn `dropPageNumberLines` vòng khối giữ code theo H2.0).
+- [x] H2.1 Xóa hàm cứng dates/degrees/roman/figure (XONG 2026-10-14 — máy thật Xiaomi,
+  D1.7/D2.6/D3.3/D4.4 đạt cả text lẫn tai, trừ 1 nit prosody engine "bảy dính tóm"):
+  xóa `readDates/readDay/normalizeDegrees/readRomanNumerals/readFigureRefs` +
+  regex trong `TextCleaner.kt` (caller duy nhất là `cleanForTts`, test chuyển sang
+  integration qua pipeline); `romanToInt/numberToVietnameseWords/validRomanRegex` GIỮ
+  (hook ruler dùng); `readPageNumbers` GIỮ (lookahead ngoài giao).
+  Go KHÔNG xóa (ghi nhận trung thực: `readDatesGo/...` là live path của
+  `CleanTTSText`, không có code chết — "tts_test.go trùng" không đúng kiến trúc Go).
+  Test: `TextRulesTest.figureRefs` chuyển integration + `ReadingRules.initForTest/
+  resetForTest` mới (nạp JSON thật trên JVM). Verify: JVM 66/66 + ruler 64/64 +
+  Go vet 0 + test PASS + máy thật đọc lại `dverify.md` ra text Y HỆT 14/14 câu
+  (log BibotDbg pid mới), sạch FATAL. Nit prosody "bảy+tóm dính" là engine, không code.
+- [x] H2.2 `BlockTextReader` chỉ còn state machine buffer/discard (XONG audit 2026-10-14 —
+  KHÔNG xóa fallback, H2.1 khóa đến khi có máy thật): vòng dòng/vòng khối/speak-time
+  đều ruler-first (`isDroppableLine`→drop.page_number/toc_leader,
+  `isReadingStartMarker`→start.intro/first_chapter, `cleanBlock`→`cleanForTts`→
+  `applyIfReady` trước `readDates/Degrees/Roman/FigureRefs`); giữ code có lý do:
+  `readPageNumbers` (lookahead ngoài giao), `dropPageNumberLines` vòng khối,
+  `epubSkippableTitleRegex` (điều kiện kép blank+title gắn spine — extract hàm pure
+  mới `isSkippableEpubTitle` + `BlockTextReaderTest` 2 test, thay 2 call-site
+  EPUB/MOBI), heading/marker/chunker-guard cấu trúc. Verify: ruler 64/64 + Go
+  vet 0 + test PASS + JVM 66/66 (64 cũ + 2 mới) + `assembleDemoDebug` SUCCESS.
+  BỔ SUNG sau H2.1 (2026-10-14): fallback đã xóa thật nên H2.2 nay đúng theo chữ —
+  `BlockTextReader` còn state machine buffer/discard + code cấu trúc
+  (heading/marker/spine/PDF) + 2 hàm GIỮ có lý do (`readPageNumbers`,
+  `dropPageNumberLines`); pattern đọc sách 100% qua rulepack.
 - [x] H2.3 Chunker đọc params (XONG 2026-10-13): `VietnameseChunker` nhận
   `guard: ChunkGuard = ReadingRules.chunkGuard()` (snapshot lúc dựng; mọi `split()`
   dựng mới nên luôn tươi) — `insideBracketsOrQuote` đọc `bracketsOpen/Close/quotes`,

@@ -236,29 +236,16 @@ object TextCleaner {
         text = danglingOpen.replace(text, "")
         text = danglingMid.replace(text, "")
         text = danglingParen.replace(text, "")
-        // 3a. ngày tháng + độ — CHẠY ĐẦU NHÓM SỐ, trước readPageNumbers,
-        // "/"→" " (b6), dashBetween (b5) và numDot (1.440):
-        // "31/12" → "ngày ... tháng ..."; "31-12-2026"/"31/12/2026" → thêm "năm ...";
-        // "25-30 độ C" giữ "đến" (dashBetween lo); "25°C" → "25 độ C".
-        // Quy ước phân biệt: không-năm chỉ nhận "/" (31/12 = ngày);
-        // "-" không năm là khoảng ("100-120" → "đến", giữ nguyên hành vi cũ).
-        // H2 ruler: rewrite qua rulepack TRƯỚC (nếu Application đã init) — các hàm
-        // cứng dưới thành no-op cho case đã port (idempotent), giữ làm fallback khi
-        // rules chưa sẵn. readPageNumbers GIỮ code (cần lookahead, ngoài giao 3 engine).
+        // 3a. ngày/độ/La Mã/Fig-No — H2.1 (verify máy thật 2026-10-14, parity log
+        // BibotDbg trên ART): rulepack là đường duy nhất; hàm cứng đã xóa.
+        // readPageNumbers GIỮ code (cần lookahead, ngoài giao 3 engine).
+        // Quy ước giữ nguyên: không-năm chỉ nhận "/" (31/12 = ngày);
+        // "-" không năm là khoảng ("100-120" → "đến"); "1.440"/"12:30" thoát;
+        // "Fig./No." bắt buộc có chấm; La Mã chỉ sau từ khóa.
         text = ReadingRules.applyIfReady(text, lang)
-        text = readDates(text)
-        text = normalizeDegrees(text)
         // 3b. số trang → đọc thành chữ: "page/Trang 456" → "trang bốn trăm năm mươi sáu".
         // Chạy sớm, chỉ cụm có từ khóa page/trang nên không động vào 1.440/3,5/2x3.
         text = readPageNumbers(text)
-        // 3c. số La Mã sau từ khóa: "thế kỷ XI-XIX" → "thế kỷ mười một đến thế kỷ mười chín".
-        // Chỉ sau từ khóa (thế kỷ/chương/phần...) nên không ăn chữ thường ("I", "C", "Louis XIV" giữ nguyên).
-        // (Ruler ở 3a đã rewrite trước; hàm cứng no-op cho case đã port — giữ làm fallback.)
-        text = readRomanNumerals(text)
-        // 3d. D6: trích dẫn hình/bảng — "Fig. 5" → "hình 5" (VI) / "figure 5" (EN);
-        // "No. 12" → "số 12"/"number 12". Dấu chấm BẮT BUỘC (không ăn "no 5" tiếng Anh).
-        // Chạy trước abbrevDot/numDot (bước 5) để viết tắt không bị xử lý riêng.
-        text = readFigureRefs(text, lang)
         // 4. số dính chữ (reasoning leak)
         text = removeDigitGluedToLetter(text)
         // 5. viết tắt/số
@@ -313,92 +300,13 @@ object TextCleaner {
         }
     }
 
-    // Ngày tháng: có năm (//.- đều nhận) hoặc không năm (chỉ "/").
-    // "31/12" → "ngày ba mươi mốt tháng mười hai";
-    // "31-12-2026" → "... năm hai nghìn hai mươi sáu".
-    // Validate ngày 1-31/tháng 1-12/năm 1000-2999 (2 số → 2000+) nên
-    // "1.440" (tháng 44), "3.5" (thiếu năm, không phải "/"), "12:30" đều thoát.
-    private val dateFullRegex =
-        Regex("""(?i)(?:ngày\s+)?\b([0-3]?\d)\s*[/\-.]\s*([01]?\d)\s*[/\-.]\s*(\d{2}|\d{4})\b""")
-    private val dateShortRegex =
-        Regex("""(?i)(?:ngày\s+)?\b([0-3]?\d)\s*/\s*([01]?\d)\b""")
-
-    fun readDates(s: String): String {
-        if (s.isEmpty()) return s
-        var t = dateFullRegex.replace(s) { m ->
-            val d = m.groupValues[1].toIntOrNull() ?: return@replace m.value
-            val mo = m.groupValues[2].toIntOrNull() ?: return@replace m.value
-            val yRaw = m.groupValues[3]
-            if (d !in 1..31 || mo !in 1..12) return@replace m.value
-            val year = when (yRaw.length) {
-                4 -> yRaw.toIntOrNull()?.takeIf { it in 1000..2999 } ?: return@replace m.value
-                2 -> 2000 + (yRaw.toIntOrNull() ?: return@replace m.value)
-                else -> return@replace m.value
-            }
-            "${readDay(d)} tháng ${numberToVietnameseWords(mo.toString())} năm ${numberToVietnameseWords(year.toString())}"
-        }
-        t = dateShortRegex.replace(t) { m ->
-            val d = m.groupValues[1].toIntOrNull() ?: return@replace m.value
-            val mo = m.groupValues[2].toIntOrNull() ?: return@replace m.value
-            if (d !in 1..31 || mo !in 1..12) return@replace m.value
-            "${readDay(d)} tháng ${numberToVietnameseWords(mo.toString())}"
-        }
-        return t
-    }
-
-    /** "ngày 5" đọc "ngày mùng năm" (ngày 1-10 có "mùng"), còn lại "ngày <số>". */
-    private fun readDay(d: Int): String {
-        val w = numberToVietnameseWords(d.toString())
-        return if (d in 1..10) "ngày mùng $w" else "ngày $w"
-    }
-
-    // Nhiệt độ: "25°C"/"25-30°C" → "25 độ C"/"25-30 độ C" (dashBetween đổi "đến" sau);
-    // "30độ" dính → "30 độ". Không có °/độ → trả nguyên (rẻ).
-    private val degreeCRegex = Regex("""(?i)(\d)\s*°\s*C\b""")
-    private val degreeFRegex = Regex("""(?i)(\d)\s*°\s*F\b""")
-    private val degreeLoneRegex = Regex("""°""")
-    private val digitStuckDegreeRegex = Regex("""(\d)\s*(độ)""", RegexOption.IGNORE_CASE)
-
-    fun normalizeDegrees(s: String): String {
-        if (s.isEmpty()) return s
-        if ('°' !in s && !s.contains("độ", ignoreCase = true)) return s
-        var t = degreeCRegex.replace(s, "$1 độ C")
-        t = degreeFRegex.replace(t, "$1 độ F")
-        t = degreeLoneRegex.replace(t, " độ ")
-        t = digitStuckDegreeRegex.replace(t, "$1 $2")
-        return t
-    }
-
-    // Từ khóa đứng trước số La Mã — "thế kỷ" xếp trước "kỷ" để match dài nhất;
-    // "phụ lục" cho "Phụ lục VII".
-    private const val ROMAN_KEYWORDS = """thế\s+kỷ|kỷ|chương|phần|hồi|tập|quyển|mục|điều|khoản|phụ\s+lục"""
-    private val romanRangeRegex =
-        Regex("""(?i)\b($ROMAN_KEYWORDS)\s+([IVXLCDM]+)\s*[-–—_]\s*([IVXLCDM]+)\b""")
-    // Đuôi ([^...]|$) thay \b trần (parity ruler roman.single): chặn tái-match "m"
-    // trong output của range ("mười…" — \b ASCII coi "m|ư" là biên). Giữ $3 nguyên.
-    private val romanSingleRegex =
-        Regex("""(?i)\b($ROMAN_KEYWORDS)\s+([IVXLCDM]+)([^A-Za-z0-9À-ɏḀ-ỹ]|$)""")
+    // H2.1: readDates/normalizeDegrees/readRomanNumerals/readFigureRefs + regex đã xóa
+    // (verify máy thật 2026-10-14: ruler cho output trùng trên ART). Logic sống trong
+    // rulepack (tools/rules/reading-rules.ruler) + hook "roman/day/month/year/num"
+    // (ReadingRules.kt) dùng chung romanToInt/numberToVietnameseWords dưới đây (GIỮ).
+    // validRomanRegex phục vụ romanToInt (hook ruler) nên giữ lại.
     private val validRomanRegex =
         Regex("""^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$""")
-
-    /** "thế kỷ XI-XIX" → "thế kỷ mười một đến thế kỷ mười chín"; roman sai ("IIII") giữ nguyên. */
-    fun readRomanNumerals(s: String): String {
-        if (s.isEmpty()) return s
-        var t = romanRangeRegex.replace(s) { m ->
-            val a = romanToInt(m.groupValues[2])
-            val b = romanToInt(m.groupValues[3])
-            if (a == null || b == null) m.value
-            else {
-                val kw = m.groupValues[1]
-                "$kw ${numberToVietnameseWords(a.toString())} đến $kw ${numberToVietnameseWords(b.toString())}"
-            }
-        }
-        t = romanSingleRegex.replace(t) { m ->
-            val v = romanToInt(m.groupValues[2])
-            if (v == null) m.value else "${m.groupValues[1]} ${numberToVietnameseWords(v.toString())}${m.groupValues[3]}"
-        }
-        return t
-    }
 
     // D6: nhóm viết tắt trích dẫn — "Fig."/"No."/"St."... + "." cuối chunk KHÔNG phải
     // hết câu (kẻo chunker chẻ "(Fig." | "5)" và TTS ngắt giữa trích dẫn).
@@ -419,22 +327,6 @@ object TextCleaner {
             .substringAfterLast('[').substringAfterLast('{').substringAfterLast('"')
             .substringAfterLast('“').trim().lowercase()
         return w in abbrev
-    }
-
-    // D6: "Fig. 5" → "hình 5" (VI) / "figure 5" (EN); "No. 12" → "số 12"/"number 12".
-    // Dấu chấm bắt buộc — không ăn "no 5" trong câu tiếng Anh.
-    private val figRefRegex = Regex("""(?i)\bfig\.\s*(\d{1,4})\b""")
-    private val noRefRegex = Regex("""(?i)\bno\.\s*(\d{1,4})\b""")
-
-    fun readFigureRefs(s: String, lang: String = "vi"): String {
-        if (s.isEmpty()) return s
-        var t = figRefRegex.replace(s) { m ->
-            if (lang == "en") "figure ${m.groupValues[1]}" else "hình ${m.groupValues[1]}"
-        }
-        t = noRefRegex.replace(t) { m ->
-            if (lang == "en") "number ${m.groupValues[1]}" else "số ${m.groupValues[1]}"
-        }
-        return t
     }
 
     /** Roman hợp lệ → 1..3999; phi chuẩn thường gặp trong sách cũ (IIX=8) → map cứu; còn lại null. */
