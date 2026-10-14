@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -1495,7 +1496,9 @@ fun ReaderScreen(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 4.dp, start = 16.dp, end = 16.dp, bottom = contentBottomInset()),
+                            // Lề hẹp 10dp kiểu ReadEra (was 16dp): thêm ~12dp ngang
+                            // cho font lớn hơn mà không xuống dòng sớm; BODY căn đều.
+                            contentPadding = PaddingValues(top = 4.dp, start = 10.dp, end = 10.dp, bottom = contentBottomInset()),
                             verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             item(key = "head-$currentChapter") {
@@ -1524,10 +1527,11 @@ Column(
                                          .padding(vertical = 3.dp)
                                          .padding(bottom = prefsState.readerParagraphMargin.dp)
                                  ) {
-                                     Text(
-                                         if (hasPause) "$displayText ⏸2s" else displayText,
-                                         fontSize = prefsState.readerFontSizeSp.sp,
-                                         lineHeight = (prefsState.readerFontSizeSp * prefsState.readerInterline).sp,
+                                      Text(
+                                          if (hasPause) "$displayText ⏸2s" else displayText,
+                                          fontSize = prefsState.readerFontSizeSp.sp,
+                                          lineHeight = (prefsState.readerFontSizeSp * prefsState.readerInterline).sp,
+                                          textAlign = TextAlign.Justify,
                                          color = if (isCurrent || isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                          fontWeight = if (isCurrent || isSel || isHit) FontWeight.Bold else FontWeight.Normal,
                                          modifier = Modifier
@@ -1564,15 +1568,32 @@ Column(
                     }
                 }
             }
-            // B3.2: FAB TTS tròn (đáy chỉ còn FAB — cụm chương đã dời lên top).
-            FloatingActionButton(
-                onClick = { togglePlay() },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 32.dp)
+            // B3.2: cụm FAB một tay — nút Back nằm trên nút Play (cùng kiểu FAB tròn).
+            // Nâng lên giữa màn hình: Play cách đáy ~30% chiều cao, Back ~40% (FAB + gap ≈ 10%).
+            Column(
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = (config.screenHeightDp * 0.30f).dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = playDesc
-                )
+                SmallFloatingActionButton(
+                    onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null } },
+                    // Nền trong mờ như pill điều khiển (alpha 0.55) → chữ trôi bên dưới vẫn thấy.
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                ) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = stringResource(R.string.reader_back)
+                    )
+                }
+                FloatingActionButton(
+                    onClick = { togglePlay() },
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                ) {
+                    Icon(
+                        if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = playDesc
+                    )
+                }
             }
             // B3.3/F2.5: dialog đổi vị trí khi đang READ.
             val pj = pendingJump

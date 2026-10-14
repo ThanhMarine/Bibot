@@ -1,5 +1,35 @@
 # Tóm tắt trạng thái dự án 
 
+## Bạn hãy đánh giá cơ bản dự án Bibot và các nguôn ngữ nên dùng để đạt tối ưu cho Android/ I OS/ ( C/C++, Python, Go, Kotlin...)
+Tôi soi nhanh core hiện tại để đánh giá chính xác rồi trả lời.
+
+1. Đánh giá cơ bản Bibot (trạng thái sau commit 0aecb6c)
+Điểm mạnh (giữ + mới):
+Go core (bibot/core, 8 package) + gomobile bind → .aar: logic LLM/TTS/STT/chunker/memory/pdf viết 1 lần, UI gọi qua cmd/mobile (LLMStream, TTSSynthesize, ChunkerSplit…). Đây là quyết định đúng nhất của dự án — và là cửa miễn phí sang iOS (xem mục 2).
+R0 đã gộp 2 màn đọc thành 1 `ReaderScreen` duy nhất (BookScreen/StoryScreen cũ đã xóa, chỉ còn comment nhắc) + Top_bar thống nhất (B6.15: bỏ nút Home/bottom-bar/Rail, Back trái + Chat/Settings phải).
+Text pipeline đã sâu: BlockTextReader (stream 16KB, ToUnicode/TCVN3, scan-detect), TextCleaner + rulepack v3 (17 rules, tests 64/64, parity 3 engine Kotlin/Go/Python) + `MobiReader` parser PalmDB thật + chunker + chain Piper→Cloud→Offline.
+Tách display-faithful vs TTS-smart (PREP v4: `.prep` lưu nguyên bản, smart chạy ở speak-time, karaoke giữ index) + EPUB rich (ảnh + format gốc, zoom, karaoke) + PDF render qua Mutex (hết race `Current page not closed`).
+Player gộp về 1 engine `PlayerViewModel` (ExoPlayer); `FloatingControlBar` còn file nhưng 0 caller.
+Persistence chuẩn Android (Room + DataStore), model tải khi cần (APK không phình). Verify: JVM 52/52 + Go PASS + walkthrough máy ảo.
+Điểm yếu (đúng thứ tự sửa trong checklist R0→A3):
+State vẫn rải `remember` trong composable (chưa có `ReaderViewModel`), nav 1 biến `currentMode` không backstack (chỉ callback Back từng màn).
+`position = chap*100+sent` vẫn sai chương >100 câu (A2.4 chưa làm — đã kiểm chứng code còn `/100`, `%100` trong `ReaderScreen`).
+Hàm cứng dates/degrees/roman/figure vẫn giữ làm fallback (H2.1 đợi verify máy thật mới xóa).
+Chưa có iOS (0 reference trong code).
+2. Ngôn ngữ tối ưu cho Android + iOS
+Tầng	Android	iOS	Vì sao
+UI	Kotlin + Compose (giữ)	Swift + SwiftUI (mới, shell mỏng)	Native cho đúng guideline, TalkBack/VoiceOver, widget/lockscreen; không Flutter/RN (tăng ~20–50MB, audio  phức tạp)
+Logic chung	Go qua gomobile (giữ, đã có)	Cùng Go core → .xcframework (gomobile bind -target ios, API đã thiết kế callback-able)	Viết 1 lần chạy 2 nền tảng: LLM/chunker/memory/clean-text/TTS-REST. iOS tái dùng miễn phí ~80% core
+Audio realtime (AEC/VAD/duplex)	C/C++ (NDK, Oboe)	C++ chung + AudioUnit	NlmsAec.kt bằng Kotlin và audio_streamer.c di sản Pi không phải chỗ cho DSP vòng lặp mẫu — gom vào 1 module C++ dùng chung 2 OS, UI chỉ gọi
+STT/TTS/OCR on-device	ML Kit + Vosk/Sherpa/Piper hiện có	Speech framework + AVSpeech + CoreML/Vision OCR	Dùng SDK hệ điều hành, model tải khi cần như hiện tại; không port engine C++ qua lại
+PDF xem	PdfRenderer framework (E1.1, +0 byte)	PDFKit framework (+0 byte)	Đúng bài ReadEra đã đo; cấm MuPDF/Readium AAR nặng + vướng AGPL
+Python	Không ship trên mobile	Không	Chỉ dùng tooling: script sinh test, relay/server, CI. Nhét Python vào APK/IPA = nặng, khởi động chậm, ký app phức tạp
+Lộ trình iOS tối thiểu: gomobile bind -target ios → Bibot.xcframework → SwiftUI shell (Library/Reader/Player dùng SwiftUI + PDFKit + AVSpeech) → viết lại lớp mỏng platform-specific (player, STT/TTS on-device, Keychain thay DataStore). Logic đọc sách (D1–D4), chunker, memory sang nguyên.
+
+Chốt: giữ nguyên tắc "Go là não chung, Kotlin/Swift là mặt + tay, C++ là tai (DSP), framework OS là mắt (render/PDF/OCR)" — Bibot đã đi đúng 70%, việc còn lại là R0 gộp màn, E1.1 display path, rồi mới tính SwiftUI shell.
+
+
+
 ## Ngày cập nhật: 2026-09-30 (Cập nhật lần 34 — VoiceChatViewModel + duplex AEC + chống ảo giác + chatHistory + fix Điểm tin/sherpa-vi)
 
 > File này là single source of truth cho toàn repo (Pi + Android). Lịch sử v25 trước đó giữ nguyên ở cuối file. Build_plan chi tiết cho Android xem `Build_plan.md` và `android_app/Readme.md`.

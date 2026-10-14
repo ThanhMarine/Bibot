@@ -147,7 +147,9 @@ fun EpubRichView(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 4.dp, start = 16.dp, end = 16.dp, bottom = contentBottomInset())
+        // Giả lập sách giấy kiểu ReadEra: lề hẹp 10dp (was 16dp) để tận dụng
+        // ngang màn hình cho font lớn hơn; viền trang thể hiện qua divider/border khối.
+        contentPadding = PaddingValues(top = 4.dp, start = 10.dp, end = 10.dp, bottom = contentBottomInset())
     ) {
         // Key theo INDEX (đoạn lặp nguyên văn / nhiều <hr/> có key trùng nhau là crash).
         itemsIndexed(blocks, key = { idx, _ -> idx }) { blkIdx, b ->
@@ -228,7 +230,7 @@ fun EpubRichView(
                             MaterialTheme.typography.bodyLarge, TextAlign.Center, fontSizeSp
                         )
                         EpubReader.RichStyle.BODY -> Triple(
-                            MaterialTheme.typography.bodyLarge, TextAlign.Start, fontSizeSp
+                            MaterialTheme.typography.bodyLarge, TextAlign.Justify, fontSizeSp
                         )
                     }
                     Text(

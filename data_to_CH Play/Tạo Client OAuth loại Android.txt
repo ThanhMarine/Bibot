@@ -1,0 +1,22 @@
+Trang đó là **Tạo Client OAuth loại Android** — mỗi client chỉ nhận **1 package + 1 SHA-1**. Bạn tạo 2 client (copy-paste y nguyên):
+
+**Client 1 — Bibot Free (bản nộp store):**
+```
+Loại: Android
+Tên: Bibot Demo Release
+Tên gói: com.bibot.app
+SHA-1: 55:67:22:E2:9C:4A:72:F5:6D:D1:28:59:95:69:4F:E6:A6:9B:52:C9
+```
+
+**Client 2 — Bibot VIP:**
+```
+Loại: Android
+Tên: Bibot VIP Release
+Tên gói: com.bibot.app.vip
+SHA-1: 55:67:22:E2:9C:4A:72:F5:6D:D1:28:59:95:69:4F:E6:A6:9B:52:C9
+```
+
+Lưu ý:
+- Máy bạn không có debug keystore nên không cần tạo client debug. Nếu test nội bộ bằng `bibot-test.keystore`, tạo thêm 2 client tương tự với SHA-1 test: `2D:2D:D9:B3:D1:43:5D:E7:C2:14:09:E5:7A:2D:BE:3E:37:BD:D6:35`.
+- Sau khi upload `.aab` lần đầu lên CH Play, Play sẽ ký lại → vào `Play Console → Thiết lập → Tính toàn vẹn` lấy SHA-1 của Play, quay lại trang này tạo thêm 2 client nữa (cùng 2 package + SHA-1 Play). Không làm bước này thì bản tải từ Store sẽ lỗi đăng nhập Google/Drive.
+- Project `bibot-wiki` phải cấu hình xong **OAuth consent screen** trước, và nếu xin scope Drive thì dùng `drive.readonly` (khớp `DriveBookSource` commercial của bạn).

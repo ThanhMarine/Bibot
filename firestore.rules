@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Per-user memory sync: chi chu nhan (auth uid) duoc doc/ghi vung cua minh.
+    match /bibot/{uid}/{doc=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Wiki tom tat cong dong (B5.7): public read, auth write, doc <= 8KB.
+    // App KHONG BAO GIO upload nguyen van sach, chi tom tat phai sinh ngan.
+    match /wiki_summaries/{docId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 8000
+        && request.resource.data.model is string
+        && (!("chapterTitle" in request.resource.data)
+          || request.resource.data.chapterTitle.size() <= 200);
+      allow delete: if false;
+    }
+  }
+}

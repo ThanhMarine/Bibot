@@ -562,4 +562,6 @@
     <string name="summary_book_running">Đang tóm tắt sách dưới nền…</string>
     <string name="summary_failed">Tóm tắt thất bại. Kiểm tra mạng/key rồi thử lại.</string>
     <string name="summary_progress">Đã tóm tắt %1$d/%2$d chương</string>
+    <string name="summary_share">Chia sẻ tóm tắt của tôi lên wiki cộng đồng</string>
+    <string name="summary_share_sub">Chỉ tóm tắt phái sinh ngắn, không bao giờ gửi nguyên văn sách. Cần Firebase.</string>
 </resources>

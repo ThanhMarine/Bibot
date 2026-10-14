@@ -41,6 +41,7 @@ temp.txt
 android/local.properties
 local.properties
 *.jks
+client_secret*.json
 inst_user_settings.tmp
 
 # --- OS / tạm ---

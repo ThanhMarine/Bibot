@@ -609,6 +609,13 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
             )
             Text(stringResource(R.string.reader_paragraph_margin_sub, prefsState.readerParagraphMargin), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+
+        // B5.7: toggle chia se tom tat len wiki cong dong (mac dinh bat, tat duoc).
+        HorizontalDivider()
+        SettingSwitchRow(stringResource(R.string.summary_share), prefsState.summaryShareEnabled) {
+            scope.launch { prefs.setSummaryShareEnabled(it) }
+        }
+        Text(stringResource(R.string.summary_share_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

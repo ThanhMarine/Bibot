@@ -192,8 +192,14 @@ fun PdfPageView(
             val bmp = bitmaps[idx]
             val isSel = selectedPage == idx
             Box(
+                // Giả lập tờ giấy: lề hẹp 4dp (was 8dp) để ảnh trang tràn ngang
+                // tối đa; viền trang 0.4dp outlineVariant giữ cảm giác tờ giấy.
                 modifier = Modifier.fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .border(
+                        0.4.dp, MaterialTheme.colorScheme.outlineVariant,
+                        androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+                    )
                     .then(
                         if (isSel) Modifier.border(3.dp, MaterialTheme.colorScheme.primary)
                         else Modifier

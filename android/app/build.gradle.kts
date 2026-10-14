@@ -25,6 +25,29 @@ val vipHmacSecret: String = run {
     } else secret
 }
 
+// Firebase (FirestoreSync thu cong, khong google-services plugin): uu tien
+// local.properties (bibot.firebase.projectId/appId/apiKey, KHONG commit) -> env
+// FIREBASE_PROJECT_ID/FIREBASE_APP_ID/FIREBASE_API_KEY (CI) -> rong (=offline).
+fun fbProp(name: String): String = run {
+    val fromLocal = try {
+        val lp = rootProject.file("local.properties")
+        if (lp.exists()) {
+            val props = Properties()
+            lp.inputStream().use { props.load(it) }
+            (props.getProperty(name) ?: "").trim()
+        } else ""
+    } catch (_: Exception) { "" }
+    if (fromLocal.isNotEmpty()) fromLocal else when (name) {
+        "bibot.firebase.projectId" -> (System.getenv("FIREBASE_PROJECT_ID") ?: "").trim()
+        "bibot.firebase.appId" -> (System.getenv("FIREBASE_APP_ID") ?: "").trim()
+        "bibot.firebase.apiKey" -> (System.getenv("FIREBASE_API_KEY") ?: "").trim()
+        else -> ""
+    }
+}
+val fbProjectId = fbProp("bibot.firebase.projectId")
+val fbAppId = fbProp("bibot.firebase.appId")
+val fbApiKey = fbProp("bibot.firebase.apiKey")
+
 android {
     namespace = "com.bibot.app"
     compileSdk = 36
@@ -46,9 +69,9 @@ android {
         // I2 staging: BIBOT_RELAY_URL (env, không commit) trỏ relay staging/PageFreeze;
         // trống = dùng dev fallback local (debug) / NeedOnline (release).
         buildConfigField("String", "BIBOT_LLM_PROXY_URL", "\"" + (System.getenv("BIBOT_RELAY_URL") ?: "") + "\"")
-        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"\"")
-        buildConfigField("String", "FIREBASE_APP_ID", "\"\"")
-        buildConfigField("String", "FIREBASE_API_KEY", "\"\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"" + fbProjectId + "\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"" + fbAppId + "\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"" + fbApiKey + "\"")
         buildConfigField("String", "ADMOB_APP_ID", "\"ca-app-pub-2478233272401556~3883137708\"")
         // I2: KHÔNG nướng VIP_HMAC_SECRET vào release (R8 không giấu được string) —
         // secret chỉ có ở debug (dev test offline), release để rỗng, server verify.

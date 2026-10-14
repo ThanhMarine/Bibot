@@ -84,7 +84,7 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     `data/store/BibotPreferences.kt` (`ALLOWED_FONT_SIZES` + `readerFontSizeSp/...`),
     `feature/reader/ReaderScreen.kt` (`renderKey = derivedStateOf{...}`), UI slider ở
     `feature/settings/SettingsScreen.kt`.
-- [ ] A2.4 Đơn vị vạn năng `Hitbox + SearchWindow ±7 từ` + gộp Shell_Manager core (MỞ RỘNG 2026-10-13 — quyết user: tách progress khỏi UI vào manager chung):
+- [x] A2.4 Đơn vị vạn năng `Hitbox + SearchWindow ±7 từ` + gộp Shell_Manager core (MỞ RỘNG 2026-10-13 — quyết user: tách progress khỏi UI vào manager chung; XÁC MINH CHÍNH XONG):
   struct `Hitbox/SearchWindow` + `hitboxFromCharOffset/searchWindow` đã có trong
   `core/text/TextCleaner.kt` và search toàn sách (`runSearchFullBook`) đã dùng —
   NHƯNG progress vẫn `position = chap*100+sent` (`ReaderScreen` + `BookDetailScreen`
@@ -103,14 +103,9 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     sách dở rơi vào Đã đọc).
   - Liên hệ B1.6: `data/library` (Query+Manager) chính là phôi Shell_Manager;
     A2.4c hoàn thiện nhánh progress của nó để mọi Tab quản lý/hiển thị reuse.
-  - CODE XONG 2026-10-13 (chờ verify máy ảo ở A2.5): `ReadingPosition.kt` +
-    `ReadingPositionTest` 5/5; `BibotDatabase` v5→6 (`MIGRATION_5_6` backfill
-    `chapterIdx/sentenceIdx` từ `position`); `LibraryManager.getPosition/
-    savePosition/resumeSnapshot`; `ReaderScreen` resume/lưu/chip + announce dùng
-    `ReadingPosition` (legacy `position` giữ 1 bản); `BookDetailScreen` hiện
-    `resumeLabel()`; `LibraryQuery.READING` check `isStarted`. Full JVM 64/64
-    (59 cũ + 5 mới), `assembleDemoDebug` SUCCESS (APK ~58,7MB).
-- [ ] A2.5 Verify (đã xong resume+migration 2026-10-13 trên AVD BibotTest, còn mở sách 3–5MB/đổi font):
+  - VERIFY CUỐI: `ReadingPositionTest` 5/5 trong full JVM 69/69 + ruler 64/64 +
+    Go PASS; máy ảo + máy thật sạch FATAL; APK demo 58,5MB.
+- [x] A2.5 Verify chính (resume+migration — XONG):
   + Migration v5→6: cài đè giữ data, 3 dòng cũ giữ nguyên + backfill đúng
     (`3→(0,3)`, `4→(0,4)`, `112→(1,12)`), schema có `chapterIdx/sentenceIdx`.
   + Resume >100: sách test `resume150.md` (chương 150 câu) gieo legacy `pos=120`
@@ -119,6 +114,7 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     `chapterIdx/sentenceIdx` thật; kill app mở lại chip giữ đúng; logcat sạch FATAL.
   + Drawer badge/kệ Đang đọc: N/A trên nav hiện tại (module library chưa vào nav) —
     logic `READING` cover bởi JVM `LibraryQueryTest` + chip resume trên máy ảo.
+- [ ] A2.5b Còn mở: mở sách 3–5MB + đổi font/sách dày (chuyển sang phiên sau).
 
 ### A3. P2 — Export + Player polish (học openreader)
 
@@ -332,7 +328,9 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 - [x] B5.7 Pipeline tóm tắt dùng chung (CODE XONG 2026-10-14, chạy local-only đến khi
   có Firebase — `FirestoreSync.getWikiSummary/putWikiSummary/bumpWikiHits` + thứ tự
   local → wiki → LLM → local + upload trong `SummaryRepository`; first-writer-wins;
-  `summaryShareEnabled` (mặc định bật, pref đã có — UI toggle trong Settings còn nợ) +
+  `summaryShareEnabled` (mặc định bật — UI toggle đã có ở `SettingsScreen`
+  (`summary_share`/`summary_share_sub` EN/VI, sau cụm paragraph-margin) + setter
+  `setSummaryShareEnabled` đã có sẵn; còn nợ test opt-out trên máy) +
   KHÔNG BAO GIỜ upload nguyên văn): key chia sẻ =
   content-hash chương + model + promptVer (kế thừa B5.3/A1) → document ID cố định
   trong collection PUBLIC mới `wiki_summaries/{hash}_{model}_{promptVer}`
@@ -356,14 +354,40 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   public để sau (Detail còn mock). Rules Firestore (`wiki_summaries`: public read,
   auth write, size vài KB) ĐẶT TAY ở Firebase console — chưa làm (Firebase
   `FIREBASE_*` đang trống nên lớp share tự skip, app chạy local-only bình thường).
-- [ ] B5.6 Verify (MỘT PHẦN 2026-10-14, máy ảo BibotTest — còn live LLM + wiki +
-  worker khi có key/Firebase/máy thật): TOC icon + dialog NoCredit (`0 lượt`) →
-  xem Test Ad (`Reward granted`) → tự retry → NeedKey gate (`Summary turns left:
-  3`), không crash, giữ vị trí đọc, logcat sạch FATAL; JVM `SummaryRepositoryTest`
-  3/3 (key tách model/ver, sanitize OpenRouter) + full suite 69/69 + ruler 64/64 +
-  Go PASS + APK demoDebug SUCCESS. Chưa: spot-check nội dung 3 sách (cần key),
-  cache-hit mở lại (cần 1 tóm tắt thật), wiki 2 máy (cần Firebase + key), cap 500
-  chương, opt-out upload, C4 2 flavor.
+- [ ] B5.6 Verify (GẦN XONG 2026-10-14 đêm, máy ảo BibotTest, demoDebug 58.6MB rebuild có
+  B6.17/B6.18): wiki-hit dialog "From community cache (0 tokens)" + nhãn "AI summary,
+  may be wrong", không trừ lượt; book-level NoCredit upfront (Khe Sanh 7ch cần 8, có 3 —
+  không đốt dở); Worker chạy thật + SUCCESS (test_mobi mobi 1ch: 3→1 lượt, 2 hàng local
+  fresh + upload shared=1, giữ vị trí đọc, logcat sạch FATAL); NeedKey gate sau xóa key
+  ("No AI key/offline", KHÔNG trừ lượt, Lĩnh Nam md VI); spot-check 3 sách (Khe Sanh
+  epub 7ch / test_mobi 1ch / Lĩnh Nam 37ch • 2730 câu); toggle share ON thấy ở Settings;
+  reward cloud-chapters +3 đã grant (6→9 — pipeline reward sống). Trước đó (đầu phiên):
+  TOC icon + dialog NoCredit → Test Ad → retry → NeedKey, không crash, giữ vị trí.
+  JVM `SummaryRepositoryTest` 3/3 + full suite 69/69 + ruler 64/64 + Go PASS + máy thật
+  sạch FATAL. Còn nợ (cần nhập lại key + hết cooldown 30'): opt-out OFF→shared=0 /
+   ON→shared=1 trên chương mới, reward +3 summary turns, C4 2 flavor, cap 500 chương (code
+   đã có `MAX_CHAPTERS=500`, còn nợ test sách dày).
+  VERIFY 2026-10-14 (Khe Sanh epub, máy thật + máy ảo): máy thật tóm tắt Chương 1 OK
+  → doc wiki `{hash}_gemini-3-5-flash-lite_v1` (chapterTitle/hits/lang/model/promptVer/
+  text/updatedAt đủ 7 field); máy ảo đọc ké FREE không mất lượt + `hits` 1→2
+  (`bumpWikiHits`). Chữ `lang` lạ trên console là Google dịch tự động, không phải bug.
+  Lệch "máy ảo 1 chương cả sách" đã rõ: file epub trên máy ảo hỏng/khác bản (zip lỗi
+  → spine rỗng → 1 chương) — xóa + tải lại đúng file là đủ Chương + tóm tắt OK.
+- [x] B5.9 Đấu nối Firebase `bibot-wiki` (XONG 2026-10-14 — project user tạo mới):
+  Auth ẩn danh Enabled; Firestore `asia-southeast1` production + Rules đã Publish
+  (file `firestore.rules` mới ở repo root: `bibot/{uid}` auth-owner, `wiki_summaries`
+  public-read/auth-write ≤8KB); 2 app Android `com.bibot.app` (Bibot) +
+  `com.bibot.app.vip` (BibotV, nickname console tùy ý) — App ID
+  `1:62701146933:android:d4ea976099f1701743727c`; `build.gradle.kts` đọc
+  `bibot.firebase.projectId/appId/apiKey` từ `local.properties` (gitignore) → env CI
+  → rỗng (=offline), key Android `AIza...SA1M`; key Browser dự phòng khi 403.
+  Verify: `BuildConfig.java` demoDebug có đủ 3 giá trị; release song song
+  `Bibot.apk` 33.7MB + `BibotV.apk` 34MB (`Bibot.aab` 22.2MB + `BibotV.aab` 22.5MB),
+  `apksigner verify` cả 2 exit 0 (giữ version 1.0.2/code 3 — bản test, chưa bump);
+  demoDebug cài máy ảo `install -r` Success, logcat sạch FATAL.
+  Lệch build đã sửa: `java` trên PATH máy là Java 8 (HotSpot 25) → Gradle 8.7 vỡ;
+  chốt máy bằng `~/.gradle/gradle.properties` (`org.gradle.java.home=H:/androidkit/jdk17`,
+  ngoài repo) — `./gradlew --version` báo `JVM 17.0.17`.
 
 ### B6. Tối ưu vùng hiển thị + liền mạch đọc (review screenshot 5 màn, 2026-10-11) — [x]
 
@@ -463,7 +487,32 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   confirm → READ + persist anchor, không FATAL EXCEPTION nào của app (1 SIGSEGV là
   WebView GPU process hệ thống). Trên máy ảo không có VIP cục bộ
   (`bibot_ads.preferences_pb` chưa từng tồn tại) nên không trigger được UX hết hạn —
-  phần đó thuộc verify relay E2E của phiên kia.
+   phần đó thuộc verify relay E2E của phiên kia.
+- [x] B6.18 Lề hẹp + căn đều kiểu ReadEra (yêu cầu user 2026-10-14, theo ảnh mẫu
+  ReadEra nền giấy — code xong, build release thành công, còn nợ walkthrough máy):
+  TEXT (`ReaderScreen.kt:~1498,1532`) + EPUB rich (`EpubRichView.kt:150`) lề ngang
+  `16dp→10dp` (thêm ~12dp cho font lớn, `BODY Start→Justify`); PDF
+  (`PdfPageView.kt:195-202`) khung `horizontal 8dp→4dp` + viền tờ giấy `0.4dp
+  outlineVariant` bo 2dp (user chốt viền = 40% của 1dp). Giữ `MaterialTheme`
+  (không ép nền be — nền giấy sepia để ở E2.4).
+- [x] B6.17 Cụm FAB một tay ở màn đọc (yêu cầu user 2026-10-14, code xong — còn nợ verify máy):
+  thêm nút Back nằm trên nút Play (`ReaderScreen.kt:1571-1597`, `Column` +
+  `SmallFloatingActionButton` Back + `FloatingActionButton` Play/Pause, cùng kiểu FAB
+  tròn); Back = `stopAll()` + về kệ (`selectedBook = null`) hoặc Home (`onBackHome`)
+  khi đang ở kệ — trùng hành vi nút Back top-bar + Back hệ thống; nâng cụm lên giữa
+  màn hình phải (Play cách đáy ~30% `screenHeightDp`, Back ~40% nhờ FAB + gap 12dp —
+  tự co theo phone/tablet, dọc/ngang); nền trong mờ alpha 0.55
+  (`surfaceVariant` cho Back, `primary` cho Play — đồng bộ `FloatingControlDefaults.BackgroundAlpha`)
+   để chữ trôi bên dưới vẫn đọc được khi cuộn. VERIFY MÁY 2026-10-14 đêm (demoDebug rebuild
+   58.6MB): cụm Back+Play hiện giữa-phải màn đọc, nền trong mờ thấy chữ bên dưới, Back về
+   kệ/Home đúng, Play/Pause đọc tiếp ngay; không che chữ khi cuộn (Khe Sanh/Lĩnh Nam/
+   test_mobi + grimm10 PDF).
+- [ ] B6.19 Tùy chọn nền màn đọc (yêu cầu user 2026-10-14, CHƯA code): mặc định giữ
+  nền Trống đồng Đông Sơn hiện tại (`TrongDongWatermark.kt`); thêm option nền đơn sắc
+  — màu đơn sắc GIỐNG màu nền trống đồng (lấy từ palette watermark, không màu mới);
+  setting lưu DataStore (`readerBackground`: `drum`/`solid`), chọn ở popup ⚙ màn đọc;
+  áp dụng TEXT + EPUB rich + PDF khung (PDF giữ viền tờ giấy B6.18). Verify: đổi nền
+  không mất vị trí đọc/karaoke, persist qua restart, 2 flavor.
 
 ---
 
@@ -636,6 +685,42 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   máy hiện tại offline + không còn file đó — thay bằng PDF 3 trang tự sinh
   (`mkpdf.py`): render đủ 3 trang, `Trang 1/3` ngay, long-press neo đúng tỉ lệ.
   Còn nợ: file 1200 trang + RAM TOTAL + scan thật (ghi nhận sang B4 khi có mạng).
+
+### E2. Yêu cầu VIEW nguyên bản đạt chuẩn ReadEra/OpenReader (audit 2026-10-14)
+
+> Kết luận audit: mới đạt ~60% phần XEM. `OpenReadEra/` (`erapdf/eraepub/orecrop...`)
+> chỉ nằm trong repo, CHƯA wire (`app/build.gradle.kts` không có `externalNativeBuild`;
+> NDK chỉ cho sherpa/vosk/onnx). MuPDF-GPL loại có chủ ý (`ReadAnchor.kt:14`).
+> PDF hiện render ảnh (`PdfPageView` + `PdfRenderer`) nhưng không text-layer theo trang
+> → TTS PAGE phải map tỉ lệ ước lượng (`ReadAnchor.kt:10-13`, `ReaderScreen.kt:679-692`).
+> EPUB rich mới subset tags, chưa CSS/table/footnote, chưa phân trang thật.
+
+- [ ] E2.1 PDF — text-layer theo trang (hết map tỉ lệ):
+  `BlockTextReader.iterPdfText` flow-based → trích text kèm `pageIdx`
+  (tự làm per-page hoặc wire `erapdf` qua JNI/FIFO khi cho phép GPL);
+  `ReadAnchor PAGE {page,offset từ}` chính xác, bỏ chữ "khoảng X%".
+  File chạm: `core/text/BlockTextReader.kt`, `feature/reader/ReadAnchor.kt`,
+  `feature/reader/ReaderScreen.kt` (`enterRead/startPlayFlow`).
+- [ ] E2.2 PDF — cho đọc TEXT + karaoke với PDF chữ:
+  hiện `ReaderScreen.kt:330` ép `isPdf → PAGE`; ReadEra cho cả 2.
+  Thêm toggle thật TEXT (câu/karaoke/search) ↔ PAGE (ảnh) cho PDF text-readable;
+  chỉ khóa PAGE khi `isScannedPdf`.
+- [ ] E2.3 PDF — select/copy/search/TOC chuẩn ReadEra:
+  text selection + copy/dictionary trên PAGE, search highlight trong PAGE
+  (hiện search chỉ trên `sentences TEXT`), TOC từ outline PDF
+  (hiện PDF = 1 chương duy nhất), reflow-text option, crop margin
+  (port `orecrop/smartcrop.cpp IsRectWhite 1%` — chung với A3.4).
+- [ ] E2.4 PDF — modes hiển thị: fit-width/fit-page, single/continuous, dual-page,
+  rotation, night/sepia recolor (hiện chỉ brightness `window.screenBrightness`),
+  annotation/highlight persist theo `fileHash` (E1.3).
+- [ ] E2.5 EPUB — full rich + phân trang thật:
+  mở rộng `EpubReader.richParse` (CSS, font-family/màu, `table/ul-ol/footnote/dropcap`),
+  giữ `readImageBytes` sampled; phân trang theo font (paginated, tính % trang chuẩn)
+  thay `LazyColumn` continuous; search highlight trong rich (hiện chỉ TEXT prep);
+  EPUB scan có OCR-option hoặc giữ khóa PAGE + báo rõ.
+- [ ] E2.6 Verify E2: PDF 1200 trang mở vài giây + `x of N` ngay + RAM không tăng theo
+  trang (đo `dumpsys meminfo` như E0.4); PDF scan sepia cuộn liên tục; EPUB 1.8MB
+  ảnh/caption/bold chuẩn gốc; TTS từ PAGE neo đúng câu (không lệch %); C4 2 flavor PASS.
 
 ---
 
@@ -981,3 +1066,17 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   "Bibot VIP"), `Bibot.aab` 22.3MB + `BibotV.aab` 22.5MB. Verify aapt +
   apksigner cả 2 APK. Dist tách `v1.0.2-demo\` (public được) / `v1.0.2-vip\`
   (test nội bộ).
+
+### J3. Trạng thái phiên hiện tại (chốt theo user)
+- XONG: A2.4/A2.5 xác minh chính, H2.1/H2.2, D1.7–D4.4, B5.1–B5.5/B5.7, B6.17 (cụm FAB
+  một tay — VERIFY MÁY 2026-10-14 đêm),
+  B6.18 (lề hẹp + Justify + viền 0.4dp — code xong, thấy lề hẹp trên máy, còn nợ đo kỹ),
+  B5.9 (Firebase `bibot-wiki` đấu nối + release song song verify ký),
+  wiki 2 máy (Khe Sanh 2026-10-14: máy thật trả token → máy ảo đọc free, `hits` 1→2),
+  B6.19 (mục nền đọc drum/đơn sắc — mới ghi checklist, CHƯA code).
+- CÒN MỞ: B5.6 (còn opt-out live + reward summary + C4 2 flavor — cần nhập lại key),
+  B5.8, B6.19 (code), A2.5b (font/sách dày), A3 (export/player), E2 (view nguyên bản).
+- VERIFY CUỐI: JVM 69/69, ruler 64/64, Go PASS, demoDebug 58.6MB rebuild (B6.17/B6.18) +
+  release Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0), máy ảo + máy thật sạch FATAL.
+- NỢ SANG PHIÊN SAU: opt-out OFF/ON live (nhập lại key), reward +3 summary turns (hết
+  cooldown), C4 2 flavor, B6.19 code, rồi A3.
