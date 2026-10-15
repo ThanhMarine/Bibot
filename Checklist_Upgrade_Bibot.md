@@ -507,7 +507,10 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
    để chữ trôi bên dưới vẫn đọc được khi cuộn. VERIFY MÁY 2026-10-14 đêm (demoDebug rebuild
    58.6MB): cụm Back+Play hiện giữa-phải màn đọc, nền trong mờ thấy chữ bên dưới, Back về
    kệ/Home đúng, Play/Pause đọc tiếp ngay; không che chữ khi cuộn (Khe Sanh/Lĩnh Nam/
-   test_mobi + grimm10 PDF).
+   test_mobi + grimm10 PDF). BỔ SUNG 2026-10-15 (yêu cầu user, VERIFY MÁY cùng ngày):
+   2 nút CÙNG UI (2 `FloatingActionButton` 56dp, cùng nền primary alpha 0.55 — bỏ
+   `SmallFloatingActionButton` lệch cỡ/màu cũ), gap `12dp→170dp` (≈2.7cm: 160dp = 1 inch)
+   cho không gian 1 tay linh hoạt; Lĩnh Nam Ch.3/37 hiện 2 nút đồng nhất cách nhau ~450px.
 - [ ] B6.19 Tùy chọn nền màn đọc (yêu cầu user 2026-10-14, CHƯA code): mặc định giữ
   nền Trống đồng Đông Sơn hiện tại (`TrongDongWatermark.kt`); thêm option nền đơn sắc
   — màu đơn sắc GIỐNG màu nền trống đồng (lấy từ palette watermark, không màu mới);

@@ -1568,17 +1568,18 @@ Column(
                     }
                 }
             }
-            // B3.2: cụm FAB một tay — nút Back nằm trên nút Play (cùng kiểu FAB tròn).
-            // Nâng lên giữa màn hình: Play cách đáy ~30% chiều cao, Back ~40% (FAB + gap ≈ 10%).
+            // B3.2: cụm FAB một tay — Back + Play CÙNG UI (2 FloatingActionButton 56dp,
+            // cùng nền primary alpha 0.55), cách nhau ~170dp (≈2.7cm — 160dp = 1 inch =
+            // 2.54cm) cho không gian điều khiển 1 tay linh hoạt. Play cách đáy ~30% cao màn hình.
             Column(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = (config.screenHeightDp * 0.30f).dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(170.dp)
             ) {
-                SmallFloatingActionButton(
+                FloatingActionButton(
                     onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null } },
                     // Nền trong mờ như pill điều khiển (alpha 0.55) → chữ trôi bên dưới vẫn thấy.
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
                 ) {
                     Icon(
                         Icons.Default.ArrowBack,
