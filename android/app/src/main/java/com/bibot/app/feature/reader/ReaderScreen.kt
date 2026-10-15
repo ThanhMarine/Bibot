@@ -1568,33 +1568,33 @@ Column(
                     }
                 }
             }
-            // B3.2: cụm FAB một tay — Back + Play CÙNG UI (2 FloatingActionButton 56dp,
-            // cùng nền primary alpha 0.55), cách nhau ~170dp (≈2.7cm — 160dp = 1 inch =
-            // 2.54cm) cho không gian điều khiển 1 tay linh hoạt. Play cách đáy ~30% cao màn hình.
-            Column(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = (config.screenHeightDp * 0.30f).dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(170.dp)
+            // B3.2: 2 FAB một tay CÙNG UI (FloatingActionButton 56dp, nền primary alpha
+            // 0.55) nhưng ĐỊNH VỊ ĐỘC LẬP: Back ở giữa màn hình (50% cao), Play ở giữa
+            // khoảng dưới (tâm ≈75% cao: cách đáy Box 20% trừ nửa nút 28dp) — không gian
+            // 1 tay rộng. VERIFY uiautomator 2026-10-15: Back [919,1104][1044,1229].
+            FloatingActionButton(
+                onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null } },
+                // Nền trong mờ như pill điều khiển (alpha 0.55) → chữ trôi bên dưới vẫn thấy.
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
             ) {
-                FloatingActionButton(
-                    onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null } },
-                    // Nền trong mờ như pill điều khiển (alpha 0.55) → chữ trôi bên dưới vẫn thấy.
-                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                ) {
-                    Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.reader_back)
-                    )
-                }
-                FloatingActionButton(
-                    onClick = { togglePlay() },
-                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                ) {
-                    Icon(
-                        if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = playDesc
-                    )
-                }
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = stringResource(R.string.reader_back)
+                )
+            }
+            FloatingActionButton(
+                onClick = { togglePlay() },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(
+                    end = 16.dp,
+                    bottom = (config.screenHeightDp * 0.20f).dp - 28.dp
+                ),
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            ) {
+                Icon(
+                    if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = playDesc
+                )
             }
             // B3.3/F2.5: dialog đổi vị trí khi đang READ.
             val pj = pendingJump

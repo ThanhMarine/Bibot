@@ -511,6 +511,11 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
    2 nút CÙNG UI (2 `FloatingActionButton` 56dp, cùng nền primary alpha 0.55 — bỏ
    `SmallFloatingActionButton` lệch cỡ/màu cũ), gap `12dp→170dp` (≈2.7cm: 160dp = 1 inch)
    cho không gian 1 tay linh hoạt; Lĩnh Nam Ch.3/37 hiện 2 nút đồng nhất cách nhau ~450px.
+   BỔ SUNG 2026-10-15 (yêu cầu user "kéo thấp xuống", VERIFY uiautomator cùng ngày):
+   bỏ Column chung → 2 FAB ĐỊNH VỊ ĐỘC LẬP: Back `align(CenterEnd)` = giữa màn hình,
+   Play `align(BottomEnd)` đáy `screenHeight*0.20−28dp` = giữa khoảng dưới; đo thực tế
+   Back [919,1104][1044,1229] tâm 48.6%, Play [919,1691][1044,1816] tâm 73%, cách nhau
+   ~462px (≈2.8cm), chữ đọc xuyên nền mờ (English Intermediate Ch.1/5).
 - [ ] B6.19 Tùy chọn nền màn đọc (yêu cầu user 2026-10-14, CHƯA code): mặc định giữ
   nền Trống đồng Đông Sơn hiện tại (`TrongDongWatermark.kt`); thêm option nền đơn sắc
   — màu đơn sắc GIỐNG màu nền trống đồng (lấy từ palette watermark, không màu mới);
