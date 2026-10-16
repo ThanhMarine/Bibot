@@ -16,7 +16,9 @@ import kotlinx.coroutines.Dispatchers
 /**
  * B5: tóm tắt AI theo chương + cấp sách (map-reduce), cache content-hash, chia sẻ wiki.
  *
- * Thứ tự đọc (B5.7): cache local (Room) → Firestore public `wiki_summaries`
+ * Thứ tự đọc (B5.7, công bằng 2026-10-15: ai share mới được nhận):
+ * cache local (Room, của chính máy — luôn đọc) → NẾU user bật chia sẻ mới đọc
+ * Firestore public `wiki_summaries` (tắt share = không gửi, cũng không đọc chùa)
  * → miss mới gọi LLM → ghi local + upload (nếu user bật chia sẻ).
  * Key chia sẻ = content-hash chương + model + promptVer — prompt mới không đè bản cũ.
  * KHÔNG BAO GIỜ upload nguyên văn sách, chỉ tóm tắt phái sinh ngắn.
@@ -120,21 +122,29 @@ object SummaryRepository {
         val hash = contentHash(text)
         val id = docId(hash, model, ver)
 
-        // 1. Cache local (mở lại hiện ngay, 0 token).
+        // 1. Cache local (mở lại hiện ngay, 0 token) — của chính máy nên luôn đọc.
         db.summaries().get(id)?.let { return@withContext Outcome.Ready(it.text, it.fromShared, false) }
         // 1b. Cùng sách/chương nhưng model/ver khác → không dùng (key đã tách), tiếp.
-        // 2. Wiki công cộng (máy khác đã trả token).
-        try {
-            FirestoreSync.getWikiSummary(context, id)?.let { w ->
-                if (w.text.isNotBlank()) {
-                    db.summaries().upsert(
-                        ChapterSummary(id, bookId, chapterIdx, title, model, ver, w.text, fromShared = true, shared = true)
-                    )
-                    FirestoreSync.bumpWikiHits(context, id)
-                    return@withContext Outcome.Ready(w.text, true, false)
+        // 2. Wiki công cộng (máy khác đã trả token) — CÔNG BẰNG: chỉ ai bật chia sẻ
+        // mới được đọc chùa cache cộng đồng; tắt share thì bỏ qua, đi thẳng LLM/NoCredit.
+        android.util.Log.d("BibotWiki", "lookup share=$shareEnabled id=$id")
+        if (shareEnabled) {
+            try {
+                val w = FirestoreSync.getWikiSummary(context, id)
+                android.util.Log.d("BibotWiki", "getWikiSummary hit=${w != null} len=${w?.text?.length ?: 0}")
+                w?.let {
+                    if (it.text.isNotBlank()) {
+                        db.summaries().upsert(
+                            ChapterSummary(id, bookId, chapterIdx, title, model, ver, it.text, fromShared = true, shared = true)
+                        )
+                        FirestoreSync.bumpWikiHits(context, id)
+                        return@withContext Outcome.Ready(it.text, true, false)
+                    }
                 }
+            } catch (e: Exception) {
+                android.util.Log.w("BibotWiki", "getWikiSummary error: ${e.message}")
             }
-        } catch (_: Exception) {}
+        }
 
         // 3. Gating (B5.4): VIP full; non-VIP trừ lượt đã đổi từ ad.
         val ads = AdsPreferences(context)

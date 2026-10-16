@@ -98,12 +98,15 @@ object AdManager {
     }
 
     /**
-     * Load rewarded ad.
+     * Load rewarded ad. DEBUG (=demo dev) LUÔN dùng test unit của Google:
+     * ID thật trên máy dev/emulator thường no-fill (nút Watch ad chết) và cònเสี่ยง
+     * invalid-traffic cho tài khoản AdMob. Release mới dùng ID thật.
      */
     fun loadRewarded(activity: Activity) {
         if (!adsEnabled() || !isInitialized) return
         val request = AdRequest.Builder().build()
-        RewardedAd.load(activity, AdConfig.REWARDED_AD_UNIT_ID, request,
+        val unitId = if (com.bibot.app.BuildConfig.DEBUG) AdConfig.TEST_REWARDED_ID else AdConfig.REWARDED_AD_UNIT_ID
+        RewardedAd.load(activity, unitId, request,
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
                     rewardedAd = ad

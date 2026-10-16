@@ -481,9 +481,14 @@ fun ReaderScreen(
     }
 
     // B5: xem rewarded ad lấy lượt tóm tắt (mirror Cloud chapters: +3, trần 9).
+    // 2026-10-15: Toast phản hồi khi QC chưa sẵn sàng (trước đây nút chết im lặng).
     fun watchAdForSummary(retry: () -> Unit) {
         val activity = context as? android.app.Activity ?: return
-        if (!com.bibot.app.ui.components.ads.canShowRewarded(adsState)) return
+        if (!com.bibot.app.ui.components.ads.canShowRewarded(adsState)) {
+            android.util.Log.d("BibotReward", "blocked: vip/cooldown, lastShow=${adsState.adLastShowTime}")
+            android.widget.Toast.makeText(context, context.getString(R.string.ads_cooldown), android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         if (summaryBusyAd) return
         summaryBusyAd = true
         com.bibot.app.data.ads.AdManager.onRewardedClaimed = {
@@ -501,6 +506,8 @@ fun ReaderScreen(
             com.bibot.app.data.ads.AdManager.showRewarded(activity)
         } catch (_: Exception) { false }
         if (!shown) {
+            android.util.Log.d("BibotReward", "ad not ready, loading...")
+            android.widget.Toast.makeText(context, context.getString(R.string.ads_loading), android.widget.Toast.LENGTH_SHORT).show()
             try { com.bibot.app.data.ads.AdManager.loadRewarded(activity) } catch (_: Exception) {}
             summaryBusyAd = false
         }

@@ -347,6 +347,15 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   chương thiếu). Ghi nhãn "AI tóm tắt, có thể sai" + nguồn model/ver; prompt mới
   (promptVer khác) không đè bản cũ; nút báo xấu → ẩn chờ duyệt. Tuân thủ gỡ nội
   dung khi khiếu nại bản quyền.
+  LUẬT CÔNG BẰNG 2026-10-15 (user yêu cầu "ai share thì người đó được nhận"):
+  wiki-read giờ gate bởi `shareEnabled` — TẮT = không gửi, cũng không đọc chùa cache
+  cộng đồng (bỏ qua wiki, đi thẳng LLM/NoCredit); BẬT = được đọc free + badge.
+  Sub text `summary_share_sub` EN/VI đã ghi luật. VERIFY LIVE máy ảo BibotTest: share
+  OFF → Khe Sanh ch (local đã xóa) Failed/NoCredit dù wiki có bản (không đọc chùa);
+  share ON → wiki-hit "PART IV — THE SO-CALLED SIEGE BEGINS" + badge "From community
+  cache (0 tokens)", turns giữ 3, DB row `chapterIdx=2, shared=1, fromShared=1`.
+  (Wiki máy thật là idx khác do split epub khác nhau — hash khác, miss đúng.)
+  Log chẩn đoán `BibotWiki` (lookup share/id, hit/len, error) giữ lại trong code.
   TRẠNG THÁI 2026-10-14: B5.8-minimal — dialog gắn nhãn "AI tóm tắt, có thể sai" +
   badge "Từ cache cộng đồng (0 token)" khi đọc wiki + tiến độ `Đã tóm tắt n/N` ở
   header TOC (đóng vai trò % wiki + nút "đóng góp" đúng nghĩa); promptVer tách key
@@ -366,7 +375,13 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   JVM `SummaryRepositoryTest` 3/3 + full suite 69/69 + ruler 64/64 + Go PASS + máy thật
   sạch FATAL. Còn nợ (cần nhập lại key + hết cooldown 30'): opt-out OFF→shared=0 /
    ON→shared=1 trên chương mới, reward +3 summary turns, C4 2 flavor, cap 500 chương (code
-   đã có `MAX_CHAPTERS=500`, còn nợ test sách dày).
+   đã có    `MAX_CHAPTERS=500`, còn nợ test sách dày).
+  VERIFY 2026-10-15 (luật công bằng + opt-out live, máy ảo): xem LUẬT CÔNG BẰNG ở B5.7.
+  Opt-out OFF→không đọc wiki (đúng luật mới) / ON→wiki-hit shared=1 trên chương mới —
+  XONG live. Còn nợ: reward +3 summary turns live (nút Watch ad trước đó im lặng; đã
+  sửa `AdManager.loadRewarded` DEBUG dùng TEST_REWARDED_ID tránh no-fill + thêm Toast
+  `ads_cooldown`/`ads_loading` + log `BibotReward` ở `watchAdForSummary` — chưa verify
+  lại live), C4 2 flavor, A2.5b font slider + sách dày.
   VERIFY 2026-10-14 (Khe Sanh epub, máy thật + máy ảo): máy thật tóm tắt Chương 1 OK
   → doc wiki `{hash}_gemini-3-5-flash-lite_v1` (chapterTitle/hits/lang/model/promptVer/
   text/updatedAt đủ 7 field); máy ảo đọc ké FREE không mất lượt + `hits` 1→2
