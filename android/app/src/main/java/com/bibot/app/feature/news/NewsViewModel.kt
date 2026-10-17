@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bibot.app.data.offline.OfflineTtsHelper
 import com.bibot.app.data.store.BibotPreferences
+import com.bibot.app.ui.player.PlayerViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,10 +42,13 @@ import kotlinx.coroutines.launch
 class NewsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appContext = application.applicationContext
-    private val offlineTts = OfflineTtsHelper(appContext)
+    // A3.2: engine TTS dùng chung toàn process — không tạo instance riêng cho màn Điểm tin.
+    private val offlineTts = OfflineTtsHelper.shared(appContext)
     private val prefs = BibotPreferences(appContext)
     private var autoReadJob: Job? = null
     private var speakJob: Job? = null
+    private var playerVm: PlayerViewModel? = null
+    private var stopListener: (() -> Unit)? = null
     var autoReadMode by mutableStateOf(false)
         private set
     var currentIndex by mutableStateOf(0)
@@ -58,6 +62,49 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     var sourceName by mutableStateOf("")
         private set
     var currentNewsItems: List<NewsItem> = emptyList()
+
+    /**
+     * A3.2: nhận controller audio chung (1 controller cho ExoPlayer + engine TTS) —
+     * mọi lần đọc/dừng của màn Điểm tin đi qua đây thay cho engine riêng.
+     */
+    fun bindPlayer(pm: PlayerViewModel) {
+        playerVm = pm
+        // Nghe lệnh dừng DUY NHẤT từ app (chuyển mode/đóng màn) — auto-read sống theo
+        // Activity nên nếu không hủy theo, tin vẫn đọc khi đã ở màn khác.
+        if (stopListener == null) {
+            val l: () -> Unit = { runLocalStop() }
+            stopListener = l
+            pm.addStopListener(l)
+        }
+    }
+
+    /** Dừng việc của màn (không gọi ngược controller — tránh lồng stopAll). */
+    private fun runLocalStop() {
+        cancelAutoLocked()
+        cancelSpeakLocked()
+        try { offlineTts.stop() } catch (_: Exception) {}
+        isSpeaking = false
+    }
+
+    /** A3.2: 1 lệnh dừng duy nhất của màn Điểm tin (qua controller nếu đã bind). */
+    private fun stopAudio() {
+        val pm = playerVm
+        if (pm != null) pm.stopAll() else runLocalStop()
+    }
+
+    /** Chuẩn bị trước 1 lượt đọc mới: hủy job cũ + cắt audio bằng đúng 1 lệnh dừng. */
+    private fun resetAudioLocked() {
+        cancelAutoLocked()
+        cancelSpeakLocked()
+        stopAudio()
+        isSpeaking = false
+    }
+
+    /** Đọc 1 đoạn bằng engine TTS qua controller (fallback thẳng engine khi chưa bind). */
+    private suspend fun speakViaController(text: String, speed: Float): Boolean {
+        val pm = playerVm
+        return if (pm != null) pm.speakOffline(text, speed) else offlineTts.speakOffline(text, speed)
+    }
 
     fun resetIndex() {
         currentIndex = 0
@@ -81,9 +128,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     fun speakCurrentNews(index: Int) {
         try {
             if (currentNewsItems.isEmpty() || index !in currentNewsItems.indices) return
-            cancelAutoLocked()
-            cancelSpeakLocked()
-            try { offlineTts.stop() } catch (_: Exception) {}
+            resetAudioLocked()
             speakError = null
             currentIndex = index
             val text = cleanSpeakText(currentNewsItems[index])
@@ -95,7 +140,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
             isSpeaking = true
             speakJob = viewModelScope.launch {
                 try {
-                    val ok = offlineTts.speakOffline(text, voiceSpeed())
+                    val ok = speakViaController(text, voiceSpeed())
                     if (!ok) speakError = "TTS offline lỗi (thiếu engine/giọng) — thử lại hoặc cài Piper"
                 } catch (_: CancellationException) {
                     try { offlineTts.stop() } catch (_: Exception) {}
@@ -114,12 +159,9 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Dừng đồng bộ: hạ cờ + cancel job + dừng engine ngay để UI phản hồi tức thì. */
+    /** Dừng đồng bộ: 1 lệnh dừng duy nhất (hủy job + ExoPlayer + engine TTS) ngay để UI phản hồi tức thì. */
     fun stopSpeaking() {
-        cancelAutoLocked()
-        cancelSpeakLocked()
-        try { offlineTts.stop() } catch (_: Exception) {}
-        isSpeaking = false
+        resetAudioLocked()
     }
 
     fun setNewsItems(newsItems: List<NewsItem>) {
@@ -152,9 +194,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (currentNewsItems.isEmpty()) return
-        cancelAutoLocked()
-        cancelSpeakLocked()
-        try { offlineTts.stop() } catch (_: Exception) {}
+        resetAudioLocked()
         speakError = null
         autoReadMode = true
         currentIndex = 0
@@ -171,7 +211,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
                         val text = cleanSpeakText(currentNewsItems[i])
                         if (text.isBlank()) continue
                         try {
-                            val ok = offlineTts.speakOffline(text, speed)
+                            val ok = speakViaController(text, speed)
                             if (!ok) speakError = "TTS offline lỗi ở tin ${i + 1} — thử lại hoặc cài Piper"
                         } catch (_: CancellationException) {
                             try { offlineTts.stop() } catch (_: Exception) {}
@@ -221,8 +261,10 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         cancelAutoLocked()
         cancelSpeakLocked()
+        // A3.2: KHÔNG shutdown() — engine TTS dùng chung toàn process (màn khác vẫn đọc).
         try { offlineTts.stop() } catch (_: Exception) {}
-        offlineTts.shutdown()
+        stopListener?.let { l -> try { playerVm?.removeStopListener(l) } catch (_: Exception) {} }
+        stopListener = null
     }
 
     companion object {

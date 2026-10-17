@@ -9,10 +9,14 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.bibot.app.data.offline.OfflineTtsHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.CopyOnWriteArrayList
 
 data class PlayerState(
     val isPlaying: Boolean = false,
@@ -108,6 +112,66 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun onPause() { handler.removeCallbacks(progressRunnable) }
     fun onResume() { handler.removeCallbacks(progressRunnable); handler.post(progressRunnable) }
 
+    // --- A3.2: 1 controller audio (ExoPlayer + engine Android TTS) ---
+    private val offlineTts = OfflineTtsHelper.shared(application)
+
+    /**
+     * Màn có job đọc nền (News auto-read, Voice pipeline) đăng ký listener để
+     * [stopAll] dừng đúng 1 lần là hết — không còn mỗi màn tự `stop()` kiểu của mình.
+     */
+    private val stopListeners = CopyOnWriteArrayList<() -> Unit>()
+    fun addStopListener(listener: () -> Unit) { stopListeners.addIfAbsent(listener) }
+    fun removeStopListener(listener: () -> Unit) { stopListeners.remove(listener) }
+
+    fun ensureOfflineTts(onReady: () -> Unit) = offlineTts.ensureInit(onReady)
+
+    /**
+     * Đọc bằng engine Android TTS qua controller (màn không còn tự tạo OfflineTtsHelper).
+     * Tự dừng ExoPlayer trước → 2 nguồn không bao giờ phát chồng; [mediaId] (nếu có)
+     * ghi vào `activeIds` trong lúc đọc để trạng thái karaoke phản ánh đúng audio đang chạy.
+     */
+    suspend fun speakOffline(
+        text: String,
+        speed: Float = 0.85f,
+        lang: String = "vi",
+        mediaId: String? = null
+    ): Boolean {
+        withContext(Dispatchers.Main) { stopPlayback() }
+        if (mediaId != null) _activeIds.value = _activeIds.value + mediaId
+        android.util.Log.d(TAG_AUDIO, "speakOffline start lang=$lang len=${text.length} mediaId=$mediaId")
+        return try {
+            offlineTts.speakOffline(text, speed, lang).also { ok ->
+                android.util.Log.d(TAG_AUDIO, "speakOffline done ok=$ok")
+            }
+        } finally {
+            if (mediaId != null) _activeIds.value = _activeIds.value - mediaId
+        }
+    }
+
+    /**
+     * A3.2: HÀM DỪNG DUY NHẤT cho mọi màn — ExoPlayer + engine TTS + báo job đọc
+     * nền (listener) hủy theo. Mọi màn gọi đây thay cho cặp `stopPlayback()` +
+     * `offlineTts.stop()` rải rác (lỗi đọc chồng News/Weather/Voice bypass activeIds).
+     */
+    fun stopAll() {
+        // Listener trước: hủy job đọc nền đã (News auto-read / Voice pipeline) —
+        // coroutine dừng trước khi engine trả false, không sinh lỗi "TTS offline" giả.
+        android.util.Log.d(TAG_AUDIO, "stopAll listeners=${stopListeners.size}")
+        stopListeners.forEach { l -> try { l() } catch (_: Exception) {} }
+        stopPlayback()
+        stopOfflineEngine()
+    }
+
+    // Một nguồn sắp phát → cắt nguồn còn lại.
+    private fun stopOfflineEngine() {
+        if (Looper.myLooper() == Looper.getMainLooper()) offlineTts.stop()
+        else handler.post { offlineTts.stop() }
+    }
+
+    private companion object {
+        const val TAG_AUDIO = "AudioCtrl"
+    }
+
     fun togglePlayPause() {
         if (player.isPlaying) player.pause() else player.play()
     }
@@ -134,6 +198,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         _playerState.value = _playerState.value.copy(playbackSpeed = s)
     }
     fun playUrl(url: String, title: String = "Bibot", subtitle: String = "", speed: Float = 0.85f, mediaId: String? = null) {
+        // A3.2: ExoPlayer sắp phát → cắt engine TTS đang đọc (loại trừ 2 nguồn).
+        stopOfflineEngine()
         // Session mới (setMediaItem thay cả queue) → reset tracking karaoke
         _currentMediaId.value = null
         _endedMediaId.value = null
@@ -166,6 +232,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     // Flip-flop double-buffer: addMediaItem không clear queue, Exo tự double-buffer 2.4
     // mediaId: id câu karaoke — consumer chờ id này rời activeIds = audio xong THẬT.
     fun enqueueBytes(bytes: ByteArray, mimeType: String = "audio/mp3", mediaId: String? = null) {
+        // A3.2: thêm chunk vào queue → cắt engine TTS nếu màn khác đang đọc dở.
+        stopOfflineEngine()
         if (mediaId != null) _activeIds.value = _activeIds.value + mediaId
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {

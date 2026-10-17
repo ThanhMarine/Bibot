@@ -69,3 +69,48 @@
 - JDK17 qua `C:\Users\Thanh Marine\.gradle\gradle.properties`; AVD `H:\androidkit\avd\BibotTest.avd`.
 - APK: `android\app\build\outputs\apk\demo\debug\Bibot.apk`; secret chỉ `android/local.properties`.
 - Version v1.0.2 / versionCode 3 — chưa bump.
+
+## 5. Bổ sung cùng ngày (B6.19 + C4 + A3.2) — CHƯA commit
+> Tree **CHƯA commit** (user chưa lệnh): B6.19 (nền màn đọc) + C4 (2 flavor) + A3.2 (gộp player)
+> nằm chung working tree với nhau. Chi tiết đầy đủ trong `Checklist_Upgrade_Bibot.md` (B6.19, A3.2, J3).
+
+### 5.1 B6.19 Nền màn đọc (drum/đơn sắc)
+- `PrefKeys.READER_BACKGROUND` + `BibotPrefs.readerBackground` (`setReaderBackground`),
+  file mới `feature/reader/ReaderBackground.kt` (`ReaderBackgroundLayer` vẽ ở ROOT `BibotNavSuite`
+  trước Scaffold trong suốt, gate `inReader`, phủ luôn statusBar/navBar).
+- Popup ⚙ `ReaderChrome` thêm 2 mục tick ✓ (`chrome_background_drum/_solid`), nút ⚙ portrait
+  bỏ `enabled = pageMode`; strings EN/VI sau `chrome_brightness_auto`.
+- Verify máy: chọn Solid → nền tan đặc full màn kể cả dải system bar → force-stop mở lại VẪN Solid
+  (DataStore), chọn Drum → về trống đồng ngay.
+
+### 5.2 C4 Build 2 flavor
+- `assembleDemoDebug` Bibot.apk 56MB + `assembleCommercialDebug` BibotV.apk 57,2MB PASS;
+  JVM 69/69 + ruler 64/64 + `go vet` 0 + `go test` PASS.
+
+### 5.3 A3.2 Gộp 2 player → 1 controller (mục chính của phiên)
+- **Bệnh**: News/Weather/Voice/Reader mỗi màn tự `OfflineTtsHelper(context)` (4–5 engine TTS song
+  song) + mỗi màn stop kiểu của mình → đọc chồng (Weather/News vẫn nói khi sang màn khác; đọc
+  offline bypass `activeIds` của karaoke).
+- **Sửa** (chi tiết trong checklist A3.2): `OfflineTtsHelper.shared(context)` = 1 engine/process
+  (constructor private, bỏ `shutdown()` ở News/Voice); `PlayerViewModel` = controller sở hữu engine
+  + `speakOffline(..., mediaId)` (tự `stopPlayback()` trước, ghi `activeIds`) + **`stopAll()`**
+  (listener → ExoPlayer → engine TTS) + `stopListeners`; `playUrl`/`enqueueBytes` cắt engine TTS;
+  `BibotNavSuite.switchMode()` mọi đổi màn qua `stopAll()`; News/Voice `bindPlayer` + job hủy theo;
+  Voice thêm `DisposableEffect`; Weather/Reader nhận `playerVm`.
+- **Verify máy ảo** (log tag `AudioCtrl`): Weather đọc→Back = `stopAll` + `dumpsys audio`
+  `state:started` 1→0; News đọc giữa chừng→Settings = `stopAll listeners=1` + job hủy
+  (không `done ok=false`) → quay lại KHÔNG banner lỗi + nút Play reset;
+  reader `speakOffline ... mediaId=story_0_0_1` + pause/resume/Back đều `stopAll`;
+  Voice vào/ra `stopAll listeners=2`; **0 FATAL**.
+- Gate: `go vet` 0, `go test` PASS, ruler 64/64, JVM 69/69, 2 flavor PASS.
+- **Log debug mới**: tag `AudioCtrl` (`speakOffline start/done`, `stopAll listeners=N`) giữ lại
+  để lần sau chẩn đoán audio chỉ cần `adb logcat -s AudioCtrl:D`.
+
+### 5.4 Mẹo máy ảo dùng lại trong phiên này
+- Chứng minh "engine TTS thật sự dừng": `adb shell dumpsys audio | Select-String 'state:started'
+  -Context 1,0` — có dòng `type:android.media.AudioTrack ... state:started` (uid Google TTS) lúc
+  đang đọc, biến mất sau `stopAll` (không cần nghe máy).
+- Bảng home: Weather `(282,1175)`, News `(798,1175)`, EN Books `(282,434)`, Storytelling `(798,434)`;
+  top bar Back `(74,132)` / Chat `(894,132)` / Settings `(1011,132)`; nút đọc bắn từ
+  `uiautomator dump` (`desc='Read weather'`, `'Read this story'`, FAB `'Tell'`).
+- Gradle dài: chạy `> $env:TEMP\xxx.log 2>&1` rồi đọc file ở lệnh riêng (pipe làm bash tool kill shell).

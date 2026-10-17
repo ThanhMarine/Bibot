@@ -85,11 +85,13 @@ data class VoiceChatStats(
 class VoiceChatViewModel(application: Application) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val hybridStt = HybridSttManager(context)
-    private val offlineTts = OfflineTtsHelper(context)
+    // A3.2: engine TTS dùng chung toàn process — không tạo instance riêng cho màn Voice.
+    private val offlineTts = OfflineTtsHelper.shared(context)
     private val chunker = VietnameseChunker(minWords = 4, maxWords = 15, maxChars = 160, yieldOnClause = true)
     private val memRepo = MemoryRepository(context)
     private val prefs = BibotPreferences(context)
     private var playerVm: PlayerViewModel? = null
+    private var stopListener: (() -> Unit)? = null
 
     @Volatile private var latestPrefs: BibotPrefs = BibotPrefs()
     private val ttfaSamples = mutableListOf<Long>()
@@ -143,6 +145,40 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun bindPlayer(pm: PlayerViewModel) {
         playerVm = pm
+        // A3.2: nghe lệnh dừng DUY NHẤT từ app (chuyển mode/đóng màn) — job pipeline
+        // sống theo Activity nên nếu không hủy theo, audio sẽ tiếp tục phát trên màn khác.
+        if (stopListener == null) {
+            val l: () -> Unit = { runLocalStop() }
+            stopListener = l
+            pm.addStopListener(l)
+        }
+    }
+
+    /**
+     * Dừng phần việc của màn Voice (không gọi ngược controller để tránh lồng stopAll).
+     * Gọi từ [stopAudio] (qua controller) hoặc trực tiếp từ onCleared.
+     */
+    private fun runLocalStop() {
+        stopBargeInMonitor()
+        try { pipelineJob?.cancel() } catch (_: Exception) {}
+        try { chunker.reset() } catch (_: Exception) {}
+        try { offlineTts.stop() } catch (_: Exception) {}
+        _uiState.update { it.copy(isSpeaking = false, isStreaming = false, ttsStatus = null) }
+    }
+
+    /**
+     * A3.2: 1 lệnh dừng duy nhất của màn Voice — báo [PlayerViewModel.stopAll]
+     * (ExoPlayer + engine TTS), controller tự gọi lại [runLocalStop] qua listener.
+     */
+    private fun stopAudio() {
+        val pm = playerVm
+        if (pm != null) pm.stopAll() else runLocalStop()
+    }
+
+    /** Cắt audio trước lượt MỚI — chỉ dừng 2 nguồn phát, không đụng job/cờ của lượt sắp chạy. */
+    private fun cutAudio() {
+        try { playerVm?.stopPlayback() } catch (_: Exception) {}
+        try { offlineTts.stop() } catch (_: Exception) {}
     }
 
     fun setHandsFreeMode(mode: HandsFreeMode) {
@@ -203,7 +239,12 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
 
         // P3-3: Offline TTS fallback (Android TTS)
         if (!spoken && (isOfflineOnly || priority == "auto" || isPiperOnly || isCloudOnly)) {
-            val ok = offlineTts.speakOffline(chunk, speed)
+            // A3.2: chờ ExoPlayer (chunk Piper/Cloud trước) phát xong rồi mới qua controller
+            // đọc engine TTS — không cắt mất chữ và không để 2 nguồn phát chồng nhau.
+            var idle = 0
+            while ((playerVm?.playerState?.value?.isPlaying == true) && idle < 50) { delay(200); idle++ }
+            val pm = playerVm
+            val ok = if (pm != null) pm.speakOffline(chunk, speed) else offlineTts.speakOffline(chunk, speed)
             if (!ok) _uiState.update { it.copy(ttsStatus = "TTS offline lỗi, thử chunk tiếp...") }
         }
 
@@ -321,10 +362,8 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
         _stats.update { it.copy(bargeInCount = it.bargeInCount + 1) }
         viewModelScope.launch(Dispatchers.Main) {
             stopBargeInMonitor()
-            pipelineJob?.cancel()
-            playerVm?.stopPlayback()
-            try { offlineTts.stop() } catch (_: Exception) {}
-            _uiState.update { it.copy(isSpeaking = false, isStreaming = false, ttsStatus = null) }
+            // A3.2: cắt ExoPlayer + engine TTS + job pipeline bằng 1 lệnh dừng duy nhất.
+            stopAudio()
             // Real talk: mở mic nghe lại ngay thay vì chờ user bấm (trừ push-to-talk đang giữ nút).
             if (_uiState.value.handsFreeMode != HandsFreeMode.PUSH_TO_TALK) {
                 beginStt()
@@ -352,8 +391,7 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
     fun handleMusicCommand(q: MusicQuery) {
         val asked = "\"${q.title}\"" + (q.artist?.let { a -> " của $a" } ?: "")
         _uiState.update { it.copy(responseText = "🎵 Đang tìm $asked...", partialText = "", isStreaming = false, sttError = null) }
-        playerVm?.stopPlayback()
-        offlineTts.stop()
+        stopAudio()
         viewModelScope.launch {
             val ps = latestPrefs
             val hits = searchLocalTracks(context, q)
@@ -407,8 +445,8 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
         }
         chunker.reset()
         pipelineJob?.cancel()
-        playerVm?.stopPlayback()
-        offlineTts.stop()
+        // A3.2: cắt ExoPlayer + engine TTS (chỉ audio — lượt mới sắp gán pipelineJob).
+        cutAudio()
         try { aec.reset() } catch (_: Exception) {} // lượt mới → filter học lại từ đầu (port Pi)
 
         pipelineJob = viewModelScope.launch {
@@ -572,8 +610,8 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun beginStt() {
         _uiState.update { it.copy(sttError = null, partialText = "", isListening = true) }
-        offlineTts.stop()
-        playerVm?.stopPlayback()
+        // A3.2: mở mic → 1 lệnh dừng audio duy nhất (ExoPlayer + engine TTS + pipeline đang đọc).
+        stopAudio()
         hybridStt.listenHybrid(
             preferOffline = latestPrefs.sttOfflineFirst,
             onResult = { text, isOffline ->
@@ -596,13 +634,9 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update { it.copy(isListening = false) }
     }
 
+    /** Dừng trả lời của màn Voice — đi qua 1 lệnh dừng duy nhất (A3.2). */
     fun stopChat() {
-        stopBargeInMonitor()
-        pipelineJob?.cancel()
-        chunker.reset()
-        offlineTts.stop()
-        playerVm?.stopPlayback()
-        _uiState.update { it.copy(isSpeaking = false, isStreaming = false, ttsStatus = null) }
+        stopAudio()
     }
 
     fun startContinuousListening() {
@@ -668,8 +702,11 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
         try { pipelineJob?.cancel() } catch (_: Exception) {}
         try { continuousJob?.cancel() } catch (_: Exception) {}
         stopBargeInMonitor()
-        try { offlineTts.stop(); offlineTts.shutdown() } catch (_: Exception) {}
+        // A3.2: KHÔNG shutdown() — engine TTS dùng chung toàn process, màn khác vẫn cần.
+        try { offlineTts.stop() } catch (_: Exception) {}
         try { playerVm?.stopPlayback() } catch (_: Exception) {}
+        stopListener?.let { l -> try { playerVm?.removeStopListener(l) } catch (_: Exception) {} }
+        stopListener = null
         super.onCleared()
     }
 }

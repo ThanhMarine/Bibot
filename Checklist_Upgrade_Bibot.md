@@ -120,8 +120,26 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 
 - [ ] A3.1 Export audiobook durable (port `export-job.ts + ffmpeg-export.ts`): prefetch 4, batch sidecar 32, assemble khi audio xong (không chờ align), lỗi terminal → silence 1s + đếm `skipped`, progress đọc từ cache scope (fix `eee701c6`: không đọc session hết hạn 30p).
   - File chạm: mới `feature/export/ExportViewModel.kt` + WorkManager.
-- [ ] A3.2 Gộp 2 player chồng (`ExoPlayer` vs `speakOffline Direct`) thành 1 controller; mọi màn gọi 1 hàm stop duy nhất (hết đọc chồng News/Weather/Voice bypass `activeIds`).
+- [x] A3.2 Gộp 2 player chồng (`ExoPlayer` vs `speakOffline Direct`) thành 1 controller; mọi màn gọi 1 hàm stop duy nhất (hết đọc chồng News/Weather/Voice bypass `activeIds`).
   - File chạm: `PlayerViewModel.kt`, `data/offline/OfflineTtsHelper.kt`, `NewsViewModel`, `WeatherScreen`, `VoiceScreen`.
+  - Code 2026-10-17: ① `OfflineTtsHelper` constructor private + `shared(context)` = **1 engine TTS/process** (hết 4–5
+    instance song song; bỏ `shutdown()` ở News/Voice vì engine dùng chung). ② `PlayerViewModel` = **1 controller**: sở hữu
+    engine; `suspend speakOffline(text, speed, lang, mediaId)` tự `stopPlayback()` trước (2 nguồn không thể phát chồng) +
+    ghi `mediaId` vào `activeIds` trong lúc đọc (đọc offline hết bypass karaoke); `stopAll()` = hàm dừng DUY NHẤT (gọi
+    listener **trước** → hủy job đọc nền, rồi ExoPlayer, rồi engine TTS — coroutine dừng trước khi engine trả false nên không
+    sinh lỗi "TTS offline" giả); `playUrl`/`enqueueBytes` tự cắt engine TTS; `addStopListener/removeStopListener`.
+    ③ `BibotNavSuite.switchMode()` — mọi đổi màn (back/mic/settings/HomeMenu/`goHome`) đi qua `stopAll()`.
+    ④ News: `bindPlayer()` + `runLocalStop/stopAudio/resetAudioLocked` + `speakViaController`; ⑤ Weather: nhận `playerVm`,
+    bỏ `remember { OfflineTtsHelper }`; ⑥ Voice: `runLocalStop/stopAudio/cutAudio`, `stopChat` = 1 lệnh, `DisposableEffect`
+    + listener hủy `pipelineJob` khi rời màn (job sống theo Activity); ⑦ Reader: bỏ `offlineTts` local — `stopAll`/
+    `togglePlay`/`jumpNow`/`startReading`/`listenSummary` đều `playerVm.stopAll()`, Direct đọc qua controller kèm `mediaId`.
+  - Verify máy ảo 2026-10-17: Weather đọc → Back = `AudioCtrl stopAll` + `dumpsys audio` 1 `state:started` → **0**
+    (engine TTS dừng thật, không chỉ hủy coroutine); News đọc giữa chừng → nút Settings = `stopAll listeners=1` + job bị hủy
+    (không có `speakOffline done ok=false`), quay lại News **không còn banner "TTS offline lỗi"** + nút Play reset;
+    reader Direct `speakOffline ... mediaId=story_0_0_1` → pause/resume/Back đều `stopAll`; Voice vào/ra =
+    `stopAll listeners=2` (News + Voice cùng đăng ký); **0 FATAL** toàn phiên.
+  - Gate: `go vet` 0 + `go test` PASS + ruler 64/64 + JVM 69/69 + `assembleDemoDebug` (Bibot.apk 56MB) +
+    `assembleCommercialDebug` (BibotV.apk 57,2MB) PASS.
 - [ ] A3.3 Scrubber 3 lớp + Undo 10s + MediaSession (port `TTSPlayer.tsx + useMediaSession.ts`) vào `FloatingControlBar/BibotPlayerBar` (hiện `BibotPlayerBar` chết, không ai gọi — gộp làm một).
 - [ ] A3.4 SmartCrop sách scan (port `orecrop/smartcrop.cpp IsRectWhite 1%`) + đọc size ảnh comic không decode full + natural-sort.
   - File chạm: `DocBrowserScreen`, `PublicDriveSource`.
@@ -531,12 +549,28 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
    Play `align(BottomEnd)` đáy `screenHeight*0.20−28dp` = giữa khoảng dưới; đo thực tế
    Back [919,1104][1044,1229] tâm 48.6%, Play [919,1691][1044,1816] tâm 73%, cách nhau
    ~462px (≈2.8cm), chữ đọc xuyên nền mờ (English Intermediate Ch.1/5).
-- [ ] B6.19 Tùy chọn nền màn đọc (yêu cầu user 2026-10-14, CHƯA code): mặc định giữ
-  nền Trống đồng Đông Sơn hiện tại (`TrongDongWatermark.kt`); thêm option nền đơn sắc
-  — màu đơn sắc GIỐNG màu nền trống đồng (lấy từ palette watermark, không màu mới);
-  setting lưu DataStore (`readerBackground`: `drum`/`solid`), chọn ở popup ⚙ màn đọc;
-  áp dụng TEXT + EPUB rich + PDF khung (PDF giữ viền tờ giấy B6.18). Verify: đổi nền
-  không mất vị trí đọc/karaoke, persist qua restart, 2 flavor.
+- [x] B6.19 Tùy chọn nền màn đọc (yêu cầu user 2026-10-14 — CODE + VERIFY MÁY 2026-10-17,
+  demoDebug 58,7MB): mặc định giữ nền Trống đồng Đông Sơn (`TrongDongWatermark.kt`);
+  thêm option nền đơn sắc — màu LẤY TỪ palette watermark (trung bình pixel
+  `bg_trong_dong.png` = `#B38541`, blend đúng alpha watermark 0.45 light / 0.38 dark lên
+  `surface` → ra đúng tông nền đang thấy, KHÔNG chọn màu mới); setting DataStore
+  `reader_background` = `drum`/`solid` (`PrefKeys.READER_BACKGROUND` + `setReaderBackground`
+  trong `BibotPreferences.kt`); chọn ở popup ⚙ màn đọc — `ReaderSettingsPopup` thêm 2 mục
+  tick ✓ (`chrome_background_drum/_solid`, EN+VI).
+  File chạm: MỚI `feature/reader/ReaderBackground.kt` (`readerSolidBackground()` +
+  `ReaderBackgroundLayer` vẽ ở ROOT `BibotNavSuite` TRƯỚC Scaffold trong suốt → phủ luôn
+  statusBar/navBar, gate `inReader` nên các màn khác vẫn trống đồng); `BibotNavSuite.kt`
+  (đọc `BibotPrefs` + gọi layer), `ReaderChrome.kt`, `ReaderScreen.kt`, strings 2 locale.
+  Áp dụng: TEXT + EPUB rich + PDF khung cùng hưởng (PDF giữ viền tờ giấy B6.18); kệ sách
+  trong mode đọc cũng hưởng (cùng layer).
+  KÈM SỬA: nút ⚙ portrait hết `enabled = pageMode` — sách MD/TXT nay đổi được
+  brightness + nền (trước bị khóa; chuyển Xem chữ/trang vẫn tự disabled trong popup).
+  Verify máy ảo BibotTest: popup hiện `Background: Drum pattern` (✓) / `Background: Solid
+  color` → bấm Solid → nền tan đặc phủ full màn kể cả 2 dải system bar, chữ vẫn đọc rõ;
+  `force-stop` + mở lại → VẪN Solid (persist qua DataStore), `Chapter 1/41` giữ nguyên;
+  bấm Drum → nền trống đồng hiện lại ngay; logcat sạch FATAL. Verify khác: JVM 69/69,
+  ruler 64/64, `go vet` 0 + `go test` PASS, `assembleDemoDebug` + `assembleCommercialDebug`
+  SUCCESS (C4 2 flavor).
 
 ---
 
@@ -1097,10 +1131,19 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   B6.18 (lề hẹp + Justify + viền 0.4dp — code xong, thấy lề hẹp trên máy, còn nợ đo kỹ),
   B5.9 (Firebase `bibot-wiki` đấu nối + release song song verify ký),
   wiki 2 máy (Khe Sanh 2026-10-14: máy thật trả token → máy ảo đọc free, `hits` 1→2),
-  B6.19 (mục nền đọc drum/đơn sắc — mới ghi checklist, CHƯA code).
-- CÒN MỞ: B5.6 (còn opt-out live + reward summary + C4 2 flavor — cần nhập lại key),
-  B5.8, B6.19 (code), A2.5b (font/sách dày), A3 (export/player), E2 (view nguyên bản).
-- VERIFY CUỐI: JVM 69/69, ruler 64/64, Go PASS, demoDebug 58.6MB rebuild (B6.17/B6.18) +
-  release Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0), máy ảo + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: opt-out OFF/ON live (nhập lại key), reward +3 summary turns (hết
-  cooldown), C4 2 flavor, B6.19 code, rồi A3.
+  B6.19 (nền màn đọc drum/đơn sắc — CODE + VERIFY MÁY 2026-10-17, xem B6.19),
+  C4 2 flavor (2026-10-17: `go vet` 0 + JVM 69/69 + ruler 64/64 + `assembleDemoDebug`
+  58,7MB + `assembleCommercialDebug` PASS + máy ảo sạch FATAL),
+  A3.2 (gộp 2 player chồng → 1 controller `PlayerViewModel` + `stopAll()` duy nhất +
+  engine TTS singleton — CODE + VERIFY MÁY 2026-10-17, xem A3.2).
+- CÒN MỞ: B5.6 (còn reward +3 summary turns live — cần nhập lại key + hết cooldown),
+  B5.8, A2.5b (font/sách dày), A3.1/A3.3–A3.5 (export audiobook, scrubber+MediaSession,
+  SmartCrop), E2 (view nguyên bản), G1.2/G1.3,
+  G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
+  I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
+- VERIFY CUỐI (2026-10-17): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,7MB rebuild +
+  commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
+  máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
+  + máy thật sạch FATAL.
+- NỢ SANG PHIÊN SAU: reward +3 summary turns live (hết cooldown), A2.5b, rồi A3 còn lại
+  (A3.1/A3.3–A3.5); release mới (J1.1 bump version) khi user lệnh.

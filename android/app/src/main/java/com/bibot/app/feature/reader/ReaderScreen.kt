@@ -54,7 +54,6 @@ import com.bibot.app.data.store.BotPromptManager
 import com.bibot.app.data.summary.SummaryRepository
 import com.bibot.app.data.summary.SummaryWorker
 import com.bibot.app.data.library.ReadingPosition
-import com.bibot.app.data.offline.OfflineTtsHelper
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.ui.player.PlayerViewModel
 import com.bibot.app.ui.player.contentBottomInset
@@ -119,7 +118,7 @@ fun ReaderScreen(
     val repo = remember { BookRepository(context) }
     val prefs = remember { BibotPreferences(context) }
     val prefsState by prefs.prefsFlow.collectAsState(initial = com.bibot.app.data.store.BibotPrefs())
-    val offlineTts = remember { OfflineTtsHelper(context) }
+    // A3.2: không còn OfflineTtsHelper riêng — đọc offline đi qua playerVm (1 controller).
     val db = remember { BibotDatabase.get(context) }
 
     // Landscape detection (dung chung moi kho)
@@ -213,7 +212,7 @@ fun ReaderScreen(
     }.value
 
     LaunchedEffect(Unit) {
-        offlineTts.ensureInit {}
+        playerVm.ensureOfflineTts {}
         repo.refreshAll()
         isLoading = false
         repo.lastSyncWarning.value?.let { status = it }
@@ -379,7 +378,7 @@ fun ReaderScreen(
                                 delay((announce.length * 60L).coerceAtLeast(700L))
                             }
                         } else {
-                            offlineTts.speakOffline(announce, announceSpeed, lang = readLang)
+                            playerVm.speakOffline(announce, announceSpeed, lang = readLang)
                         }
                     }
                 }
@@ -518,8 +517,8 @@ fun ReaderScreen(
         val book = selectedBook ?: return
         scope.launch {
             try {
-                playerVm.stopPlayback()
-                try { offlineTts.stop() } catch (_: Exception) {}
+                // A3.2: 1 lệnh dừng duy nhất (ExoPlayer + engine TTS) trước khi nghe tóm tắt.
+                playerVm.stopAll()
                 val readLang = collection.resolveLang(book)
                 val sp = if (readLang == "vi") prefsState.storySpeed else prefsState.voiceSpeed
                 val key = prefsState.cloudTtsApiKey.takeIf { it.isNotBlank() }
@@ -534,7 +533,7 @@ fun ReaderScreen(
                         return@launch
                     }
                 }
-                try { offlineTts.speakOffline(text, sp, lang = readLang) } catch (_: Exception) {}
+                try { playerVm.speakOffline(text, sp, lang = readLang) } catch (_: Exception) {}
             } catch (_: Exception) {}
         }
     }
@@ -606,7 +605,9 @@ fun ReaderScreen(
         jumpChapterReq.intValue = idx
         jumpSentenceReq.intValue = sentence.coerceAtLeast(0)
         jumpSeq.intValue++
-        playerVm.stopPlayback()
+        // A3.2: nhay vi tri → cắt cả ExoPlayer lẫn engine TTS (truoc chi stop ExoPlayer,
+        // cau offline doc het doan cu rui moi nhay → doc chồng/vuot qua vi tri moi).
+        playerVm.stopAll()
         audioStarted = false
         status = if (idx == currentChapter) context.getString(R.string.reader_jump_sentence, sentence.coerceAtLeast(0) + 1)
         else context.getString(R.string.reader_jump_chapter, idx + 1, chapters.size, chapters[idx].title)
@@ -645,7 +646,7 @@ fun ReaderScreen(
         readModeState = ReadMode.READ
         audioStarted = false
         jumpSeq.intValue++
-        playerVm.stopPlayback()
+        playerVm.stopAll() // A3.2: cắt cả 2 nguồn trước khi vào READ
         isReading = true
         com.bibot.app.ui.player.KeepAwakeService.start(context)
         // F2.3: persist anchor + fileHash cùng progress (neo sống khi move file).
@@ -714,7 +715,7 @@ fun ReaderScreen(
         if (readModeState == ReadMode.READ && !isReading && selAnchor != null) {
             audioStarted = false
             jumpSeq.intValue++
-            playerVm.stopPlayback()
+            playerVm.stopAll() // A3.2: đọc tiếp → cắt cả 2 nguồn (tóm tắt/direct đang dở)
             isReading = true
             com.bibot.app.ui.player.KeepAwakeService.start(context)
             return
@@ -730,8 +731,8 @@ fun ReaderScreen(
         audioStarted = false
         anchorConfirm = null
         pendingJump = null
-        offlineTts.stop()
-        playerVm.stopPlayback()
+        // A3.2: 1 lệnh dừng duy nhất — ExoPlayer + engine TTS (không còn 2 dòng tách nhau).
+        playerVm.stopAll()
         com.bibot.app.ui.player.KeepAwakeService.stop(context)
     }
 
@@ -740,8 +741,8 @@ fun ReaderScreen(
     fun togglePlay() {
         if (isReading) {
             isReading = false
-            offlineTts.stop()
-            playerVm.stopPlayback()
+            // A3.2: 1 lệnh dừng duy nhất (ExoPlayer + engine TTS).
+            playerVm.stopAll()
             com.bibot.app.ui.player.KeepAwakeService.stop(context)
         } else startPlayFlow()
     }
@@ -1071,7 +1072,10 @@ fun ReaderScreen(
                         audioStarted = true
                         status = context.getString(strStatus, item.title, item.sentIdx + 1, item.sentTotal)
                         // lang = sách EN → giọng en-US (không còn đọc tiếng Anh bằng giọng Việt)
-                        try { offlineTts.speakOffline(item.text, speed, lang = readLang) } catch (_: Exception) {}
+                        // A3.2: đọc qua controller + ghi mediaId vào activeIds (đọc offline
+                        // không còn bypass karaoke như trước).
+                        val mid = "${collection.audioPrefix}${item.chapIdx}_${item.sentIdx}_${item.jumpSeq}"
+                        try { playerVm.speakOffline(item.text, speed, lang = readLang, mediaId = mid) } catch (_: Exception) {}
                     }
                 }
                 if (item.pauseAfterMs > 0) delayUntilDone(item.pauseAfterMs) { item.jumpSeq != jumpSeq.intValue }
@@ -1655,7 +1659,7 @@ Column(
                     onBookLevel = if (!summaryIsBook) ({ startBookSummary() }) else null
                 )
             }
-            // B6.2: popup ⚙ (toggle view + brightness).
+            // B6.2: popup ⚙ (toggle view + brightness + nền B6.19).
             ReaderSettingsPopup(
                 expanded = settingsOpen,
                 onDismiss = { settingsOpen = false },
@@ -1667,7 +1671,11 @@ Column(
                     }
                 },
                 brightness = brightness,
-                onBrightness = { brightness = it }
+                onBrightness = { brightness = it },
+                readerBackground = prefsState.readerBackground,
+                onBackgroundChange = { v ->
+                    scope.launch { try { prefs.setReaderBackground(v) } catch (_: Exception) {} }
+                }
             )
             // B5: preload tập đã tóm tắt + rewarded ad khi mở sách.
             LaunchedEffect(selectedBook?.id) {

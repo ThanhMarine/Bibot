@@ -26,7 +26,7 @@ import kotlin.coroutines.resume
  *   offline: offline trước → Cloud
  *   online: chỉ Cloud
  */
-class OfflineTtsHelper(private val context: Context) : TextToSpeech.OnInitListener {
+class OfflineTtsHelper private constructor(private val context: Context) : TextToSpeech.OnInitListener {
     @Volatile private var tts: TextToSpeech? = null
     @Volatile private var ready = false
     private var pendingInit: (() -> Unit)? = null
@@ -149,6 +149,12 @@ class OfflineTtsHelper(private val context: Context) : TextToSpeech.OnInitListen
     }
 
     fun stop() { try { tts?.stop() } catch (_: Exception) {} }
+
+    /**
+     * Dừng vĩnh viễn — CHỈ gọi khi chắc chắn không màn nào dùng nữa (vd app thoát).
+     * Instance dùng chung toàn process (xem [shared]) nên màn hình KHÔNG được gọi,
+     * nếu không sẽ cắt TTS của màn khác (lỗi đọc chồng/đứt đoạn cũ).
+     */
     fun shutdown() { tts?.shutdown(); tts = null; ready = false }
 
     // Kiểm tra giọng vi-VN đã cài chưa
@@ -156,13 +162,27 @@ class OfflineTtsHelper(private val context: Context) : TextToSpeech.OnInitListen
         val avail = tts?.isLanguageAvailable(Locale("vi", "VN")) ?: TextToSpeech.LANG_NOT_SUPPORTED
         return avail >= TextToSpeech.LANG_AVAILABLE
     }
+
+    companion object {
+        @Volatile private var instance: OfflineTtsHelper? = null
+
+        /**
+         * A3.2: 1 engine Android TTS cho TOÀN process (ExoPlayer vs engine TTS gộp về
+         * 1 controller — [com.bibot.app.ui.player.PlayerViewModel]). Trước đây mỗi màn
+         * News/Weather/Voice/Reader tự `OfflineTtsHelper(context)` → 4-5 kết nối TTS
+         * song song, `stop()` màn này không dừng màn kia → 2 nguồn phát chồng nhau.
+         */
+        fun shared(context: Context): OfflineTtsHelper = instance ?: synchronized(this) {
+            instance ?: OfflineTtsHelper(context.applicationContext).also { instance = it }
+        }
+    }
 }
 
 /**
  * Hybrid TTS manager: Cloud → offline
  */
 class HybridTtsManager(private val context: Context) {
-    private val offline = OfflineTtsHelper(context)
+    private val offline = OfflineTtsHelper.shared(context)
 
     enum class Priority { AUTO, OFFLINE, ONLINE }
 

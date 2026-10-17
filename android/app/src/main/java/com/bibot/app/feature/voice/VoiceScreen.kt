@@ -121,6 +121,10 @@ fun VoiceScreen(
 
     LaunchedEffect(playerVm) { chatVm.bindPlayer(playerVm) }
 
+    // A3.2: rời màn Voice → dừng audio (ViewModel sống theo Activity nên job pipeline
+    // phải tự hủy ở đây — giống NewsScreen.stopSpeaking khi rời màn Điểm tin).
+    DisposableEffect(Unit) { onDispose { chatVm.stopChat() } }
+
     val audioPermLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->

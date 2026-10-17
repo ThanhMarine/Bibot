@@ -28,10 +28,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
 import com.bibot.app.R
-import com.bibot.app.data.offline.OfflineTtsHelper
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.ui.player.ControlInfoText
 import com.bibot.app.ui.player.ControlPlayButton
 import com.bibot.app.ui.player.FloatingControlScaffold
+import com.bibot.app.ui.player.PlayerViewModel
 import com.bibot.app.ui.player.contentBottomInset
 
 data class DayForecast(
@@ -269,11 +270,12 @@ object WeatherApi {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // A3.2: controller audio chung (ExoPlayer + engine TTS) — đọc thời tiết đi qua đây.
+    playerVm: PlayerViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val offlineTts = remember { OfflineTtsHelper(context) }
     var weatherData by remember { mutableStateOf<WeatherData?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -313,16 +315,16 @@ fun WeatherScreen(
             val text = buildWeatherText(w)
             scope.launch {
                 isSpeaking = true
-                try { offlineTts.speakOffline(text) } finally { isSpeaking = false }
+                // A3.2: đọc qua controller — tự dừng ExoPlayer trước (không 2 nguồn chồng).
+                try { playerVm.speakOffline(text) } finally { isSpeaking = false }
             }
         }
     }
 
     fun stopSpeaking() {
-        scope.launch {
-            offlineTts.stop()
-            isSpeaking = false
-        }
+        // A3.2: 1 lệnh dừng duy nhất của app (ExoPlayer + engine TTS).
+        playerVm.stopAll()
+        isSpeaking = false
     }
 
     // 12.x: thanh điều khiển nổi + nền trong suốt (dùng chung) — không trừ chiều cao.

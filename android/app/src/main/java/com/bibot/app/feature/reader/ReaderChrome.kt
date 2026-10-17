@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
@@ -107,8 +108,9 @@ fun ReaderTopBar(
             IconButton(onClick = onToc, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.MenuBook, contentDescription = stringResource(R.string.chrome_toc))
             }
-            // ⚙: chuyển TEXT ↔ PAGE (F1.1). Sách không-PDF không có PAGE.
-            IconButton(onClick = onToggleView, enabled = pageMode, modifier = Modifier.size(44.dp)) {
+            // ⚙: chuyển TEXT ↔ PAGE (F1.1) + brightness + nền (B6.19) — bật mọi sách
+            // (sách text-only vẫn cần đổi brightness/nền; chuyển view tự khóa trong popup).
+            IconButton(onClick = onToggleView, modifier = Modifier.size(44.dp)) {
                 Icon(
                     Icons.Default.Settings,
                     contentDescription = stringResource(
@@ -153,6 +155,7 @@ fun ReaderBrightnessRow(
 /**
  * B6.2 — Popup nút ⚙: toggle Xem chữ/Xem trang + brightness (gọn 1 chỗ,
  * thay hàng brightness cố định chiếm vùng đọc).
+ * B6.19: thêm nền màn đọc Trống đồng / Đơn sắc.
  */
 @Composable
 fun ReaderSettingsPopup(
@@ -162,7 +165,9 @@ fun ReaderSettingsPopup(
     pageModeEnabled: Boolean,
     onToggleView: () -> Unit,
     brightness: Float?,
-    onBrightness: (Float?) -> Unit
+    onBrightness: (Float?) -> Unit,
+    readerBackground: String = READER_BG_DRUM,
+    onBackgroundChange: (String) -> Unit = {}
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -183,6 +188,26 @@ fun ReaderSettingsPopup(
         )
         HorizontalDivider()
         ReaderBrightnessRow(brightness = brightness, onBrightness = onBrightness)
+        HorizontalDivider()
+        // B6.19: nền màn đọc — tick chọn đang áp (persist qua DataStore).
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.chrome_background_drum)) },
+            trailingIcon = {
+                if (readerBackground == READER_BG_DRUM) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                }
+            },
+            onClick = { onBackgroundChange(READER_BG_DRUM); onDismiss() }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.chrome_background_solid)) },
+            trailingIcon = {
+                if (readerBackground == READER_BG_SOLID) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                }
+            },
+            onClick = { onBackgroundChange(READER_BG_SOLID); onDismiss() }
+        )
     }
 }
 

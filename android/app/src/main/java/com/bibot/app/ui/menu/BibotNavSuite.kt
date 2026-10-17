@@ -23,6 +23,7 @@ import com.bibot.app.ui.components.ads.AdsInterstitialHelper
 import com.bibot.app.ui.components.ads.AdsRewardedHelper
 import com.bibot.app.feature.reader.ReaderCollection
 import com.bibot.app.feature.reader.ReaderScreen
+import com.bibot.app.feature.reader.ReaderBackgroundLayer
 import com.bibot.app.feature.reader.BookDetailScreen
 import com.bibot.app.feature.music.MusicScreen
 import com.bibot.app.feature.news.NewsScreen
@@ -34,6 +35,8 @@ import com.bibot.app.ui.player.PlayerViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.data.ads.AdsPreferences
 import com.bibot.app.data.ads.AdManager
+import com.bibot.app.data.store.BibotPreferences
+import com.bibot.app.data.store.BibotPrefs
 
 enum class BibotMode(val emoji: String, val titleRes: Int) {
     VOICE("🎙️", R.string.nav_voice),
@@ -80,12 +83,18 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
     var currentMode by remember { mutableStateOf<BibotMode?>(null) }
     val context = LocalContext.current
     val activity = context as? ComponentActivity
-    fun goHome() { playerViewModel.stopPlayback(); currentMode = null }
+    // A3.2: MỌI lần đổi màn đi qua đúng 1 lệnh dừng duy nhất — ExoPlayer + engine TTS +
+    // job đọc nền (News auto-read / Voice pipeline) dừng trước khi màn mới hiện.
+    fun switchMode(mode: BibotMode?) { playerViewModel.stopAll(); currentMode = mode }
+    fun goHome() { switchMode(null) }
     // Back ở Home = thoát app (như nút Back hệ thống).
     fun pressBack() { try { activity?.onBackPressedDispatcher?.onBackPressed() } catch (_: Exception) {} }
 
     // Ads preferences for banner/interstitial/rewarded
     val adsPrefs = remember { AdsPreferences(context) }
+    // B6.19: cài đặt nền màn đọc (drum/solid) — đọc chung DataStore với phần còn lại.
+    val bibotPrefs = remember { BibotPreferences(context) }
+    val bibotPrefsState by bibotPrefs.prefsFlow.collectAsState(initial = BibotPrefs())
     // B6.1: mode đọc (sách/truyện/PDF) ẩn chrome app (topBar) →
     // full-screen kiểu ReadEra; back bằng nút của reader/library. Banner VẪN hiện
     // ở đáy màn đọc (không ẩn banner); interstitial giữa chừng đã xoá (B6.14).
@@ -96,6 +105,9 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
     // Đặt NGOÀI Scaffold nên đi xuyên cả top bar (thanh trong suốt).
     Box(Modifier.fillMaxSize()) {
         TrongDongWatermark()
+        // B6.19: nền đơn sắc ở màn đọc — dưới Scaffold trong suốt nên phủ luôn
+        // statusBar/navBar; các màn khác vẫn giữ nền trống đồng.
+        if (inReader) ReaderBackgroundLayer(bibotPrefsState.readerBackground)
         // containerColor transparent — M3 Scaffold mặc định vẽ Surface(background)
         // đè mất watermark (nền trống đồng phải thấy xuyên qua Scaffold).
         Scaffold(
@@ -120,7 +132,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                             Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back))
                         }
                     } else {
-                        IconButton(onClick = { playerViewModel.stopPlayback(); currentMode = null }) {
+                        IconButton(onClick = { switchMode(null) }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
                         }
                     }
@@ -135,14 +147,14 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                     )
                     if (BuildConfig.ENABLE_VOICE) {
                         IconButton(
-                            onClick = { currentMode = BibotMode.VOICE },
+                            onClick = { switchMode(BibotMode.VOICE) },
                             modifier = Modifier.size(44.dp)
                         ) {
                             Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.nav_voice))
                         }
                     }
                     IconButton(
-                        onClick = { currentMode = BibotMode.SETTINGS },
+                        onClick = { switchMode(BibotMode.SETTINGS) },
                         modifier = Modifier.size(44.dp)
                     ) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
@@ -157,16 +169,16 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                         VoiceScreen(playerVm = playerViewModel)
                     } else {
                         when (currentMode) {
-                            null -> HomeMenu(onModeSelected = { currentMode = it })
+                            null -> HomeMenu(onModeSelected = { switchMode(it) })
                                 BibotMode.BOOK -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.EN, onBackHome = { goHome() })
                                 BibotMode.STORY -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.STORY_VI, onBackHome = { goHome() })
                                 BibotMode.COTICH -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.COTICH, onBackHome = { goHome() })
                             BibotMode.ABOUT -> BookDetailScreen(onBack = { goHome() })
                             BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
-                            BibotMode.WEATHER -> WeatherScreen()
-                                BibotMode.NEWS -> NewsScreen()
+                            BibotMode.WEATHER -> WeatherScreen(playerVm = playerViewModel)
+                            BibotMode.NEWS -> NewsScreen(playerVm = playerViewModel)
                             BibotMode.SETTINGS -> SettingsScreen()
-                            else -> HomeMenu(onModeSelected = { currentMode = it })
+                            else -> HomeMenu(onModeSelected = { switchMode(it) })
                         }
                     }
                 }

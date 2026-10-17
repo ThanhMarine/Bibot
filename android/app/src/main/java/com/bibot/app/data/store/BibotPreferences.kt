@@ -50,6 +50,8 @@ object PrefKeys {
     val READER_PARAGRAPH_MARGIN = floatPreferencesKey("reader_paragraph_margin") // 8dp default
     // B5.7: chia sẻ tóm tắt do máy sinh lên wiki công cộng (mặc định bật, tắt được)
     val SUMMARY_SHARE_ENABLED = booleanPreferencesKey("summary_share_enabled")
+    // B6.19: nền màn đọc — "drum" (trống đồng, mặc định) | "solid" (đơn sắc cùng tông)
+    val READER_BACKGROUND = stringPreferencesKey("reader_background")
 }
 
 // A2.3: Allowed values from ReadEra eraepub
@@ -82,7 +84,9 @@ data class BibotPrefs(
     val readerInterline: Float = 1.2f,
     val readerParagraphMargin: Float = 8f,
     // B5.7: chia sẻ tóm tắt lên wiki công cộng
-    val summaryShareEnabled: Boolean = true
+    val summaryShareEnabled: Boolean = true,
+    // B6.19: nền màn đọc — "drum" (trống đồng) | "solid" (đơn sắc)
+    val readerBackground: String = "drum"
 )
 
 class BibotPreferences(private val context: Context) {
@@ -111,7 +115,8 @@ class BibotPreferences(private val context: Context) {
             readerFontSizeSp = p[PrefKeys.READER_FONT_SIZE_SP] ?: 16f,
             readerInterline = p[PrefKeys.READER_INTERLINE] ?: 1.2f,
             readerParagraphMargin = p[PrefKeys.READER_PARAGRAPH_MARGIN] ?: 8f,
-            summaryShareEnabled = p[PrefKeys.SUMMARY_SHARE_ENABLED] ?: true
+            summaryShareEnabled = p[PrefKeys.SUMMARY_SHARE_ENABLED] ?: true,
+            readerBackground = p[PrefKeys.READER_BACKGROUND] ?: "drum"
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }
@@ -137,6 +142,8 @@ class BibotPreferences(private val context: Context) {
     suspend fun setReaderParagraphMargin(v: Float) { context.bibotDataStore.edit { it[PrefKeys.READER_PARAGRAPH_MARGIN] = v } }
     // B5.7: tắt/mở chia sẻ tóm tắt lên wiki công cộng
     suspend fun setSummaryShareEnabled(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.SUMMARY_SHARE_ENABLED] = v } }
+    // B6.19: nền màn đọc "drum"/"solid"
+    suspend fun setReaderBackground(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_BACKGROUND] = v } }
 
     // API keys lưu EncryptedSharedPreferences nếu cần; ở đây lưu DataStore + backupRules exclude
     suspend fun setGeminiKey(v: String) { context.bibotDataStore.edit { it[PrefKeys.GEMINI_API_KEY] = v } }

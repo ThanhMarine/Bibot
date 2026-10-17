@@ -373,6 +373,8 @@
     <string name="chrome_view_page">Xem trang</string>
     <string name="chrome_brightness">Độ sáng trong app</string>
     <string name="chrome_brightness_auto">Hệ thống</string>
+    <string name="chrome_background_drum">Nền: Trống đồng</string>
+    <string name="chrome_background_solid">Nền: Đơn sắc</string>
     <string name="chrome_page_of">Trang %1$d/%2$d</string>
     <string name="chrome_chapter_of">Chương %1$d/%2$d</string>
     <string name="chrome_back_to_page">‹ Về trang %1$d</string>

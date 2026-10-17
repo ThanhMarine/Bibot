@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.R
 import com.bibot.app.ui.player.ControlIconButton
+import com.bibot.app.ui.player.PlayerViewModel
 import com.bibot.app.ui.player.ControlInfoText
 import com.bibot.app.ui.player.ControlPlayButton
 import com.bibot.app.ui.player.FloatingControlScaffold
@@ -44,10 +45,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // A3.2: controller audio chung (ExoPlayer + engine TTS) — đọc/dừng Điểm tin đi qua đây.
+    playerVm: PlayerViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<NewsViewModel>()
+    LaunchedEffect(playerVm) { viewModel.bindPlayer(playerVm) }
     val scope = rememberCoroutineScope()
     var newsItems by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
