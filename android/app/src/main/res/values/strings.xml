@@ -568,6 +568,7 @@
     <string name="summary_book_btn">Summarize whole book</string>
     <string name="summary_book_running">Book summary running in background…</string>
     <string name="summary_failed">Summary failed. Check network/key and retry.</string>
+    <string name="summary_empty">This chapter has no text to summarize.</string>
     <string name="summary_progress">Summarized %1$d/%2$d chapters</string>
     <string name="summary_share">Share my summaries to community wiki</string>
     <string name="summary_share_sub">Only short derived summaries, never book text. Needs Firebase. Fair rule: OFF = you neither send nor receive community cache.</string>

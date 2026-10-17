@@ -54,25 +54,23 @@
    `Select-String` sau `$x.IndexOf(...)` regex bắt `bounds` nhớ thoát `\d` đúng.
 
 ## 3. Còn nợ phiên sau
-- **[ƯU TIÊN] Reward +3 live**: mở chương gate NoCredit (còn 3 lượt → 0 trước) → bấm
-  "Watch ad" → QC hiện? → `rewarded_summary 0→3` verify bằng `od`
-  `files/datastore/bibot_ads.preferences_pb` (`18 03`→`18 00`→`18 03`) + log `BibotReward`.
-  Chú ý cooldown `REWARDED_COOLDOWN_MS=30'` + log `AdManager: Rewarded loaded`.
 - **A2.5b**: font slider (tap/swipe/thumb không ăn — thử `input swipe` chậm trên thumb
   thật của Compose Slider hoặc +`/* pointerInput */` nếu vẫn hỏng) + test sách dày
   (How it Works 7.7MB / Khe Sanh 5.3MB) + cap `MAX_CHAPTERS=500`.
-- C4 2 flavor (Bibot/BibotV) song song verify.
-- State máy ảo đang giữ: key Gemini đã lưu, share **ON**, Khe Sanh local row idx0 bị
-  xóa (test) — nếu cần tóm tắt lại chương đó thì mở TOC → icon → LLM (trừ 1 lượt).
+- ~~Reward +3 live~~ **XONG 2026-10-17** (§6); ~~C4 2 flavor~~ **XONG 2026-10-17**.
+- State máy ảo **MỚI (data bị wipe 2026-10-17 13:41 — datastore/DB tạo lại)**:
+  **key Gemini ĐÃ MẤT** (cần nhập lại nếu test LLM thật), share **ON** (đã bật lại sau
+  test OFF), `rewarded_summary=3` (vừa verify reward), Khe Sanh epub 5,3MB đã tải lại
+  (7 chương — chương 1 là "Cover" RỖNG), 8 sách EN còn lại chưa tải.
 
 ## 4. Cam kết/môi trường (không đổi so với 10-14)
 - JDK17 qua `C:\Users\Thanh Marine\.gradle\gradle.properties`; AVD `H:\androidkit\avd\BibotTest.avd`.
 - APK: `android\app\build\outputs\apk\demo\debug\Bibot.apk`; secret chỉ `android/local.properties`.
 - Version v1.0.2 / versionCode 3 — chưa bump.
 
-## 5. Bổ sung cùng ngày (B6.19 + C4 + A3.2) — CHƯA commit
-> Tree **CHƯA commit** (user chưa lệnh): B6.19 (nền màn đọc) + C4 (2 flavor) + A3.2 (gộp player)
-> nằm chung working tree với nhau. Chi tiết đầy đủ trong `Checklist_Upgrade_Bibot.md` (B6.19, A3.2, J3).
+## 5. Bổ sung cùng ngày (B6.19 + C4 + A3.2) — ĐÃ commit `f36d03a`
+> Đã commit theo lệnh user: B6.19 (nền màn đọc) + C4 (2 flavor) + A3.2 (gộp player).
+> Chi tiết đầy đủ trong `Checklist_Upgrade_Bibot.md` (B6.19, A3.2, J3).
 
 ### 5.1 B6.19 Nền màn đọc (drum/đơn sắc)
 - `PrefKeys.READER_BACKGROUND` + `BibotPrefs.readerBackground` (`setReaderBackground`),
@@ -113,4 +111,22 @@
 - Bảng home: Weather `(282,1175)`, News `(798,1175)`, EN Books `(282,434)`, Storytelling `(798,434)`;
   top bar Back `(74,132)` / Chat `(894,132)` / Settings `(1011,132)`; nút đọc bắn từ
   `uiautomator dump` (`desc='Read weather'`, `'Read this story'`, FAB `'Tell'`).
-- Gradle dài: chạy `> $env:TEMP\xxx.log 2>&1` rồi đọc file ở lệnh riêng (pipe làm bash tool kill shell).
+- Gradle dài: `Start-Process .\gradlew.bat -ArgumentList ':app:assembleDemoDebug' -RedirectStandardOutput $env:TEMP\x.log -RedirectStandardError $env:TEMP\x.err -NoNewWindow -Wait` (chạy từ thư mục `android\`, không pipe → không kill shell).
+
+## 6. B5.6 reward +3 LIVE — XONG 2026-10-17 (sau commit `f36d03a`)
+- Data máy ảo bị wipe 13:41 cùng ngày → key Gemini MẤT, `bibot_ads.preferences_pb` chưa
+  tồn tại (0 lượt). Tải lại Khe Sanh (5,3MB, **7 chương — chương 1 là "Cover" RỖNG**).
+- **Quy trình verify**: TOC → "Summarize whole book" → gate "Out of turns (0 left)" →
+  bấm `Watch ad (+3 turns)` → AdActivity `TEST_REWARDED_ID` (Test Ad) đếm "Reward in 5
+  seconds" → **"Reward granted"** → đóng QC → dialog TỰ mở lại "Out of turns (3 left)"
+  + `bibot_ads.preferences_pb` 54B vừa xuất hiện (`rewarded_summary=3`).
+  Lưu ý: tag `BibotReward` chỉ log ở nhánh blocked/not-ready, **claim không log** —
+  verify bằng UI dialog + file datastore + `D AdManager: Rewarded loaded` sau đóng QC.
+- Chương cấp (tắt share OFF để chắc không wiki-hit): chương 2 → `BibotWiki lookup
+  share=false` → NeedKey gate **giữ nguyên 3 lượt** (không đốt). Đã bật lại share ON.
+- **BUG nhỏ sửa kèm (commit cùng phiên)**: chương rỗng trước đây báo sai "Summary failed.
+  Check network/key and retry." → thêm chuỗi `summary_empty` EN/VI + `SummaryDialog` nhánh
+  `msg=="empty"` → verify máy: "This chapter has no text to summarize."
+- Mẹo máy ảo: `run-as com.bibot.app ls -la files/datastore/` (54B = 3 lượt);
+  đọc toggle Compose trong `uiautomator dump` = node `android.view.View` có `checked`;
+  tắt/bật share để ép đường tổng hợp đi LLM thay vì wiki.

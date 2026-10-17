@@ -396,10 +396,20 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
    đã có    `MAX_CHAPTERS=500`, còn nợ test sách dày).
   VERIFY 2026-10-15 (luật công bằng + opt-out live, máy ảo): xem LUẬT CÔNG BẰNG ở B5.7.
   Opt-out OFF→không đọc wiki (đúng luật mới) / ON→wiki-hit shared=1 trên chương mới —
-  XONG live. Còn nợ: reward +3 summary turns live (nút Watch ad trước đó im lặng; đã
-  sửa `AdManager.loadRewarded` DEBUG dùng TEST_REWARDED_ID tránh no-fill + thêm Toast
-  `ads_cooldown`/`ads_loading` + log `BibotReward` ở `watchAdForSummary` — chưa verify
-  lại live), C4 2 flavor, A2.5b font slider + sách dày.
+   XONG live. **REWARD +3 LIVE — XONG 2026-10-17 (máy ảo BibotTest, demoDebug cài mới):**
+   gate sách "Out of turns (0 left)" → bấm `Watch ad (+3 turns)` → AdActivity Test Ad
+   đếm "Reward in 5 seconds" → **"Reward granted"** → dialog tự mở lại "Out of turns
+   (3 left)" + `files/datastore/bibot_ads.preferences_pb` (54B) vừa ghi
+   `rewarded_summary=3`; `AdManager` reload QC sau khi đóng (`D AdManager: Rewarded
+   loaded`). Trước đó Toast `ads_loading`/`ads_cooldown` + `TEST_REWARDED_ID` đã sửa
+   ở commit trước. **C4 2 flavor — XONG 2026-10-17** (Bibot.apk 56MB + BibotV.apk 57,2MB
+   PASS). Chương cấp: icon chương 2 (THE BATTLE FOR KHE SANH) → `BibotWiki lookup
+   share=false` → NeedKey gate giữ nguyên 3 lượt (không đốt); share OFF/ON ở Settings
+   verify lại được. Sửa kèm 2026-10-17: chương rỗng (chương 1 "Cover" của epub này)
+   trước đây báo sai "Summary failed. Check network/key..." → nay chuỗi mới
+   `summary_empty` ("Chương này không có nội dung để tóm tắt." / EN) — `SummaryDialog`
+   phân nhánh `msg=="empty"`.
+   Còn nợ: A2.5b font slider + sách dày (cap 500 chương).
   VERIFY 2026-10-14 (Khe Sanh epub, máy thật + máy ảo): máy thật tóm tắt Chương 1 OK
   → doc wiki `{hash}_gemini-3-5-flash-lite_v1` (chapterTitle/hits/lang/model/promptVer/
   text/updatedAt đủ 7 field); máy ảo đọc ké FREE không mất lượt + `hits` 1→2

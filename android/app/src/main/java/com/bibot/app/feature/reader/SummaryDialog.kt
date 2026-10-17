@@ -95,7 +95,9 @@ fun SummaryDialog(
                     }
                     is SummaryUiState.Error -> {
                         Text(
-                            stringResource(R.string.summary_failed),
+                            stringResource(
+                                if (state.msg == "empty") R.string.summary_empty else R.string.summary_failed
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
                         )
