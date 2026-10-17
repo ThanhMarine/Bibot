@@ -114,7 +114,28 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     `chapterIdx/sentenceIdx` thật; kill app mở lại chip giữ đúng; logcat sạch FATAL.
   + Drawer badge/kệ Đang đọc: N/A trên nav hiện tại (module library chưa vào nav) —
     logic `READING` cover bởi JVM `LibraryQueryTest` + chip resume trên máy ảo.
-- [ ] A2.5b Còn mở: mở sách 3–5MB + đổi font/sách dày (chuyển sang phiên sau).
+- [x] A2.5b Font slider + sách dày (cap 500 chương — XONG 2026-10-17, máy ảo, demoDebug):
+  + Font slider **ăn thật**: tap (`input tap` đúng dải SeekBar, không phải dòng nhãn
+    `15 sp`) + swipe chậm trên thumb đều đổi giá trị; verify 15→25→18→28sp,
+    interline 1,2→1,7, paragraph 6dp giữ nguyên. Ghi chú cũ "tap/swipe/thumb không
+    ăn" = bắn sai toạ độ, không phải lỗi app. Đã trả lại 15sp/1,2/6dp sau test.
+  + Sách 3–5MB: `The Battle for Khe Sanh.epub` 5,3MB/7 chương mở OK, đổi font 28sp
+    → render lại ngay (RenderIfDirty), chữ to + nền drum, 0 FATAL; `grimm10.pdf`
+    916KB/301 trang mở qua Read OK.
+  + Sách dày chương: md tự dựng 501 chương (`%TEMP%\thickbook\dense_501.md`,
+    112KB) → "Loaded 501 chapters" nạp 4,9s, TOC 501 dòng scroll mượt, nhảy TOC
+    chương 84/501 hiện đúng nội dung, 0 FATAL — không treo TabRow. Lưu ý ranh giới:
+    luồng stream (md/txt/pdf) dừng ở **501** chương (điều kiện `out.size <
+    MAX_CHAPTERS` cho mở thêm 1 title cuối, `BlockTextReader.kt:403`) còn EPUB/MOBI
+    `take(500)` đúng 500 — mục đích chặn vô hạn ĐẠT, không sửa (chỉ ghi nhận lệch 1).
+  + Gate sách dày: "Summarize whole book" → `Out of turns (3 left)` ngay (cần 21
+    lượt > 3) → NoCredit trước LLM, không đốt lượt.
+  + QUAN SÁT (không blocks): URL-paste `http://localhost:8000/...` fail với
+    `Error: Cleartext HTTP traffic to localhost not permitted`
+    (`PublicUrlSource.download` + Android mặc định chặn cleartext từ API 28;
+    status nằm **cuối** LazyColumn `ReaderScreen.kt:1183` nên phải cuộn hết mới
+    thấy). Link `https://` không ảnh hưởng; nếu cần dev localhost → thêm
+    networkSecurityConfig — để riêng ticket, không vào mảng này.
 
 ### A3. P2 — Export + Player polish (học openreader)
 
@@ -409,7 +430,7 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
    trước đây báo sai "Summary failed. Check network/key..." → nay chuỗi mới
    `summary_empty` ("Chương này không có nội dung để tóm tắt." / EN) — `SummaryDialog`
    phân nhánh `msg=="empty"`.
-   Còn nợ: A2.5b font slider + sách dày (cap 500 chương).
+    Còn nợ: không còn — A2.5b font slider + sách dày **XONG 2026-10-17** (xem mục A2.5b).
   VERIFY 2026-10-14 (Khe Sanh epub, máy thật + máy ảo): máy thật tóm tắt Chương 1 OK
   → doc wiki `{hash}_gemini-3-5-flash-lite_v1` (chapterTitle/hits/lang/model/promptVer/
   text/updatedAt đủ 7 field); máy ảo đọc ké FREE không mất lượt + `hits` 1→2
@@ -1145,9 +1166,11 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   C4 2 flavor (2026-10-17: `go vet` 0 + JVM 69/69 + ruler 64/64 + `assembleDemoDebug`
   58,7MB + `assembleCommercialDebug` PASS + máy ảo sạch FATAL),
   A3.2 (gộp 2 player chồng → 1 controller `PlayerViewModel` + `stopAll()` duy nhất +
-  engine TTS singleton — CODE + VERIFY MÁY 2026-10-17, xem A3.2).
-- CÒN MỞ: B5.6 (còn reward +3 summary turns live — cần nhập lại key + hết cooldown),
-  B5.8, A2.5b (font/sách dày), A3.1/A3.3–A3.5 (export audiobook, scrubber+MediaSession,
+  engine TTS singleton — CODE + VERIFY MÁY 2026-10-17, xem A3.2),
+  B5.6 (reward +3 summary turns live + summary_empty — VERIFY MÁY 2026-10-17, xem B5.6),
+  A2.5b (font slider ăn + sách 5,3MB + sách 501 chương cap — VERIFY MÁY 2026-10-17,
+  xem A2.5b; quan sát: URL-paste http bị chặn cleartext, status cuối list).
+- CÒN MỞ: B5.8, A3.1/A3.3–A3.5 (export audiobook, scrubber+MediaSession,
   SmartCrop), E2 (view nguyên bản), G1.2/G1.3,
   G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
@@ -1155,5 +1178,5 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
   máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
   + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: reward +3 summary turns live (hết cooldown), A2.5b, rồi A3 còn lại
-  (A3.1/A3.3–A3.5); release mới (J1.1 bump version) khi user lệnh.
+- NỢ SANG PHIÊN SAU: A3 còn lại (A3.1/A3.3–A3.5) + B5.8; release mới (J1.1 bump
+  version) khi user lệnh.

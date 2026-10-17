@@ -54,14 +54,14 @@
    `Select-String` sau `$x.IndexOf(...)` regex bắt `bounds` nhớ thoát `\d` đúng.
 
 ## 3. Còn nợ phiên sau
-- **A2.5b**: font slider (tap/swipe/thumb không ăn — thử `input swipe` chậm trên thumb
-  thật của Compose Slider hoặc +`/* pointerInput */` nếu vẫn hỏng) + test sách dày
-  (How it Works 7.7MB / Khe Sanh 5.3MB) + cap `MAX_CHAPTERS=500`.
+- ~~A2.5b~~ **XONG 2026-10-17** (§7): font slider ăn thật (lỗi cũ = bắn sai toạ độ),
+  sách 5,3MB + md 501 chương load 4,9s không treo, gate sách dày NoCredit đúng;
+  quan sát cleartext http khi URL-paste (chi tiết §7).
 - ~~Reward +3 live~~ **XONG 2026-10-17** (§6); ~~C4 2 flavor~~ **XONG 2026-10-17**.
-- State máy ảo **MỚI (data bị wipe 2026-10-17 13:41 — datastore/DB tạo lại)**:
-  **key Gemini ĐÃ MẤT** (cần nhập lại nếu test LLM thật), share **ON** (đã bật lại sau
-  test OFF), `rewarded_summary=3` (vừa verify reward), Khe Sanh epub 5,3MB đã tải lại
-  (7 chương — chương 1 là "Cover" RỖNG), 8 sách EN còn lại chưa tải.
+- State máy ảo (đã verify thêm 17-10 chiều): **key Gemini vẫn MẤT**, share **ON**,
+  `rewarded_summary=3`, font reader đã **trả lại 15sp/1,2/6dp** (mặc định),
+  Khe Sanh epub 5,3MB + grimm10.pdf 916KB + 4 sách VI local trong inbox
+  (dense_501.md test **đã xóa**), 8 sách EN (chưa tải trừ grimm10).
 
 ## 4. Cam kết/môi trường (không đổi so với 10-14)
 - JDK17 qua `C:\Users\Thanh Marine\.gradle\gradle.properties`; AVD `H:\androidkit\avd\BibotTest.avd`.
@@ -130,3 +130,31 @@
 - Mẹo máy ảo: `run-as com.bibot.app ls -la files/datastore/` (54B = 3 lượt);
   đọc toggle Compose trong `uiautomator dump` = node `android.view.View` có `checked`;
   tắt/bật share để ép đường tổng hợp đi LLM thay vì wiki.
+
+## 7. A2.5b Font slider + sách dày — XONG 2026-10-17 (chiều)
+- **Font slider ăn thật**: `input tap` đúng dải SeekBar (`bounds` SeekBar, KHÔNG phải
+  dòng nhãn `15 sp`) đổi 15→25→18→28sp; `input swipe` chậm trên thumb đổi interline
+  1,2→1,7. Ghi chú cũ "không ăn" = bắn sai toạ độ. Sau test đã trả lại **15sp/1,2/6dp**
+  (tap x≈313 cho 15sp — x=296 lệch về 10sp, rồi mới đúng).
+- **Sách 5,3MB**: Khe Sanh epub mở OK, đổi 28sp → render lại ngay (RenderIfDirty),
+  0 FATAL. **grimm10.pdf** 916KB/301trang mở OK.
+- **Sách dày chương**: tự dựng `%TEMP%\thickbook\dense_501.md` (501 heading `## Chuong N`,
+  112KB). URL-paste fail (xem cleartext dưới) → **push thẳng**: `adb push` →
+  `/data/local/tmp/dense_501.md` → `run-as com.bibot.app cp ... files/bibot/pdfs/inbox/`
+  → Refresh → row trong section `Downloaded / links`. Verify: **"Loaded 501 chapters ·
+  1003 sentences"** nạp **4,9s**, TOC 501 dòng scroll mượt, nhảy TOC → `Chapter 84/501`
+  đúng nội dung, **0 FATAL**. Ranh giới: stream md/txt/pdf dừng ở **501** title
+  (`BlockTextReader.kt:403` cho mở thêm 1) còn EPUB/MOBI `take(500)` đúng 500 — chặn
+  vô hạn ĐẠT mục đích, chỉ ghi nhận lệch 1. Gate sách dày: "Summarize whole book" →
+  `Out of turns (3 left)` ngay (cần 21 lượt) → NoCredit trước LLM.
+- **Quan sát cleartext (không blocks)**: `http://localhost:8000/...` qua
+  `PublicUrlSource.download` → status `Error: Cleartext HTTP traffic to localhost not
+  permitted` (Android chặn cleartext từ API28, app không có networkSecurityConfig).
+  **Bẫy**: status hiển thị ở **item cuối LazyColumn** (`ReaderScreen.kt:1183`) — phải
+  cuộn hết list mới thấy, không hiện gần ô URL. Link `https://` không ảnh hưởng;
+  dev localhost nếu cần → thêm networkSecurityConfig (để ticket riêng).
+- Dọn sau test: xóa dense_501.md (inbox + `/data/local/tmp`), tắt python http.server,
+  `adb reverse --remove tcp:8000`, font về mặc định (15sp/1,2/6dp).
+- **Bẫy mới**: bấm nhầm banner QC (`Open`) → màn full-screen Google Calendar → Back
+  1 lần về launcher (app vẫn sống, `pidof` có pid) → bấm icon Bibot để quay vào.
+  Tránh vùng banner `y≥1689` khi bấm.
