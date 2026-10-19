@@ -168,12 +168,11 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
     `stopAll listeners=2` (News + Voice cùng đăng ký); **0 FATAL** toàn phiên.
   - Gate: `go vet` 0 + `go test` PASS + ruler 64/64 + JVM 69/69 + `assembleDemoDebug` (Bibot.apk 56MB) +
     `assembleCommercialDebug` (BibotV.apk 57,2MB) PASS.
-- [x] A3.3 Scrubber 3 lớp + Undo 10s + MediaSession (port `TTSPlayer.tsx + useMediaSession.ts`) — **CORE DONE 2026-10-17**:
+- [x] A3.3 Scrubber 3 lớp + Undo 10s + MediaSession (port `TTSPlayer.tsx + useMediaSession.ts`) — **XONG 2026-10-17**:
   + `PlayerViewModel`: Media3Session auto-sync với ExoPlayer (seek, speed, playback state); MediaSession release trong `onCleared()`.
   + `FloatingControlBar.kt`: thêm `ReaderFloatingControlBar` — 3-layer scrubber (chương/câu/tổng), Undo 10s (`seekBack`/`seekForward`), speed chips (0.75/0.85/1.0/1.25x), chapter/sentence info, volume icon.
-  + `FloatingControlScaffold` sẵn sàng cho overlay controls.
+  + `FloatingControlScaffold` overlay cho mọi màn hình; tích hợp vào `ReaderScreen`: khi `isReading=true` hiển thị pill điều khiển (scrubber + speed + undo 10s), khi dừng đọc hiển thị FABs Back/Play.
   + JVM 69/69 PASS, `assembleDemoDebug` + `assembleCommercialDebug` PASS.
-  + **Còn nợ**: tích hợp `FloatingControlScaffold` vào `ReaderScreen` content area (thay FABs khi `isReading`) — ReaderScreen structure phức tạp, làm tiếp phiên sau.
 - [ ] A3.4 SmartCrop sách scan (port `orecrop/smartcrop.cpp IsRectWhite 1%`) + đọc size ảnh comic không decode full + natural-sort.
   - File chạm: `DocBrowserScreen`, `PublicDriveSource`.
 - [ ] A3.5 Verify: export M4B/MP3 có chapters; stop ở mọi màn dừng hết tiếng; scrubber hiện ready-bands.
@@ -1183,14 +1182,13 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   A2.5b (font slider ăn + sách 5,3MB + sách 501 chương cap — VERIFY MÁY 2026-10-17,
   xem A2.5b; quan sát: URL-paste http bị chặn cleartext, status cuối list),
   A3.1 (export audiobook durable — Worker + ViewModel + Chrome, JVM 69/69 + 2 flavor PASS),
-  A3.3 core (MediaSession + 3-layer scrubber + Undo 10s + speed chips — JVM 69/69 + 2 flavor PASS;
-  **còn nợ**: tích hợp `FloatingControlScaffold` vào `ReaderScreen`).
-- CÒN MỞ: B5.8, A3.3 (ReaderScreen integration)–A3.5 (SmartCrop), E2 (view nguyên bản), G1.2/G1.3,
+  A3.3 (MediaSession + 3-layer scrubber + Undo 10s + speed chips + ReaderScreen integration — JVM 69/69 + 2 flavor PASS).
+- CÒN MỞ: B5.8, A3.4 (SmartCrop), A3.5 (verify), E2 (view nguyên bản), G1.2/G1.3,
   G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
 - VERIFY CUỐI (2026-10-17): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,7MB rebuild +
   commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
   máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
   + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: A3 còn lại (A3.3 ReaderScreen integration, A3.4–A3.5) + B5.8; release mới (J1.1 bump
+- NỢ SANG PHIÊN SAU: A3 còn lại (A3.4–A3.5) + B5.8; release mới (J1.1 bump
   version) khi user lệnh.
