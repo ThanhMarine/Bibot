@@ -7,25 +7,38 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -168,6 +181,101 @@ fun ControlInfoText(text: String, secondary: Boolean = false) {
         maxLines = 2,
         color = if (secondary) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
     )
+}
+
+/**
+ * A3.3: Enhanced floating control bar for Reader — includes:
+ * - Row 1: SkipPrevious (undo 10s), Play/Pause, SkipNext (forward 10s), Slider (overall progress), Time
+ * - Row 2: Speed chips (0.75x, 0.85x, 1.0x, 1.25x), Volume icon
+ * - Info: Chapter X/Y • Sentence Z/W
+ */
+@Composable
+fun ReaderFloatingControlBar(
+    viewModel: PlayerViewModel,
+    chapterText: String,
+    sentenceText: String,
+    onPrevChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val state: PlayerState by viewModel.playerState.collectAsState()
+
+    FloatingControlBar(
+        controls = {
+            // Row 1: controls + slider + time
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ControlIconButton(
+                    onClick = { viewModel.seekBack() },
+                    imageVector = Icons.Default.FastRewind,
+                    contentDescription = "Tua lại 10s"
+                )
+                ControlPlayButton(
+                    isPlaying = state.isPlaying,
+                    onClick = { viewModel.togglePlayPause() }
+                )
+                ControlIconButton(
+                    onClick = { viewModel.seekForward() },
+                    imageVector = Icons.Default.FastForward,
+                    contentDescription = "Tua tiếp 10s"
+                )
+                Spacer(Modifier.width(8.dp))
+                Slider(
+                    value = if (state.durationMs > 0) state.currentPositionMs.toFloat() / state.durationMs.toFloat() else 0f,
+                    onValueChange = { ratio -> viewModel.seekTo((ratio * state.durationMs).toLong()) },
+                    enabled = state.durationMs > 0,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "${formatTime(state.currentPositionMs)}/${formatTime(state.durationMs)}",
+                    style = MaterialTheme.typography.bodySmall, fontSize = 12.sp
+                )
+            }
+            // Row 2: Speed chips + volume
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "Tốc độ: ", style = MaterialTheme.typography.labelSmall)
+                    listOf(0.75f, 0.85f, 1.0f, 1.25f).forEach { speed ->
+                        FilterChip(
+                            selected = state.playbackSpeed == speed,
+                            onClick = { viewModel.setSpeed(speed) },
+                            label = { Text("${speed}x", fontSize = 11.sp) },
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        )
+                    }
+                }
+                ControlIconButton(
+                    onClick = { viewModel.setSpeed(1.0f) },
+                    imageVector = Icons.Default.VolumeUp,
+                    contentDescription = "Âm lượng"
+                )
+            }
+        },
+        modifier = modifier,
+        info = {
+            Column(
+                modifier = Modifier.padding(vertical = 2.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                ControlInfoText(chapterText)
+                ControlInfoText(sentenceText, secondary = true)
+            }
+        }
+    )
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSec = ms / 1000
+    val min = totalSec / 60
+    val sec = totalSec % 60
+    return String.format(java.util.Locale.getDefault(), "%02d:%02d", min, sec)
 }
 
 /**

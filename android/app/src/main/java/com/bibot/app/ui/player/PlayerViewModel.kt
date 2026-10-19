@@ -1,6 +1,11 @@
 package com.bibot.app.ui.player
 
 import android.app.Application
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.session.MediaController
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.AndroidViewModel
@@ -9,6 +14,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession as Media3Session
+import androidx.media3.session.MediaSessionService
 import com.bibot.app.data.offline.OfflineTtsHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,6 +87,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }
         })
     }
+
+    // A3.3: MediaSession for lock screen/notification controls + headphone buttons
+    // Media3Session auto-syncs with ExoPlayer. Media button handling is automatic.
+    private val mediaSession: Media3Session = Media3Session.Builder(application, player).build()
 
     private val _playerState = MutableStateFlow(PlayerState())
     val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
@@ -265,8 +276,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun updateMedia(title: String, subtitle: String, durationMs: Long) {
         _playerState.value = _playerState.value.copy(title = title, subtitle = subtitle, durationMs = durationMs, currentPositionMs = 0L)
     }
+
     override fun onCleared() {
         handler.removeCallbacks(progressRunnable)
+        mediaSession.release()
         player.release()
         super.onCleared()
     }
