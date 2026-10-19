@@ -55,6 +55,7 @@ import com.bibot.app.data.library.LibGroupKind
 import com.bibot.app.data.library.LibSel
 import com.bibot.app.data.library.LibraryManager
 import com.bibot.app.data.library.LibraryQuery
+import com.bibot.app.core.image.NaturalSort
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -687,7 +688,9 @@ fun DocBrowserScreen(
                 }
 
                 val storageDirs = storageFiles.filter { it.isDirectory }.take(20)
-                val storageFilesList = storageFiles.filter { !it.isDirectory }.take(50)
+                val storageFilesList = storageFiles.filter { !it.isDirectory }
+                    .sortedWith(NaturalSort.docFileItemNameComparator()) // A3.4: natural-sort cho comic pages
+                    .take(50)
                 if (storageDirs.isNotEmpty()) {
                     item { Text(stringResource(R.string.doc_dirs, storageDirs.size), style = MaterialTheme.typography.labelMedium) }
                     items(storageDirs, key = { it.path }) { doc ->
