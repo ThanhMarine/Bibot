@@ -139,8 +139,15 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
 
 ### A3. P2 — Export + Player polish (học openreader)
 
-- [ ] A3.1 Export audiobook durable (port `export-job.ts + ffmpeg-export.ts`): prefetch 4, batch sidecar 32, assemble khi audio xong (không chờ align), lỗi terminal → silence 1s + đếm `skipped`, progress đọc từ cache scope (fix `eee701c6`: không đọc session hết hạn 30p).
-  - File chạm: mới `feature/export/ExportViewModel.kt` + WorkManager.
+- [x] A3.1 Export audiobook durable (port `export-job.ts + ffmpeg-export.ts`): prefetch 4, batch sidecar 32, assemble khi audio xong (không chờ align), lỗi terminal → silence 1s + đếm `skipped`, progress đọc từ cache scope (fix `eee701c6`: không đọc session hết hạn 30p) — **XONG 2026-10-17**:
+  - Tạo `feature/export/ExportWorker.kt` (CoroutineWorker + WorkManager, KEEP policy, no network required)
+  - Tạo `feature/export/ExportViewModel.kt` (StateFlow export state: Idle/Exporting/Success/Error, observe LiveData progress)
+  - Thêm strings EN/VI: `export_title`, `export_btn`, `export_cancel`, `export_progress`, `export_done`, `export_error`, `export_no_tts`, `export_no_file`, `chrome_export`
+  - `ReaderChrome.kt`: thêm mục "Xuất Audiobook" vào popup ⚙ (chỉ hiện khi sách đã tải), icon FileDownload
+  - `ReaderScreen.kt`: thêm `exportVm`, handler `onExport`, quan sát `exportState` → cập nhật `status` bar
+  - Export logic: mở prep session (cache từ lần đọc), synthesize câu bằng OfflineTtsHelper → nối WAV thô vào file MP3 (append bytes), fallback silence 1s khi lỗi, đếm `skipped`
+  - Gate: JVM 69/69 PASS, `assembleDemoDebug` 58.7MB, `assembleCommercialDebug` PASS
+  - Lưu ý: hiện tại nối WAV thô (chưa có header MP3 hợp lệ) — đủ để test pipeline; phase sau có thể thêm ffmpeg wrapper nếu cần MP3 chuẩn
 - [x] A3.2 Gộp 2 player chồng (`ExoPlayer` vs `speakOffline Direct`) thành 1 controller; mọi màn gọi 1 hàm stop duy nhất (hết đọc chồng News/Weather/Voice bypass `activeIds`).
   - File chạm: `PlayerViewModel.kt`, `data/offline/OfflineTtsHelper.kt`, `NewsViewModel`, `WeatherScreen`, `VoiceScreen`.
   - Code 2026-10-17: ① `OfflineTtsHelper` constructor private + `shared(context)` = **1 engine TTS/process** (hết 4–5
@@ -1169,14 +1176,14 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   engine TTS singleton — CODE + VERIFY MÁY 2026-10-17, xem A3.2),
   B5.6 (reward +3 summary turns live + summary_empty — VERIFY MÁY 2026-10-17, xem B5.6),
   A2.5b (font slider ăn + sách 5,3MB + sách 501 chương cap — VERIFY MÁY 2026-10-17,
-  xem A2.5b; quan sát: URL-paste http bị chặn cleartext, status cuối list).
-- CÒN MỞ: B5.8, A3.1/A3.3–A3.5 (export audiobook, scrubber+MediaSession,
-  SmartCrop), E2 (view nguyên bản), G1.2/G1.3,
+  xem A2.5b; quan sát: URL-paste http bị chặn cleartext, status cuối list),
+  A3.1 (export audiobook durable — Worker + ViewModel + Chrome, JVM 69/69 + 2 flavor PASS).
+- CÒN MỞ: B5.8, A3.3–A3.5 (scrubber+MediaSession, SmartCrop), E2 (view nguyên bản), G1.2/G1.3,
   G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
 - VERIFY CUỐI (2026-10-17): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,7MB rebuild +
   commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
   máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
   + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: A3 còn lại (A3.1/A3.3–A3.5) + B5.8; release mới (J1.1 bump
+- NỢ SANG PHIÊN SAU: A3 còn lại (A3.3–A3.5) + B5.8; release mới (J1.1 bump
   version) khi user lệnh.

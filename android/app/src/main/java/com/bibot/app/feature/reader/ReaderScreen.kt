@@ -57,6 +57,8 @@ import com.bibot.app.data.library.ReadingPosition
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.ui.player.PlayerViewModel
 import com.bibot.app.ui.player.contentBottomInset
+import com.bibot.app.feature.export.ExportViewModel
+import com.bibot.app.feature.export.ExportWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -150,6 +152,9 @@ fun ReaderScreen(
     val adsPrefs = remember { com.bibot.app.data.ads.AdsPreferences(context) }
     val adsState by adsPrefs.adsStateFlow.collectAsState(initial = com.bibot.app.data.ads.AdsState())
     val vipActive = com.bibot.app.data.ads.isVipActive(adsState)
+    // A3.1: ExportViewModel for audiobook export
+    val exportVm = viewModel<ExportViewModel>()
+    var exportBookId by remember { mutableStateOf<String?>(null) }
     // B3+E1.1+F2: chrome + 2 chế độ VIEW + Touch_point (mặc định BROWSE: chỉ render).
     var menuVisible by remember { mutableStateOf(true) }
     var viewMode by remember { mutableStateOf(ReaderView.TEXT) }
@@ -1660,6 +1665,11 @@ Column(
                 )
             }
             // B6.2: popup ⚙ (toggle view + brightness + nền B6.19).
+            // A3.1: add export handler
+            val currentBook = selectedBook
+            val onExport = if (currentBook?.isDownloaded == true) {
+                { exportBookId = currentBook.id; exportVm.scheduleExport(currentBook.id) }
+            } else null
             ReaderSettingsPopup(
                 expanded = settingsOpen,
                 onDismiss = { settingsOpen = false },
@@ -1675,8 +1685,28 @@ Column(
                 readerBackground = prefsState.readerBackground,
                 onBackgroundChange = { v ->
                     scope.launch { try { prefs.setReaderBackground(v) } catch (_: Exception) {} }
-                }
+                },
+                onExport = onExport
             )
+            // A3.1: Observe export state
+            val currentExportState = exportVm.exportState.collectAsState().value
+            if (exportBookId != null) {
+                when (currentExportState) {
+                    is ExportViewModel.ExportState.Exporting -> {
+                        val msg = stringResource(R.string.export_progress, currentExportState.progress, currentExportState.total, currentExportState.skipped)
+                        if (status != msg) status = msg
+                    }
+                    is ExportViewModel.ExportState.Success -> {
+                        status = stringResource(R.string.export_done, currentExportState.outputPath, currentExportState.skipped)
+                        exportBookId = null
+                    }
+                    is ExportViewModel.ExportState.Error -> {
+                        status = stringResource(R.string.export_error, currentExportState.message)
+                        exportBookId = null
+                    }
+                    else -> {}
+                }
+            }
             // B5: preload tập đã tóm tắt + rewarded ad khi mở sách.
             LaunchedEffect(selectedBook?.id) {
                 val id = selectedBook?.id ?: return@LaunchedEffect

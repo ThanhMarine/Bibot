@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -156,6 +157,7 @@ fun ReaderBrightnessRow(
  * B6.2 — Popup nút ⚙: toggle Xem chữ/Xem trang + brightness (gọn 1 chỗ,
  * thay hàng brightness cố định chiếm vùng đọc).
  * B6.19: thêm nền màn đọc Trống đồng / Đơn sắc.
+ * A3.1: thêm xuất audiobook.
  */
 @Composable
 fun ReaderSettingsPopup(
@@ -167,7 +169,8 @@ fun ReaderSettingsPopup(
     brightness: Float?,
     onBrightness: (Float?) -> Unit,
     readerBackground: String = READER_BG_DRUM,
-    onBackgroundChange: (String) -> Unit = {}
+    onBackgroundChange: (String) -> Unit = {},
+    onExport: (() -> Unit)? = null
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -208,6 +211,15 @@ fun ReaderSettingsPopup(
             },
             onClick = { onBackgroundChange(READER_BG_SOLID); onDismiss() }
         )
+        HorizontalDivider()
+        // A3.1: xuất audiobook
+        onExport?.let {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.chrome_export)) },
+                leadingIcon = { Icon(Icons.Default.FileDownload, contentDescription = null) },
+                onClick = { it(); onDismiss() }
+            )
+        }
     }
 }
 

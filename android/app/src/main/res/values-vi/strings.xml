@@ -567,4 +567,15 @@
     <string name="summary_progress">Đã tóm tắt %1$d/%2$d chương</string>
     <string name="summary_share">Chia sẻ tóm tắt của tôi lên wiki cộng đồng</string>
     <string name="summary_share_sub">Chỉ tóm tắt phái sinh ngắn, không bao giờ gửi nguyên văn sách. Cần Firebase. Luật công bằng: TẮT = không gửi, cũng không nhận cache cộng đồng.</string>
+
+    <!-- A3.1: Export audiobook -->
+    <string name="export_title">Xuất Audiobook</string>
+    <string name="export_btn">Xuất MP3</string>
+    <string name="export_cancel">Hủy xuất</string>
+    <string name="export_progress">Đang xuất %1$d/%2$d chương (bỏ qua: %3$d)</string>
+    <string name="export_done">Đã xuất ra %1$s (bỏ qua: %2$d)</string>
+    <string name="export_error">Xuất thất bại: %1$s</string>
+    <string name="export_no_tts">TTS chưa sẵn sàng. Thử lại chút nữa.</string>
+    <string name="export_no_file">Không tìm thấy file sách. Tải xuống trước.</string>
+    <string name="chrome_export">Xuất Audiobook</string>
 </resources>

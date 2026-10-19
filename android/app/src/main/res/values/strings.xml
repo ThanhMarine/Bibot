@@ -572,4 +572,15 @@
     <string name="summary_progress">Summarized %1$d/%2$d chapters</string>
     <string name="summary_share">Share my summaries to community wiki</string>
     <string name="summary_share_sub">Only short derived summaries, never book text. Needs Firebase. Fair rule: OFF = you neither send nor receive community cache.</string>
+
+    <!-- A3.1: Export audiobook -->
+    <string name="export_title">Export Audiobook</string>
+    <string name="export_btn">Export to MP3</string>
+    <string name="export_cancel">Cancel Export</string>
+    <string name="export_progress">Exporting %1$d/%2$d chapters (skipped: %3$d)</string>
+    <string name="export_done">Exported to %1$s (skipped: %2$d)</string>
+    <string name="export_error">Export failed: %1$s</string>
+    <string name="export_no_tts">TTS not ready. Try again in a moment.</string>
+    <string name="export_no_file">Book file not found. Download first.</string>
+    <string name="chrome_export">Export Audiobook</string>
 </resources>
