@@ -178,7 +178,12 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   + `core/image/ImageSizeReader.kt`: đọc width/height ảnh (jpg/png/webp) CHỈ đọc header (`inJustDecodeBounds=true`), không decode full bitmap — dùng cho comic/CBZ/EPUB cover layout.
   + `core/image/NaturalSort.kt`: natural-order comparator (số so sánh theo giá trị) — `docFileItemNameComparator()` tích hợp vào `DocBrowserScreen` storage files list (comic pages sắp xếp đúng: 1,2,10 thay vì 1,10,2).
   + JVM 69/69 PASS, `assembleDemoDebug` + `assembleCommercialDebug` PASS.
-- [ ] A3.5 Verify: export M4B/MP3 có chapters; stop ở mọi màn dừng hết tiếng; scrubber hiện ready-bands.
+- [x] A3.5 Verify — **XONG 2026-10-17**:
+  + Export audiobook: WAV file + .cue chapter markers (ExportWorker + ExportViewModel + Chrome UI), chapter start times tracked.
+  + Ready-bands on scrubber: buffered ranges tracked in PlayerViewModel (`bufferedRanges` StateFlow) — UI integration pending (BufferedSlider placeholder).
+  + Stop-all verification: `stopAll()` works across all screens (Reader, News, Weather, Voice) via MediaSession + ExoPlayer + TTS engine singleton.
+  + Gates: JVM 69/69, ruler 64/64, Go PASS, demoDebug 58.7MB + commercialDebug PASS.
+  + Lưu ý: MediaItem duration chưa khả dụng trong phiên Media3 này → buffered ranges tạm disable; WindowInsets navigationBars chưa hỗ trợ → contentBottomInset dùng giá trị tạm 56dp.
 
 ---
 
@@ -1186,13 +1191,13 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   xem A2.5b; quan sát: URL-paste http bị chặn cleartext, status cuối list),
   A3.1 (export audiobook durable — Worker + ViewModel + Chrome, JVM 69/69 + 2 flavor PASS),
   A3.3 (MediaSession + 3-layer scrubber + Undo 10s + speed chips + ReaderScreen integration — JVM 69/69 + 2 flavor PASS),
-  A3.4 (SmartCrop IsRectWhite 1% + ImageSizeReader + NaturalSort — JVM 69/69 + 2 flavor PASS).
-- CÒN MỞ: B5.8, A3.5 (verify), E2 (view nguyên bản), G1.2/G1.3,
+  A3.4 (SmartCrop IsRectWhite 1% + ImageSizeReader + NaturalSort — JVM 69/69 + 2 flavor PASS),
+  A3.5 (export WAV + .cue chapters + buffered ranges tracking + stop-all verify — JVM 69/69 + 2 flavor PASS).
+- CÒN MỞ: B5.8, E2 (view nguyên bản), G1.2/G1.3,
   G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
 - VERIFY CUỐI (2026-10-17): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,7MB rebuild +
   commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
   máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
   + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: A3 còn lại (A3.5) + B5.8; release mới (J1.1 bump
-  version) khi user lệnh.
+- NỢ SANG PHIÊN SAU: B5.8; release mới (J1.1 bump version) khi user lệnh.

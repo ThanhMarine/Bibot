@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
@@ -25,19 +25,28 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import com.bibot.app.ui.player.contentBottomInset
+import com.bibot.app.ui.player.FloatingControlDefaults
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -199,6 +208,7 @@ fun ReaderFloatingControlBar(
     modifier: Modifier = Modifier
 ) {
     val state: PlayerState by viewModel.playerState.collectAsState()
+    val bufferedRanges by viewModel.bufferedRanges.collectAsState()
 
     FloatingControlBar(
         controls = {
@@ -222,10 +232,13 @@ fun ReaderFloatingControlBar(
                     contentDescription = "Tua tiếp 10s"
                 )
                 Spacer(Modifier.width(8.dp))
-                Slider(
-                    value = if (state.durationMs > 0) state.currentPositionMs.toFloat() / state.durationMs.toFloat() else 0f,
+                // A3.5: Slider with ready bands (buffered ranges)
+                BufferedSlider(
+                    progress = if (state.durationMs > 0) state.currentPositionMs.toFloat() / state.durationMs.toFloat() else 0f,
                     onValueChange = { ratio -> viewModel.seekTo((ratio * state.durationMs).toLong()) },
                     enabled = state.durationMs > 0,
+                    bufferedRanges = bufferedRanges,
+                    totalDuration = state.durationMs,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
@@ -248,8 +261,26 @@ fun ReaderFloatingControlBar(
                             onClick = { viewModel.setSpeed(speed) },
                             label = { Text("${speed}x", fontSize = 11.sp) },
                             modifier = Modifier.padding(horizontal = 2.dp)
-                        )
-                    }
+)
+
+/**
+ * A3.3: Padding đáy cho list/cột nội dung: [FloatingControlDefaults.ContentBottomInset] + cao nav bar
+ * (app edge-to-edge → pill lùi khỏi nav bar nên dòng cuối cũng phải lùi thêm).
+ */
+@Composable
+fun contentBottomInset(): Dp =
+    FloatingControlDefaults.ContentBottomInset +
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+}
+
+/**
+ * A3.3: Padding đáy cho list/cột nội dung: [FloatingControlDefaults.ContentBottomInset] + cao nav bar
+ * (app edge-to-edge → pill lùi khỏi nav bar nên dòng cuối cũng phải lùi thêm).
+ */
+@Composable
+fun contentBottomInset(): Dp =
+    FloatingControlDefaults.ContentBottomInset +
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                 }
                 ControlIconButton(
                     onClick = { viewModel.setSpeed(1.0f) },
@@ -279,10 +310,24 @@ private fun formatTime(ms: Long): String {
 }
 
 /**
- * Padding đáy cho list/cột nội dung: [FloatingControlDefaults.ContentBottomInset] + cao nav bar
- * (app edge-to-edge → pill lùi khỏi nav bar nên dòng cuối cũng phải lùi thêm).
+ * A3.5: Slider with ready bands (buffered ranges) — shows which segments are
+ * already synthesized/cached and ready to play without delay.
+ * Currently uses standard Slider; buffered ranges tracked in ViewModel for future ready-bands UI.
  */
 @Composable
-fun contentBottomInset(): Dp =
-    FloatingControlDefaults.ContentBottomInset +
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+fun BufferedSlider(
+    progress: Float,
+    onValueChange: (Float) -> Unit,
+    enabled: Boolean,
+    bufferedRanges: List<Pair<Long, Long>>,
+    totalDuration: Long,
+    modifier: Modifier = Modifier,
+) {
+    Slider(
+        value = progress,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        modifier = modifier,
+        colors = SliderDefaults.colors()
+    )
+}

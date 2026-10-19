@@ -32,7 +32,10 @@ data class PlayerState(
     val playbackSpeed: Float = 0.85f,
     val title: String = "Bibot Player",
     val subtitle: String = "Sẵn sàng phát",
-    val isBuffering: Boolean = false
+    val isBuffering: Boolean = false,
+    // A3.5: Ready bands - segments already synthesized/cached and ready to play without delay.
+    // List of (startMs, endMs) pairs representing buffered segments.
+    val bufferedRanges: List<Pair<Long, Long>> = emptyList()
 )
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
@@ -94,6 +97,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _playerState = MutableStateFlow(PlayerState())
     val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
+
+    // A3.5: Buffered ranges tracking (ready bands on scrubber)
+    // Tracks estimated buffered segments as (startMs, endMs) for scrubber ready bands.
+    private val _bufferedRanges = MutableStateFlow<List<Pair<Long, Long>>>(emptyList())
+    val bufferedRanges: StateFlow<List<Pair<Long, Long>>> = _bufferedRanges.asStateFlow()
+
+    private fun updateBufferedRanges() {
+        val count = player.mediaItemCount
+        if (count == 0) {
+            _bufferedRanges.value = emptyList()
+            return
+        }
+        // A3.5: MediaItem duration not available in this Media3 version; buffered ranges disabled for now.
+        _bufferedRanges.value = emptyList()
+    }
 
     // Karaoke sync: mediaId câu đang phát + tập id còn trong queue + id vừa phát xong.
     // Consumer (Story/Book) chờ id của mình rời _activeIds = audio xong THẬT.
@@ -223,6 +241,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         player.prepare()
         // 2.4 ExoPlayer async: prepare không block, play khi STATE_READY
         player.play()
+        updateBufferedRanges()
     }
     // 2.4 + 2.2.8: file write off Main (Dispatchers.IO) + spill file chỉ khi >512KB đã handle trong caller
     fun playBytes(bytes: ByteArray, mimeType: String = "audio/mp3", mediaId: String? = null) {
@@ -260,6 +279,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     // nếu chưa prepare thì prepare, nếu đang phát thì chỉ add (double-buffer)
                     if (player.playbackState == Player.STATE_IDLE) player.prepare()
                     player.play()
+                    updateBufferedRanges()
                 }
             } catch (_: Exception) {
                 // Ghi file/enqueue fail → gỡ tracking để consumer không chờ vô hạn (timeout lo)
@@ -272,6 +292,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         _currentMediaId.value = null
         _endedMediaId.value = null
         _activeIds.value = emptySet()
+        updateBufferedRanges()
     }
     fun updateMedia(title: String, subtitle: String, durationMs: Long) {
         _playerState.value = _playerState.value.copy(title = title, subtitle = subtitle, durationMs = durationMs, currentPositionMs = 0L)

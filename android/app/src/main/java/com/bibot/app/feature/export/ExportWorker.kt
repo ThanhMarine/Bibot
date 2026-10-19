@@ -21,15 +21,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStreamWriter
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 /**
- * A3.1 Export audiobook durable — port logic from openreader export-job.ts / ffmpeg-export.ts
- * - Prefetch 4 chapters ahead, batch sidecar 32 (queue depth)
- * - Assemble when audio done (don't wait for alignment)
+ * A3.1/A3.5 Export audiobook durable — proper WAV + chapter markers (.cue) + ready for M4B.
+ * - Single WAV header, all audio data concatenated (not raw WAV concatenation)
+ * - Chapter start times tracked for .cue file (chapter markers)
  * - Error terminal → silence 1s + count skipped
  * - Progress read from cache scope (fix expired session 30min)
+ * - A3.5: export M4B/MP3 có chapters; scrubber ready-bands (later)
  */
 class ExportWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
@@ -46,7 +48,7 @@ class ExportWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
             val req = OneTimeWorkRequestBuilder<ExportWorker>()
                 .setInputData(workDataOf(KEY_BOOK_ID to bookId))
                 .setConstraints(Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED) // offline TTS works without net
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
                     .build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .addTag(uniqueName(bookId))
@@ -110,17 +112,16 @@ class ExportWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
             val exportDir = FilePaths.externalExportDir(ctx)
                 ?: return Result.failure(workDataOf(OUT_ERROR to "noexportdir"))
             val safeTitle = book.title.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-            val outFile = File(exportDir, "${safeTitle}_${System.currentTimeMillis()}.mp3")
+            val timestamp = System.currentTimeMillis()
+            val wavFile = File(exportDir, "${safeTitle}_$timestamp.wav")
+            val cueFile = File(exportDir, "${safeTitle}_$timestamp.cue")
 
             // Initialize offline TTS
             val offlineTts = OfflineTtsHelper.shared(ctx)
             if (!offlineTts.isAvailable()) {
-                // Wait for init
                 val ready = com.bibot.app.ui.player.PlayerViewModel(ctx as android.app.Application).run {
-                    // Use ensureInit pattern
                     var initReady = false
                     offlineTts.ensureInit { initReady = true }
-                    // Brief wait
                     kotlinx.coroutines.delay(2000)
                     initReady || offlineTts.isAvailable()
                 }
@@ -134,31 +135,41 @@ class ExportWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
             val totalChapters = titles.size
             setProgressAsync(workDataOf(PROG_DONE to 0, PROG_TOTAL to totalChapters, PROG_SKIPPED to 0))
 
-            // Prefetch queue: 4 chapters ahead
-            val prefetchSize = 4
-            // Batch sidecar: 32 items max in flight
-            val batchSize = 32
+            // A3.5: Track chapter start positions (in samples) for .cue file
+            val sampleRate = 44100
+            val bytesPerSample = 2 // 16-bit
+            val channels = 1
+            val bytesPerSecond = sampleRate * bytesPerSample * channels
+            var totalSamplesWritten = 0L
+            val chapterCuePoints = mutableListOf<ChapterCue>()
 
-            // Synthesize chapters sequentially (simple but durable)
-            // For each chapter, synthesize sentences and append to output file
-            val outputStream = FileOutputStream(outFile)
+            // Initialize output stream with placeholder header (will rewrite at end)
+            val outputStream = FileOutputStream(wavFile)
+            val dataStartPos = 44 // WAV header size (we'll rewrite)
+            outputStream.write(ByteArray(44)) // placeholder header
+
             try {
                 for (chapIdx in titles.indices) {
-                    // Check cancellation
                     if (isStopped) break
 
                     val sents = try { session.sentences(chapIdx) } catch (_: Exception) { emptyList<String>() }
                     if (sents.isEmpty()) continue
 
-                    // Prefetch: synthesize next chapters' first sentences in background
-                    // (Simple approach: just synthesize current chapter)
+                    // Record chapter start time (before synthesizing first sentence)
+                    val chapterStartSamples = totalSamplesWritten
+                    chapterCuePoints.add(ChapterCue(
+                        index = chapIdx + 1,
+                        title = titles[chapIdx],
+                        startSamples = chapterStartSamples,
+                        sampleRate = sampleRate
+                    ))
 
                     for (sentIdx in sents.indices) {
                         if (isStopped) break
                         val text = sents[sentIdx]
                         if (text.isBlank()) continue
 
-                        val wavFile = try {
+                        val wavFileTmp = try {
                             withContext(Dispatchers.IO) {
                                 offlineTts.synthesizeToFile(text, speed)
                             }
@@ -166,23 +177,26 @@ class ExportWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                             null
                         }
 
-                        if (wavFile != null && wavFile.exists()) {
+                        if (wavFileTmp != null && wavFileTmp.exists()) {
                             try {
-                                val bytes = wavFile.readBytes()
-                                outputStream.write(bytes)
-                                wavFile.delete()
+                                val bytes = wavFileTmp.readBytes()
+                                // Skip WAV header (44 bytes) of each synthesized file
+                                val audioData = if (bytes.size > 44) bytes.copyOfRange(44, bytes.size) else bytes
+                                outputStream.write(audioData)
+                                totalSamplesWritten += (audioData.size / 2 / channels).toLong() // 16-bit = 2 bytes per sample
+                                wavFileTmp.delete()
                             } catch (_: Exception) {
                                 skipped++
-                                // Write 1 second silence as fallback
-                                writeSilence(outputStream, 1000)
+                                val silenceSamples = writeSilenceSamples(outputStream, 1000, sampleRate, bytesPerSample, channels)
+                                totalSamplesWritten += silenceSamples
                             }
                         } else {
                             skipped++
-                            writeSilence(outputStream, 1000)
+                            val silenceSamples = writeSilenceSamples(outputStream, 1000, sampleRate, bytesPerSample, channels)
+                            totalSamplesWritten += silenceSamples
                         }
                     }
 
-                    // Progress update
                     setProgressAsync(workDataOf(
                         PROG_DONE to (chapIdx + 1),
                         PROG_TOTAL to totalChapters,
@@ -194,83 +208,118 @@ class ExportWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 try { session.close() } catch (_: Exception) {}
             }
 
-            if (!outFile.exists() || outFile.length() == 0L) {
+            // Rewrite WAV header with correct sizes
+            rewriteWavHeader(wavFile, totalSamplesWritten, sampleRate, bytesPerSample, channels)
+
+            // Write .cue file with chapter markers
+            writeCueFile(cueFile, safeTitle, chapterCuePoints)
+
+            if (!wavFile.exists() || wavFile.length() == 0L) {
                 return Result.failure(workDataOf(OUT_ERROR to "nooutput"))
             }
 
-            Result.success(workDataOf(OUT_PATH to outFile.absolutePath, PROG_SKIPPED to skipped))
+            Result.success(workDataOf(
+                OUT_PATH to wavFile.absolutePath,
+                PROG_SKIPPED to skipped,
+                "cue_path" to cueFile.absolutePath
+            ))
         } catch (e: Exception) {
             Result.failure(workDataOf(OUT_ERROR to (e.message ?: "error")))
         }
     }
 
-    private fun writeSilence(outputStream: FileOutputStream, durationMs: Int) {
-        // Write simple WAV silence (44100Hz, 16-bit mono)
-        // WAV header (44 bytes) + silence data
-        val sampleRate = 44100
-        val bytesPerSample = 2 // 16-bit
-        val channels = 1
-        val dataSize = (sampleRate * durationMs / 1000) * bytesPerSample * channels
+    /** Chapter cue point for .cue file generation */
+    private data class ChapterCue(
+        val index: Int,
+        val title: String,
+        val startSamples: Long,
+        val sampleRate: Int
+    ) {
+        fun toCueTime(): String {
+            val totalSeconds = startSamples.toDouble() / sampleRate
+            val hours = (totalSeconds / 3600).toInt()
+            val minutes = ((totalSeconds % 3600) / 60).toInt()
+            val seconds = (totalSeconds % 60).toInt()
+            val frames = ((totalSeconds - hours * 3600 - minutes * 60 - seconds) * 75).toInt() // 75 frames/sec
+            return String.format("%02d:%02d:%02d", hours, minutes, seconds)
+        }
+    }
+
+    /** Write silence samples directly to output stream, return sample count written */
+    private fun writeSilenceSamples(
+        outputStream: FileOutputStream,
+        durationMs: Int,
+        sampleRate: Int,
+        bytesPerSample: Int,
+        channels: Int
+    ): Long {
+        val samples = (sampleRate * durationMs / 1000).toLong()
+        val byteCount = samples * bytesPerSample * channels
+        val silence = ByteArray(byteCount.toInt())
+        try {
+            outputStream.write(silence)
+        } catch (_: Exception) {}
+        return samples
+    }
+
+    /** Rewrite WAV header at file start with correct data size */
+    private fun rewriteWavHeader(
+        wavFile: File,
+        totalSamples: Long,
+        sampleRate: Int,
+        bytesPerSample: Int,
+        channels: Int
+    ) {
+        val dataSize = totalSamples * bytesPerSample * channels
         val totalSize = 36 + dataSize
+        val ts = totalSize.toInt()
 
         val header = ByteArray(44)
         // RIFF header
-        val ts = totalSize.toInt()
-        header[0] = 'R'.toByte()
-        header[1] = 'I'.toByte()
-        header[2] = 'F'.toByte()
-        header[3] = 'F'.toByte()
-        header[4] = (ts and 0xFF).toByte()
-        header[5] = ((ts shr 8) and 0xFF).toByte()
-        header[6] = ((ts shr 16) and 0xFF).toByte()
-        header[7] = ((ts shr 24) and 0xFF).toByte()
-        header[8] = 'W'.toByte()
-        header[9] = 'A'.toByte()
-        header[10] = 'V'.toByte()
-        header[11] = 'E'.toByte()
+        header[0] = 'R'.toByte(); header[1] = 'I'.toByte(); header[2] = 'F'.toByte(); header[3] = 'F'.toByte()
+        header[4] = (ts and 0xFF).toByte(); header[5] = ((ts shr 8) and 0xFF).toByte()
+        header[6] = ((ts shr 16) and 0xFF).toByte(); header[7] = ((ts shr 24) and 0xFF).toByte()
+        header[8] = 'W'.toByte(); header[9] = 'A'.toByte(); header[10] = 'V'.toByte(); header[11] = 'E'.toByte()
         // fmt chunk
-        header[12] = 'f'.toByte()
-        header[13] = 'm'.toByte()
-        header[14] = 't'.toByte()
-        header[15] = ' '.toByte()
-        header[16] = 16
-        header[17] = 0
-        header[18] = 0
-        header[19] = 0 // fmt size = 16
-        header[20] = 1
-        header[21] = 0 // PCM
-        header[22] = channels.toByte()
-        header[23] = 0
-        header[24] = (sampleRate and 0xFF).toByte()
-        header[25] = ((sampleRate shr 8) and 0xFF).toByte()
-        header[26] = ((sampleRate shr 16) and 0xFF).toByte()
-        header[27] = ((sampleRate shr 24) and 0xFF).toByte()
+        header[12] = 'f'.toByte(); header[13] = 'm'.toByte(); header[14] = 't'.toByte(); header[15] = ' '.toByte()
+        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
+        header[20] = 1; header[21] = 0 // PCM
+        header[22] = channels.toByte(); header[23] = 0
+        header[24] = (sampleRate and 0xFF).toByte(); header[25] = ((sampleRate shr 8) and 0xFF).toByte()
+        header[26] = ((sampleRate shr 16) and 0xFF).toByte(); header[27] = ((sampleRate shr 24) and 0xFF).toByte()
         val byteRate = sampleRate * bytesPerSample * channels
-        header[28] = (byteRate and 0xFF).toByte()
-        header[29] = ((byteRate shr 8) and 0xFF).toByte()
-        header[30] = ((byteRate shr 16) and 0xFF).toByte()
-        header[31] = ((byteRate shr 24) and 0xFF).toByte()
+        header[28] = (byteRate and 0xFF).toByte(); header[29] = ((byteRate shr 8) and 0xFF).toByte()
+        header[30] = ((byteRate shr 16) and 0xFF).toByte(); header[31] = ((byteRate shr 24) and 0xFF).toByte()
         val blockAlign = (bytesPerSample * channels).toShort()
         val ba = blockAlign.toInt()
-        header[32] = (ba and 0xFF).toByte()
-        header[33] = ((ba shr 8) and 0xFF).toByte()
-        header[34] = (bytesPerSample * 8).toByte()
-        header[35] = 0 // bits per sample
+        header[32] = (ba and 0xFF).toByte(); header[33] = ((ba shr 8) and 0xFF).toByte()
+        header[34] = (bytesPerSample * 8).toByte(); header[35] = 0
         // data chunk
         val ds = dataSize.toInt()
-        header[36] = 'd'.toByte()
-        header[37] = 'a'.toByte()
-        header[38] = 't'.toByte()
-        header[39] = 'a'.toByte()
-        header[40] = (ds and 0xFF).toByte()
-        header[41] = ((ds shr 8) and 0xFF).toByte()
-        header[42] = ((ds shr 16) and 0xFF).toByte()
-        header[43] = ((ds shr 24) and 0xFF).toByte()
+        header[36] = 'd'.toByte(); header[37] = 'a'.toByte(); header[38] = 't'.toByte(); header[39] = 'a'.toByte()
+        header[40] = (ds and 0xFF).toByte(); header[41] = ((ds shr 8) and 0xFF).toByte()
+        header[42] = ((ds shr 16) and 0xFF).toByte(); header[43] = ((ds shr 24) and 0xFF).toByte()
 
         try {
-            outputStream.write(header)
-            val silence = ByteArray(dataSize.toInt()) // zeros = silence
-            outputStream.write(silence)
+            FileOutputStream(wavFile).use { it.write(header) }
+        } catch (_: Exception) {}
+    }
+
+    /** Write .cue file with chapter markers for audiobook navigation */
+    private fun writeCueFile(cueFile: File, title: String, cues: List<ChapterCue>) {
+        try {
+            FileOutputStream(cueFile).use { fos ->
+                OutputStreamWriter(fos, "UTF-8").use { writer ->
+                    writer.write("PERFORMER \"$title\"\n")
+                    writer.write("TITLE \"$title\"\n")
+                    writer.write("FILE \"${cueFile.nameWithoutExtension}.wav\" WAVE\n")
+                    for (cue in cues) {
+                        writer.write("  TRACK ${"%02d".format(cue.index)} AUDIO\n")
+                        writer.write("    TITLE \"${cue.title.replace("\"", "\\\"")}\"\n")
+                        writer.write("    INDEX 01 ${cue.toCueTime()}:00\n")
+                    }
+                }
+            }
         } catch (_: Exception) {}
     }
 }
