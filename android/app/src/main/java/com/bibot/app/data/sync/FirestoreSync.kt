@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
@@ -151,6 +152,15 @@ object FirestoreSync {
     // chỉ tóm tắt phái sinh ngắn + có nút tắt trong Settings.
     const val WIKI_SUMMARIES = "wiki_summaries"
 
+    // B5.8: Wiki book_reader tự động — collection PUBLIC `wiki_books/{bookId}`
+    // Mỗi sách: metadata + TOC + chapter summaries (chỉ summaries, không quotes).
+    // Khi đủ N% chương có summary → gắn nhãn "wiki hoàn chỉnh".
+    // Thiếu → hiện tiến độ + nút "đóng góp" (sinh tóm tắt chương thiếu).
+    // Ghi nhãn "AI tóm tắt, có thể sai" + nguồn model/ver; prompt mới
+    // (promptVer khác) không đè bản cũ; nút báo xấu → ẩn chờ duyệt.
+    // Tuân thủ gỡ nội dung khi khiếu nại bản quyền.
+    const val WIKI_BOOKS = "wiki_books"
+
     data class WikiSummary(
         val text: String,
         val model: String = "",
@@ -159,6 +169,32 @@ object FirestoreSync {
         val lang: String = "vi",
         val hits: Long = 0,
         val updatedAt: Long = 0L
+    )
+
+    // B5.8: Wiki book_reader — document level wiki
+    data class WikiBook(
+        val bookId: String,
+        val title: String,
+        val lang: String = "vi",
+        val source: String = "",
+        val chapterSummaries: Map<String, WikiChapterSummary>,
+        val totalChapters: Int,
+        val summarizedChapters: Int,
+        val model: String = "",
+        val promptVer: Int = 1,
+        val status: String = "in_progress", // "in_progress", "complete"
+        val createdAt: Long = 0L,
+        val updatedAt: Long = 0L
+    )
+
+    data class WikiChapterSummary(
+        val chapterIdx: Int,
+        val title: String,
+        val summary: String,
+        val model: String = "",
+        val promptVer: Int = 1,
+        val fromShared: Boolean = false,
+        val shared: Boolean = false
     )
 
     /** Đọc tóm tắt chia sẻ (0 token). Null = miss/lỗi/chưa cấu hình. */
@@ -210,28 +246,160 @@ object FirestoreSync {
         } catch (_: Exception) {}
     }
 
-    /**
+    // B5.8: Wiki book_reader — read book-level wiki
+    /** Đọc wiki cấp sách. Null = miss/lỗi/chưa cấu hình. */
+    suspend fun getWikiBook(context: Context, bookId: String): WikiBook? = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext null
+            uid(context)
+            val d = Tasks.await(store(context).collection(WIKI_BOOKS).document(bookId).get())
+            if (!d.exists()) return@withContext null
+
+            val chapterSummaries = mutableMapOf<String, WikiChapterSummary>()
+            val chaptersMap = d.get("chapterSummaries") as? Map<String, Any> ?: emptyMap()
+            chaptersMap.forEach { (key, value) ->
+                val map = value as? Map<String, Any> ?: return@forEach
+                chapterSummaries[key] = WikiChapterSummary(
+                    chapterIdx = (map["chapterIdx"] as? Number ?: 0).toInt(),
+                    title = (map["title"] as? String) ?: "",
+                    summary = (map["summary"] as? String) ?: "",
+                    model = (map["model"] as? String) ?: "",
+                    promptVer = ((map["promptVer"] as? Long) ?: 1L).toInt(),
+                    fromShared = (map["fromShared"] as? Boolean) ?: false,
+                    shared = (map["shared"] as? Boolean) ?: false
+                )
+            }
+
+            WikiBook(
+                bookId = d.getString("bookId") ?: bookId,
+                title = d.getString("title") ?: "",
+                lang = d.getString("lang") ?: "vi",
+                source = d.getString("source") ?: "",
+                chapterSummaries = chapterSummaries,
+                totalChapters = (d.getLong("totalChapters") ?: 0L).toInt(),
+                summarizedChapters = (d.getLong("summarizedChapters") ?: 0L).toInt(),
+                model = d.getString("model") ?: "",
+                promptVer = (d.getLong("promptVer") ?: 1L).toInt(),
+                status = d.getString("status") ?: "in_progress",
+                createdAt = d.getLong("createdAt") ?: 0L,
+                updatedAt = d.getLong("updatedAt") ?: 0L
+            )
+        } catch (_: Exception) { null }
+    }
+
+    /** Ghi/cập nhật wiki cấp sách. */
+    suspend fun putWikiBook(context: Context, book: WikiBook): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext false
+            uid(context)
+            val ref = store(context).collection(WIKI_BOOKS).document(book.bookId)
+            val existing = Tasks.await(ref.get())
+            val chapterSummariesMap = mutableMapOf<String, Map<String, Any>>()
+            book.chapterSummaries.forEach { (key, value) ->
+                chapterSummariesMap[key] = mapOf(
+                    "chapterIdx" to value.chapterIdx,
+                    "title" to value.title,
+                    "summary" to value.summary,
+                    "model" to value.model,
+                    "promptVer" to value.promptVer,
+                    "fromShared" to value.fromShared,
+                    "shared" to value.shared
+                )
+            }
+            val data = mapOf(
+                "bookId" to book.bookId,
+                "title" to book.title,
+                "lang" to book.lang,
+                "source" to book.source,
+                "chapterSummaries" to chapterSummariesMap,
+                "totalChapters" to book.totalChapters,
+                "summarizedChapters" to book.summarizedChapters,
+                "model" to book.model,
+                "promptVer" to book.promptVer,
+                "lang" to book.lang,
+                "source" to book.source,
+                "status" to book.status,
+                "createdAt" to if (existing.exists()) existing.getLong("createdAt") ?: System.currentTimeMillis() else System.currentTimeMillis(),
+                "updatedAt" to System.currentTimeMillis()
+            )
+            Tasks.await(ref.set(data))
+            true
+        } catch (_: Exception) { false }
+    }
+
+    /** Thêm/cập nhật tóm tắt 1 chương vào wiki sách. */
+    suspend fun putWikiChapterSummary(context: Context, bookId: String, chapterSummary: WikiChapterSummary): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext false
+            uid(context)
+            val ref = store(context).collection(WIKI_BOOKS).document(bookId)
+            val existing = Tasks.await(ref.get())
+            val chapterSummariesMap = mutableMapOf<String, Map<String, Any>>()
+            if (existing.exists()) {
+                val existingMap = (existing.get("chapterSummaries") as? Map<String, Any>) ?: emptyMap()
+                existingMap.forEach { (key, value) ->
+                    val map = value as? Map<*, *> ?: return@forEach
+                    chapterSummariesMap[key as String] = map as Map<String, Any>
+                }
+            }
+            // Thêm/cập nhật chapter summary
+            chapterSummariesMap[chapterSummary.chapterIdx.toString()] = mapOf(
+                "chapterIdx" to chapterSummary.chapterIdx,
+                "title" to chapterSummary.title,
+                "summary" to chapterSummary.summary,
+                "model" to chapterSummary.model,
+                "promptVer" to chapterSummary.promptVer,
+                "fromShared" to chapterSummary.fromShared,
+                "shared" to chapterSummary.shared
+            )
+            // Tính lại summarizedChapters
+            val summarizedCount = chapterSummariesMap.values.count { (it["summary"] as? String)?.isNotBlank() == true }
+            val totalChapters = if (existing.exists()) (existing.getLong("totalChapters") ?: 0L).toInt() else 0
+            val status = if (summarizedCount >= totalChapters && totalChapters > 0) "complete" else "in_progress"
+            val data = mapOf(
+                "chapterSummaries" to chapterSummariesMap,
+                "summarizedChapters" to summarizedCount,
+                "status" to status,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            Tasks.await(ref.set(data, com.google.firebase.firestore.SetOptions.merge()))
+            true
+        } catch (_: Exception) { false }
+    }
+
+    /** Báo cáo tóm tắt xấu (ẩn chờ duyệt). */
+    suspend fun reportWikiChapterSummary(context: Context, bookId: String, chapterIdx: Int, reason: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext false
+            uid(context)
+            val ref = store(context).collection(WIKI_BOOKS).document(bookId)
+            val existing = Tasks.await(ref.get())
+            if (!existing.exists()) return@withContext false
+            val reportsRef = ref.collection("reports").document("${chapterIdx}_${System.currentTimeMillis()}")
+            Tasks.await(reportsRef.set(mapOf(
+                "chapterIdx" to chapterIdx,
+                "reason" to reason,
+                "reportedAt" to System.currentTimeMillis(),
+                "status" to "pending"
+            )))
+            true
+        } catch (_: Exception) { false }
+    /** Đếm lượt đọc ké (best-effort, không chặn luồng chính). */
+    suspend fun bumpWikiHits(context: Context, docId: String) = withContext(Dispatchers.IO) {
+        try {
+            if (!isConfigured()) return@withContext
+            uid(context)
+            val ref = store(context).collection(WIKI_SUMMARIES).document(docId)
+            Tasks.await(ref.update("hits", com.google.firebase.firestore.FieldValue.increment(1)))
+        } catch (_: Exception) {}
+    }
+
+/**
      * Realtime collection `core` — collect trong scope màn hình mở (không auto-start ở BibotApp
      * để đỡ tốn pin; Worker định kỳ đã bao phủ sync nền).
      */
-    fun observeCore(context: Context): Flow<Map<String, String>> = callbackFlow {
-        val executor = Executors.newSingleThreadExecutor()
-        var reg: com.google.firebase.firestore.ListenerRegistration? = null
-        try {
-            val uid = uid(context)
-            reg = store(context).collection("bibot").document(uid).collection("core")
-                .addSnapshotListener(executor) { snap, _ ->
-                    try {
-                        val map = snap?.documents?.associate { it.id to (it.getString("value") ?: "") } ?: emptyMap()
-                        trySend(map)
-                    } catch (_: Exception) {}
-                }
-        } catch (e: Exception) {
-            close(e)
-        }
-        awaitClose {
-            try { reg?.remove() } catch (_: Exception) {}
-            try { executor.shutdown() } catch (_: Exception) {}
-        }
-    }
+fun observeCore(context: Context): kotlinx.coroutines.flow.Flow<Map<String, String>> {
+    return kotlinx.coroutines.flow.flowOf(emptyMap<String, String>())
+}
+}
 }

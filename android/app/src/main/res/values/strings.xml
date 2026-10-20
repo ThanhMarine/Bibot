@@ -583,4 +583,14 @@
     <string name="export_no_tts">TTS not ready. Try again in a moment.</string>
     <string name="export_no_file">Book file not found. Download first.</string>
     <string name="chrome_export">Export Audiobook</string>
+
+<!-- B5.8: Wiki book reader -->
+    <string name="wiki_complete">Wiki complete (%1$d/%2$d chapters)</string>
+    <string name="wiki_in_progress">Building wiki: %1$d/%2$d chapters</string>
+    <string name="wiki_in_progress_percent">%1$d%% complete</string>
+    <string name="wiki_contribute">Contribute to wiki</string>
+    <string name="wiki_contribute_chapter">Summarize this chapter</string>
+    <string name="wiki_report_bad">Report bad summary</string>
+    <string name="wiki_ai_warning">AI summary, may be wrong</string>
+    <string name="wiki_ai_warning_sub">AI-generated summary, may be inaccurate. Please verify.</string>
 </resources>

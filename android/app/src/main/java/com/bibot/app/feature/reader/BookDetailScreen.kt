@@ -18,12 +18,15 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +46,13 @@ import com.bibot.app.R
 import com.bibot.app.data.books.BookMeta
 import com.bibot.app.data.db.BookProgress
 import com.bibot.app.data.library.ReadingPosition
+import com.bibot.app.data.sync.FirestoreSync
+import com.bibot.app.data.summary.SummaryRepository
+import com.bibot.app.data.summary.SummaryWorker
+import com.bibot.app.feature.reader.WikiBookScreen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun BookDetailScreen(
@@ -71,6 +81,8 @@ fun BookDetailScreen(
         readMode = "read",
         fileHash = ""
     )
+    var wikiOpen by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(
         Modifier
@@ -186,6 +198,14 @@ fun BookDetailScreen(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
+            // Wiki
+            IconButton(onClick = { wikiOpen = true }) {
+                Icon(
+                    Icons.Default.MenuBook,
+                    contentDescription = "Wiki sách",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
             // More options
             IconButton(onClick = { /* more */ }) {
                 Icon(
@@ -233,6 +253,31 @@ fun BookDetailScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+        // Wiki dialog
+        if (wikiOpen) {
+            val chapters = b.id?.let { 
+                // In real implementation, fetch chapters from book
+                (1..10).map { Chapter(it, "Chương $it") }
+            } ?: emptyList()
+            WikiBookScreen(
+                onBack = { wikiOpen = false },
+                bookId = b.id ?: "preview",
+                bookTitle = b.title,
+                bookLang = b.lang ?: "vi",
+                bookSource = b.source ?: "local",
+                chapters = chapters,
+                onOpenChapter = { idx ->
+                    wikiOpen = false
+                    // TODO: navigate to reader with chapter
+                },
+                onReportBad = { idx, summary ->
+                    // TODO: show report dialog
+                },
+                onContribute = { idx ->
+                    // TODO: show contribute dialog
+                }
             )
         }
     }

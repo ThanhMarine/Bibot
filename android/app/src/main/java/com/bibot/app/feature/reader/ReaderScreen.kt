@@ -107,7 +107,10 @@ private sealed interface ReaderTtsItem {
 }
 
 // P1: chương chỉ giữ TITLE — content đọc per-chương từ `.prep` (seek) qua PrepSession
-data class Chapter(val title: String)
+data class Chapter(
+    val idx: Int,
+    val title: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -302,7 +305,7 @@ fun ReaderScreen(
                     }
                 }
                 prepSession = session
-                chapters = session.titles.map { Chapter(it) }
+                chapters = session.titles.mapIndexed { idx, title -> Chapter(idx, title) }
                 // A: mốc bắt đầu đọc cho TTS (lướt phần đầu/mục lục) — display vẫn giữ đủ.
                 firstMarkerChapIdx = chapters.indexOfFirst {
                     com.bibot.app.core.text.BlockTextReader.isReadingStartMarker(it.title)

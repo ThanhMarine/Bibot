@@ -578,4 +578,14 @@
     <string name="export_no_tts">TTS chưa sẵn sàng. Thử lại chút nữa.</string>
     <string name="export_no_file">Không tìm thấy file sách. Tải xuống trước.</string>
     <string name="chrome_export">Xuất Audiobook</string>
+
+    <!-- B5.8: Wiki book reader -->
+    <string name="wiki_complete">Wiki hoàn chỉnh (%1$d/%2$d chương)</string>
+    <string name="wiki_in_progress">Đang xây dựng wiki: %1$d/%2$d chương</string>
+    <string name="wiki_in_progress_percent">%1$d%% hoàn tất</string>
+    <string name="wiki_contribute">Đóng góp wiki</string>
+    <string name="wiki_contribute_chapter">Tóm tắt chương này</string>
+    <string name="wiki_report_bad">Báo cáo sai</string>
+    <string name="wiki_ai_warning">AI tóm tắt, có thể sai</string>
+    <string name="wiki_ai_warning_sub">Tóm tắt do AI sinh ra, có thể không chính xác. Vui lòng kiểm tra kỹ.</string>
 </resources>
