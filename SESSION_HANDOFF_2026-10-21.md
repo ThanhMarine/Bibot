@@ -1,12 +1,16 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 (CHỐT PHIÊN)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 (CHỐT PHIÊN)
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3 đã đánh dấu XONG).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2 đã đánh dấu XONG).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **G3.2/G3.3 ĐÃ COMMIT `51069bb`; G2.2 ĐÃ COMMIT `3d8c9f1`**; **G1.3 (verify, chỉ docs) CHƯA COMMIT**:
+> **G3.2/G3.3 ĐÃ COMMIT `51069bb`; G2.2 ĐÃ COMMIT `3d8c9f1`; G1.3 ĐÃ COMMIT `47d539a`**;
+> **G1.2 CHƯA COMMIT** (code + test + docs đang chờ commit lần này):
 
 ```
  M Checklist_Upgrade_Bibot.md
  M SESSION_HANDOFF_2026-10-21.md
+ M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
+?? android/app/src/main/java/com/bibot/app/feature/reader/ReaderViewModel.kt
+?? android/app/src/test/java/com/bibot/app/feature/reader/ReaderViewModelTest.kt
 ```
 
 ## 1. Việc đã xong
@@ -115,14 +119,46 @@ Mẹo thao tác: xoay bằng `adb shell settings put system accelerometer_rotati
 `Read` trong reader (`ReaderScreen.kt:1863` `anchorConfirm`); dump UI helper:
 `C:\Users\Thanh Marine\AppData\Local\Temp\opencode\dump.ps1`.
 
-## 2. Gate (chạy lại sau G2.2)
+## 1.6 G1.2 — hoist position sang `ReaderViewModel` + `SavedStateHandle` (2026-10-21, phạm vi MINIMAL)
+
+Quyết định (chốt qua question với người dùng): **chỉ hoist tuple position** —
+`prepSession`/`jumpSeq`/producer job/`LaunchedEffect(isReading)` (pipeline TTS) **giữ nguyên
+ở Compose**. Full hoist ≈ 1000–1100 dòng `ReaderScreen.kt`, rủi ro cao → từ chối.
+
+Sửa/thêm:
+- **Mới** `feature/reader/ReaderViewModel.kt`: `class ReaderViewModel(handle: SavedStateHandle)`,
+  delegate `bookId` (String?), `chapter`/`sentence` (Int) đọc+ghi trực tiếp handle;
+  `onPosition(...)` ghi state + handle; `clear()` chỉ set `bookId = null`.
+  Constructor `(SavedStateHandle)`-only → factory mặc định của ComponentActivity tự tạo
+  (repo trước đây chưa từng dùng SavedStateHandle/DI).
+- `ReaderScreen.kt` 4 chỗ: (a) `val readerVm = viewModel<ReaderViewModel>(key = "reader_${collection.name}")`
+  cạnh `exportVm` — key theo collection, VM sống qua Activity recreate; (b) 2 effect sau
+  `ReaderHandoff.consume()`: **restore** (`loadBook(keep, readerVm.chapter, readerVm.sentence)`
+  khi bookId còn tồn tại trong library; skip khi `selectedBook != null`/`books` rỗng)
+  + **mirror** (ghi `(selectedBook?.id, currentChapter, currentSentence)` xuống VM);
+  (c)+(d) `readerVm.clear()` ở 2 nhánh Back về shelf (callback + FAB) → không ghost reopen.
+- **Mới** `ReaderViewModelTest.kt` 4 test: recreate round-trip qua cùng handle, fresh = null,
+  `clear()` xóa, ghi đè. JVM tổng **84/84** (80 + 4).
+
+Verify máy ảo (sách EN `How it Works` / `The Battle for Khe Sanh`, 0 FATAL cả 3):
+| Test | Cách làm | Kết quả |
+|---|---|---|
+| **A** normal | vào sách → Back về shelf → Back về Home → mở app → EN Books | hiện **shelf 9 sách**, KHÔNG tự mở lại |
+| **B** Activity recreate | sách đang mở (ch.2/7) → `settings put system font_scale 1.15` (configChanges **không** cover fontScale → Activity chết, `configDiffForRecreate={CONFIG_FONT_SCALE}`) | Home → EN Books → **tự mở đúng sách ch.2/7** |
+| **C** process death | Home → `am kill` (pid chết hẳn, xác nhận bằng `pidof` rỗng) → `am start` → EN Books | **tự mở đúng sách ch.2/7** (SavedStateHandle) |
+
+**Bài học thao tác:** dump UI ngay sau `am start` cold-start có thể trả về **snapshot window
+cũ của task** (hiển thị đúng reader trước đó dù process đã chết) → chờ ≥25s (cold start đo được
+`Displayed … +21s486ms`) rồi dump lại mới là UI thật (Home).
+
+## 2. Gate (chạy lại sau G1.2)
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
   (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **80/80, 0 fail** (13 suite; mới: `ReaderHeadingsTest 9/9`
-  ở G3.2, +2 test G2.2; lúc G3.2/G3.3: 78/78).
+- JVM `:app:testDemoDebugUnitTest` → **84/84, 0 fail** (14 suite; mới `ReaderViewModelTest 4/4`
+  ở G1.2; trước đó 80/80 — `ReaderHeadingsTest 9/9` G3.2 + 2 test G2.2).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -144,11 +180,10 @@ Mẹo thao tác: xoay bằng `adb shell settings put system accelerometer_rotati
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
 
 ## 4. Nợ sang phiên sau
-- E2 (view nguyên bản), G1.2 (hoist state vào `ReaderViewModel` + `SavedStateHandle`),
-  H3 (OTA rulepack),
+- E2 (view nguyên bản), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
   G2.4 nợ **verify tai nghe** (unit đã cover, chỉ còn nghe VI/EN 3 câu ngoặc).
 - Việc gợi ý gần nhất (từ quan sát §3): kiểm `roman.single` cho EN + đưa
   `session.sentences()`/đọc `.prep` sang IO (bấm StrictMode).
-- Lưu ý tree: `ui.xml` ở root là rác dump UI (không commit).
+- Lưu ý tree: `ui.xml` ở root là rác dump UI — **đã xóa + đưa vào `.gitignore`** (không commit).

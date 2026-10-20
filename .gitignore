@@ -49,3 +49,6 @@ Thumbs.db
 .DS_Store
 *~
 __pycache__/
+
+# --- Rac dump UI (uiautomator) ---
+/ui.xml

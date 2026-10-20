@@ -169,6 +169,10 @@ fun ReaderScreen(
     val vipActive = com.bibot.app.data.ads.isVipActive(adsState)
     // A3.1: ExportViewModel for audiobook export
     val exportVm = viewModel<ExportViewModel>()
+    // G1.2: vị trí đọc sống sót khi Activity recreate (uiMode/locale/fontScale — không
+    // nằm trong configChanges) hoặc process kill. Key theo collection vì 3 kệ
+    // EN/STORY/COTICH dùng chung Activity-scoped ViewModelStore.
+    val readerVm = viewModel<ReaderViewModel>(key = "reader_${collection.name}")
     var exportBookId by remember { mutableStateOf<String?>(null) }
     // B3+E1.1+F2: chrome + 2 chế độ VIEW + Touch_point (mặc định BROWSE: chỉ render).
     var menuVisible by remember { mutableStateOf(true) }
@@ -455,6 +459,23 @@ fun ReaderScreen(
     // (ABOUT → BOOK/STORY/COTICH luôn đổi state → ReaderScreen compose mới → effect chạy 1 lần).
     LaunchedEffect(Unit) {
         ReaderHandoff.consume()?.let { req -> loadBook(req.book, req.chapterIdx, req.sentenceIdx) }
+    }
+
+    // G1.2: sau recreate/kill, VM còn "sách đang mở" → tự mở lại đúng chương/câu
+    // (forceChap/forceSent nhảy thẳng, KHÔNG đọc announce resume). Sách đã đóng
+    // bằng Back thì VM đã clear → vào màn là kệ sách như cũ.
+    LaunchedEffect(books, selectedBook) {
+        val keepId = readerVm.bookId ?: return@LaunchedEffect
+        if (selectedBook != null || books.isEmpty()) return@LaunchedEffect
+        val keep = books.firstOrNull { it.id == keepId } ?: return@LaunchedEffect
+        loadBook(keep, readerVm.chapter, readerVm.sentence)
+    }
+
+    // G1.2: mirror vị trí đọc sang VM (chỉ khi có sách mở — bookId null là no-op,
+    // đừng đè bản lưu chờ khôi phục). Bao phủ mọi đường đổi vị trí: loadBook,
+    // switchChapter, jumpNow, consumer đang đọc.
+    LaunchedEffect(selectedBook?.id, currentChapter, currentSentence) {
+        selectedBook?.id?.let { readerVm.onPosition(it, currentChapter, currentSentence) }
     }
 
     fun switchChapter(idx: Int, sentence: Int = 0) {
@@ -1360,7 +1381,7 @@ fun ReaderScreen(
                         pendingJump != null -> pendingJump = null
                         settingsOpen -> settingsOpen = false
                         hintOpen -> hintOpen = false
-                        else -> { stopAll(); selectedBook = null }
+                        else -> { stopAll(); selectedBook = null; readerVm.clear() }
                     }
                 }
             }
@@ -1831,7 +1852,7 @@ Column(
             // khoảng dưới (tâm ≈75% cao: cách đáy Box 20% trừ nửa nút 28dp) — không gian
             // 1 tay rộng. VERIFY uiautomator 2026-10-15: Back [919,1104][1044,1229].
             FloatingActionButton(
-                onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null } },
+                onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null; readerVm.clear() } },
                 // Nền trong mờ như pill điều khiển (alpha 0.55) → chữ trôi bên dưới vẫn thấy.
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
                 containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)

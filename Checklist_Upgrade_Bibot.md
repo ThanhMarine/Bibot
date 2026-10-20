@@ -886,7 +886,8 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
   Xong 2026-10-11: sinh bằng script `gen_reader.py` (44 điểm thay thế đều khớp count +
   check leftover). (Đính chính 2026-10-12: "phase ads" trong luồng đã XÓA ở B6.14;
   state vẫn `remember` trong composable — hoist sang `ReaderViewModel` hẹn ở B3/G1.2
-  CHƯA làm, không tồn tại file `ReaderViewModel.kt`.)
+  → **đã làm 2026-10-21 phạm vi minimal** (chỉ tuple position + `SavedStateHandle`,
+  file `ReaderViewModel.kt` đã tồn tại; pipeline TTS vẫn ở Compose — xem G1.2).)
 - [x] F0.2 Mới `enum ReaderCollection { EN, STORY_VI, COTICH, THAMKHAO, LOCAL_PDF }`:
   mỗi loại chỉ là config `{headerEmoji, fixedLang, adsEnabled, allowManage,
   useStoryStrings, fallbackTitle, audioPrefix}` + `filter()` giữ đúng hành vi cũ
@@ -947,9 +948,20 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
   đây là SAI): FATAL nằm trong `AdsBannerComposable` (`update` gọi `setAdSize` sau
   `loadAd`, AdMob cấm) — đã sửa bằng key `AndroidView` theo (widthDp, landscape).
   KHÔNG dùng `android:configChanges` (phá resources/locale).
-- [ ] G1.2 Hoist state đọc (`prepSession`, `jumpSeq`, producer job, `currentChapter/Sentence`)
-  vào `ReaderViewModel` + `SavedStateHandle` (CHƯA làm — không tồn tại file này; state vẫn
-  `remember`, B3.6 đã đủ để hết crash nên hoist thành hardening, không còn là fix crash).
+- [x] G1.2 Hoist state đọc — **XONG 2026-10-21 (phạm vi MINIMAL, chốt với người dùng)**:
+  chỉ hoist **tuple position** (`bookId`, `currentChapter`, `currentSentence`) sang
+  `ReaderViewModel` (mới, `AndroidViewModel`-style + `SavedStateHandle`) — pipeline TTS
+  (`prepSession`/`jumpSeq`/producer job/`LaunchedEffect(isReading)`) **GIỮ NGUYÊN ở Compose**
+  (full hoist ≈ 1000–1100 dòng, rủi ro cao → từ chối). `ReaderScreen.kt` 4 chỗ:
+  khai `readerVm = viewModel(key = "reader_<collection>")` (VM sống qua Activity recreate),
+  effect restore (mở lại đúng sách/chương/câu, skip khi chưa load xong) + effect mirror
+  (ghi position vào VM), 2 chỗ `readerVm.clear()` khi Back về shelf. Test JVM mới
+  `ReaderViewModelTest` 4/4 → tổng **84/84**; 2 flavor PASS, `install -r` Success.
+  Verify máy ảo 3 test: **A** Back khỏi sách → vào lại = shelf (không tự mở);
+  **B** đổi `font_scale` khi sách đang mở (Activity recreate, `configChanges` không cover
+  fontScale) → vào EN Books tự mở lại đúng sách/chương (Khe Sanh ch.2/7), 0 FATAL;
+  **C** `am kill` (process death, SavedStateHandle) → relaunch → vào EN Books tự mở lại
+  đúng sách/chương, 0 FATAL.
 - [x] G1.3 Verify máy ảo (ma trận xoay) — **XONG 2026-10-20** (sách EN `How it Works.epub`,
   engine offline): xoay landscape↔portrait khi **READ** (đọc tiếp đúng câu s311→s314…s344,
   KHÔNG title mới), **IDLE** (tạm dừng), **BROWSE** (thư viện) và **giữa dialog
@@ -1288,7 +1300,11 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   ~30 lần (READ/IDLE/BROWSE/dialog anchor) 0 FATAL, đọc tiếp đúng câu;
   `dumpsys meminfo`: Activities/ViewRootImpl = 1, 0 thread ExoPlayer/MediaCodec,
   PSS/Java heap không leo đơn điệu sau GC (xem G1.3).
-- CÒN MỞ: E2 (view nguyên bản), G1.2 (hoist state vào ViewModel),
+- ĐÃ XONG 2026-10-21 (phiên G1.2 — minimal hoist): tuple position (bookId/chapter/sentence)
+  → `ReaderViewModel` + `SavedStateHandle` (pipeline TTS giữ ở Compose); test mới
+  `ReaderViewModelTest` 4/4 → JVM **84/84**; verify máy ảo 3 test A (Back không ghost),
+  B (font-scale recreate), C (`am kill` process death) — tự mở lại đúng sách/chương, 0 FATAL.
+- CÒN MỞ: E2 (view nguyên bản),
   H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
@@ -1298,4 +1314,4 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
-- NỢ SANG PHIÊN SAU: E2, G1.2, H3, I2.3/I2.4, J1.
+- NỢ SANG PHIÊN SAU: E2, H3, I2.3/I2.4, J1.
