@@ -28,3 +28,42 @@ fun findPrevHeading(text: String, currentPos: Int): Int? {
     }
     return null
 }
+
+// --- G3.2 — Tiêu đề chương đọc-pause -------------------------------------------------
+
+/** Sách không có heading chuẩn → BlockTextReader tách "Đoạn N" (nhãn chế tạo, không đọc). */
+private val syntheticParagraphTitle = Regex("""^Đoạn\s+\d+$""", RegexOption.IGNORE_CASE)
+
+/** Tiêu đề chương quá dài (>200) không đọc — tránh TTS đọc 1 mạch nguyên dòng. */
+private const val MAX_TITLE_ANNOUNCE_CHARS = 200
+
+/** So khớp tiêu đề ↔ câu đầu: bỏ markdown/dấu câu/nhân đôi khoảng trắng. */
+internal fun normalizeTitleForCompare(s: String): String = s
+    .lowercase()
+    .replace(Regex("""[#*`_~"“”'’()\[\]{}:;,.\-–—…!?]+"""), " ")
+    .replace(Regex("""\s+"""), " ")
+    .trim()
+
+/**
+ * G3.2 — Tiêu đề chương có nên phát thành CHUNK ĐẦU TIÊN kèm pause không?
+ *
+ * @param chapterCount tổng số chương của sách (1 chương = sách PDF/đoạn liền → không đọc)
+ * @param firstSentence câu ĐẦU TIÊN sẽ đọc tại vị trí đang vào (dup-guard với tiêu đề)
+ *
+ * Loại: rỗng, quá dài, nhãn "Đoạn N" chế tạo, và tiêu đề đã nằm trong câu đầu
+ * (EPUB h1/heading lọt vào content → đọc cả 2 là nghe lặp).
+ */
+fun shouldAnnounceChapterTitle(title: String, chapterCount: Int, firstSentence: String?): Boolean {
+    val t = title.trim()
+    if (t.isEmpty() || t.length > MAX_TITLE_ANNOUNCE_CHARS) return false
+    if (chapterCount <= 1) return false
+    if (syntheticParagraphTitle.matches(t)) return false
+    val nt = normalizeTitleForCompare(t)
+    if (nt.isEmpty()) return false
+    val ns = normalizeTitleForCompare(firstSentence ?: "")
+    if (ns.isEmpty()) return true
+    // Câu đầu là tiêu đề hoặc mở đầu bằng tiêu đề → không đọc lại.
+    if (ns == nt) return false
+    if (nt.length >= 4 && (ns.startsWith(nt) || nt.startsWith(ns))) return false
+    return true
+}

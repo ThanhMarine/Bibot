@@ -78,6 +78,8 @@ private const val READER_SHORT_JUMP_SENTENCES = 10
 
 // 8.3 PCM flip-flop — producer synthesize trên IO, consumer đọc trên Main (tối đa 2 chunk đệm).
 // Luong doc PCM flip-flop (producer IO / consumer Main, dem 2 chunk) - da ngu theo collection.
+// G3.2: `isTitle` = chunk TIÊU ĐƯƠNG CHƯƠNG (đọc trước câu nội dung, kèm pause) —
+// KHÔNG lưu progress, KHÔNG mediaId trùng câu nội dung (tránh karaoke lệch pha).
 private sealed interface ReaderTtsItem {
     val chapIdx: Int
     val sentIdx: Int
@@ -85,6 +87,7 @@ private sealed interface ReaderTtsItem {
     val title: String
     val pauseAfterMs: Long
     val jumpSeq: Int
+    val isTitle: Boolean
     data class Pcm(
         override val chapIdx: Int,
         override val sentIdx: Int,
@@ -94,7 +97,8 @@ private sealed interface ReaderTtsItem {
         val textLen: Int,
         override val pauseAfterMs: Long = 0L,
         val mime: String = "audio/mp3",
-        override val jumpSeq: Int = 0
+        override val jumpSeq: Int = 0,
+        override val isTitle: Boolean = false
     ) : ReaderTtsItem
     data class Direct(
         override val chapIdx: Int,
@@ -103,7 +107,8 @@ private sealed interface ReaderTtsItem {
         override val title: String,
         val text: String,
         override val pauseAfterMs: Long = 0L,
-        override val jumpSeq: Int = 0
+        override val jumpSeq: Int = 0,
+        override val isTitle: Boolean = false
     ) : ReaderTtsItem
 }
 
@@ -153,6 +158,8 @@ fun ReaderScreen(
     val jumpSeq = remember { mutableIntStateOf(0) }
     // Highlight chi bat khi audio that su start (sua loi chunk dau to som trong luc cho synth)
     var audioStarted by remember { mutableStateOf(false) }
+    // G3.2: đọc tiếp sau pause → không đọc lại tên chương (producer tiêu thụ cờ 1 lần).
+    var suppressTitleOnStart by remember { mutableStateOf(false) }
     // A1.4: engine thực tế của lượt đọc (Piper/Cloud/Offline) — snapshot lúc bắt
     // đầu đọc để báo degraded (thiếu model/key), không re-plan giữa chừng.
     var degradedEngine by remember { mutableStateOf(false) }
@@ -747,6 +754,8 @@ fun ReaderScreen(
         // Đang pause giữa chừng (đã neo, chưa đổi chỗ) → đọc tiếp ngay, không hỏi lại.
         if (readModeState == ReadMode.READ && !isReading && selAnchor != null) {
             audioStarted = false
+            // G3.2: resume cùng vị trí → im lặng, không đọc lại tên chương.
+            suppressTitleOnStart = true
             jumpSeq.intValue++
             playerVm.stopAll() // A3.2: đọc tiếp → cắt cả 2 nguồn (tóm tắt/direct đang dở)
             isReading = true
@@ -970,11 +979,83 @@ fun ReaderScreen(
             // A (tách display/TTS): chưa tới mốc bắt đầu (Lời giới thiệu/Chương 1)
             // thì lướt (không đọc phần đầu/mục lục); display vẫn hiện đủ.
             var ttsStarted = firstMarkerChapIdx < 0 || currentChapter >= firstMarkerChapIdx
+            // G3.2: tên chương là chunk ĐẦU TIÊN kèm pause — chỉ khi VÀO chương mới
+            // (đầu lượt đọc / auto-advance / nhảy TOC); đọc tiếp sau pause thì im lặng.
+            var announceTitle = !suppressTitleOnStart
+            suppressTitleOnStart = false
+
+            // G3.2: 1 đường synth/chunk DUY NHẤT cho cả câu nội dung lẫn tiêu đề chương —
+            // cùng lookup cache content-addressed (A1.2) + fallback Piper → Cloud → Direct.
+            // Tên chương lặp mỗi lượt vào chương nên chỉ synth 1 lần rồi trúng cache.
+            suspend fun emitChunk(
+                plain: String,
+                chapI: Int,
+                sentI: Int,
+                total: Int,
+                chapTitle: String,
+                pauseMs: Long,
+                isTitle: Boolean,
+                seq: Int
+            ) {
+                // D-verify máy thật (tạm, gated DEBUG): text cuối gửi engine + ruler sẵn sàng?
+                if (com.bibot.app.BuildConfig.DEBUG) android.util.Log.d(
+                    "BibotDbg",
+                    "speak ${if (isTitle) "title" else "sent"} c$chapI s$sentI ruler=${com.bibot.app.core.text.ReadingRules.isReady()} lang=$readLang text=$plain"
+                )
+                var pcm: ByteArray? = null
+                var mime = "audio/mp3"
+                // A1.2: lookup content-addressed TRƯỚC khi synth — cùng text+voice
+                // (+speed) ở bất kỳ vị trí/chương nào dùng chung 1 file audio.
+                var segAudioHash: String? = null
+                var segFromCache = false
+                if (piperOn || cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank())) {
+                    try {
+                        val segKey = com.bibot.app.core.tts.TtsSegments.segmentKey(segPrefix, plain)
+                        segAudioHash = com.bibot.app.core.tts.TtsSegments.audioContentHash(
+                            segDocId, segDocVersion, segSettingsHash, segKey,
+                            com.bibot.app.core.tts.TtsSegments.normalizeContentText(plain), ""
+                        )
+                        val hit = segCache.lookup(segSettingsHash, segAudioHash)
+                        if (hit != null) {
+                            val hb = hit.readBytes()
+                            if (hb.isNotEmpty()) {
+                                pcm = hb
+                                mime = if (hit.extension.equals("wav", ignoreCase = true)) "audio/wav" else "audio/mp3"
+                                segFromCache = true
+                            }
+                        }
+                    } catch (_: Exception) { pcm = null; segFromCache = false }
+                }
+                if (piperOn && !segFromCache) {
+                    pcm = try { com.bibot.app.core.tts.PiperTtsHelper.synthesize(context, plain, readLang) } catch (_: Exception) { null }
+                    if (pcm != null) mime = "audio/wav"
+                }
+                if ((pcm == null || pcm.isEmpty()) && !segFromCache && (cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank()))) {
+                    pcm = try { CloudTtsBridge.synthesize(plain, geminiKey, voice = voice, speakingRate = speed) } catch (_: Exception) { null }
+                    mime = "audio/mp3"
+                }
+                if (pcm != null && pcm.isNotEmpty()) {
+                    // Miss mà synth được → lưu cache fire-and-forget (không chặn phát).
+                    if (!segFromCache && segAudioHash != null) {
+                        val b = pcm; val h = segAudioHash; val m = mime
+                        scope.launch(Dispatchers.IO) {
+                            segCache.store(segSettingsHash, h, if (m.contains("wav")) "wav" else "mp3", b)
+                        }
+                    }
+                    ttsChannel.send(ReaderTtsItem.Pcm(chapI, sentI, total, chapTitle, pcm, plain.length, pauseMs, mime, seq, isTitle))
+                } else {
+                    ttsChannel.send(ReaderTtsItem.Direct(chapI, sentI, total, chapTitle, plain, pauseMs, seq, isTitle))
+                }
+            }
+
             try {
                 while (isActive && isReading && chapIdx < chapters.size) {
                     val jc = jumpChapterReq.intValue
                     if (jc >= 0) {
                         jumpChapterReq.intValue = -1
+                        // G3.2: nhảy SANG chương khác (TOC/scrubber/‹ ›) → đọc tên chương;
+                        // nhảy câu trong cùng chương (Rev/Next ±10 câu) thì im lặng.
+                        announceTitle = jc != chapIdx
                         chapIdx = jc
                         localSentences = session.sentences(chapIdx)
                         currentChapter = chapIdx
@@ -1000,8 +1081,27 @@ fun ReaderScreen(
                         currentSentence = 0
                         if (firstMarkerChapIdx >= 0 && chapIdx >= firstMarkerChapIdx) ttsStarted = true
                         rewardedForChap = rewardedLeft > 0
+                        announceTitle = true // G3.2: chương mới → tên chương + pause
                         delay(READER_PAUSE_BETWEEN_MS)
                         continue
+                    }
+                    // G3.2: TÊN CHƯƠNG = chunk đầu kèm pause (READER_PAUSE_BETWEEN_MS),
+                    // neo karaoke/progress vào câu MỤC TIÊU của chương. Bỏ qua khi:
+                    // chưa tới mốc bắt đầu, sách 1 chương (PDF/đoạn liền), tiêu đề chế
+                    // tạo "Đoạn N", hoặc câu đầu đã chính là tiêu đề (EPUB h1 trong text).
+                    if (announceTitle) {
+                        announceTitle = false
+                        val chapTitle = chapters[chapIdx].title
+                        if (ttsStarted && shouldAnnounceChapterTitle(chapTitle, chapters.size, localSentences.getOrNull(sentIdx))) {
+                            val titleSpeak = com.bibot.app.core.text.BlockTextReader.ttsSpeakable(chapTitle)
+                            val titleClean = if (titleSpeak.isBlank()) ""
+                                else com.bibot.app.core.text.TextCleaner.cleanForTts(titleSpeak, readLang)
+                            val titlePlain = com.bibot.app.core.text.TextCleaner.splitPause(titleClean).first
+                            if (titlePlain.isNotBlank() && !com.bibot.app.core.text.TextCleaner.looksLikeThinking(titleClean)) {
+                                emitChunk(titlePlain, chapIdx, sentIdx, localSentences.size, chapTitle, READER_PAUSE_BETWEEN_MS, true, seqAtStart)
+                                continue
+                            }
+                        }
                     }
                     val rawSent = localSentences[sentIdx]
                     if (!ttsStarted && firstMarkerChapIdx >= 0) {
@@ -1025,55 +1125,7 @@ fun ReaderScreen(
                         sentIdx++; continue
                     }
                     val pauseMs = if (needPause) 2000L else 0L
-                    // D-verify máy thật (tạm, gated DEBUG): text cuối gửi engine + ruler sẵn sàng?
-                    if (com.bibot.app.BuildConfig.DEBUG) android.util.Log.d(
-                        "BibotDbg",
-                        "speak c$chapIdx s$sentIdx ruler=${com.bibot.app.core.text.ReadingRules.isReady()} lang=$readLang text=$plain"
-                    )
-                    var pcm: ByteArray? = null
-                    var mime = "audio/mp3"
-                    // A1.2: lookup content-addressed TRƯỚC khi synth — cùng text+voice
-                    // (+speed) ở bất kỳ vị trí/chương nào dùng chung 1 file audio.
-                    var segAudioHash: String? = null
-                    var segFromCache = false
-                    if (piperOn || cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank())) {
-                        try {
-                            val segKey = com.bibot.app.core.tts.TtsSegments.segmentKey(segPrefix, plain)
-                            segAudioHash = com.bibot.app.core.tts.TtsSegments.audioContentHash(
-                                segDocId, segDocVersion, segSettingsHash, segKey,
-                                com.bibot.app.core.tts.TtsSegments.normalizeContentText(plain), ""
-                            )
-                            val hit = segCache.lookup(segSettingsHash, segAudioHash)
-                            if (hit != null) {
-                                val hb = hit.readBytes()
-                                if (hb.isNotEmpty()) {
-                                    pcm = hb
-                                    mime = if (hit.extension.equals("wav", ignoreCase = true)) "audio/wav" else "audio/mp3"
-                                    segFromCache = true
-                                }
-                            }
-                        } catch (_: Exception) { pcm = null; segFromCache = false }
-                    }
-                    if (piperOn && !segFromCache) {
-                        pcm = try { com.bibot.app.core.tts.PiperTtsHelper.synthesize(context, plain, readLang) } catch (_: Exception) { null }
-                        if (pcm != null) mime = "audio/wav"
-                    }
-                    if ((pcm == null || pcm.isEmpty()) && !segFromCache && (cloudOn || (rewardedCloudOk && rewardedForChap) || (vipActive && !geminiKey.isNullOrBlank()))) {
-                        pcm = try { CloudTtsBridge.synthesize(plain, geminiKey, voice = voice, speakingRate = speed) } catch (_: Exception) { null }
-                        mime = "audio/mp3"
-                    }
-                    if (pcm != null && pcm.isNotEmpty()) {
-                        // Miss mà synth được → lưu cache fire-and-forget (không chặn phát).
-                        if (!segFromCache && segAudioHash != null) {
-                            val b = pcm; val h = segAudioHash; val m = mime
-                            scope.launch(Dispatchers.IO) {
-                                segCache.store(segSettingsHash, h, if (m.contains("wav")) "wav" else "mp3", b)
-                            }
-                        }
-                        ttsChannel.send(ReaderTtsItem.Pcm(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, pcm, plain.length, pauseMs, mime, seqAtStart))
-                    } else {
-                        ttsChannel.send(ReaderTtsItem.Direct(chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, plain, pauseMs, seqAtStart))
-                    }
+                    emitChunk(plain, chapIdx, sentIdx, localSentences.size, chapters[chapIdx].title, pauseMs, false, seqAtStart)
                     sentIdx++
                 }
                 if (chapIdx >= chapters.size) finishedAll = true
@@ -1089,9 +1141,13 @@ fun ReaderScreen(
                 if (!isReading) break
                 if (item.jumpSeq != jumpSeq.intValue) continue
                 // Karaoke sync: TO KHI AUDIO START (khong +1 truoc, khong to som luc cho synth).
+                // G3.2: mediaId RIÊNG cho tên chương (`_t`) — nếu trùng id câu nội dung thì
+                // onMediaItemTransition xóa nhầm id đang phát → awaitAudioDone thoát sớm,
+                // karaoke tô trước block kế (lệch pha y hệt bug awaitAudioStart sửa trước đây).
+                val mid = if (item.isTitle) "${collection.audioPrefix}${item.chapIdx}_t${item.sentIdx}_${item.jumpSeq}"
+                    else "${collection.audioPrefix}${item.chapIdx}_${item.sentIdx}_${item.jumpSeq}"
                 when (item) {
                     is ReaderTtsItem.Pcm -> {
-                        val mid = "${collection.audioPrefix}${item.chapIdx}_${item.sentIdx}_${item.jumpSeq}"
                         playerVm.enqueueBytes(item.bytes, item.mime, mid)
                         awaitAudioStart(playerVm, mid, (item.textLen * 60L).coerceAtLeast(700L)) { item.jumpSeq != jumpSeq.intValue }
                         if (item.jumpSeq != jumpSeq.intValue) continue
@@ -1107,29 +1163,32 @@ fun ReaderScreen(
                         // lang = sách EN → giọng en-US (không còn đọc tiếng Anh bằng giọng Việt)
                         // A3.2: đọc qua controller + ghi mediaId vào activeIds (đọc offline
                         // không còn bypass karaoke như trước).
-                        val mid = "${collection.audioPrefix}${item.chapIdx}_${item.sentIdx}_${item.jumpSeq}"
                         try { playerVm.speakOffline(item.text, speed, lang = readLang, mediaId = mid) } catch (_: Exception) {}
                     }
                 }
                 if (item.pauseAfterMs > 0) delayUntilDone(item.pauseAfterMs) { item.jumpSeq != jumpSeq.intValue }
                 spokenCount++
                 // B3.4: lưu mỗi câu (không còn mất ~8 câu khi đổi tab); giữ anchor/fileHash.
-                try {
-                    db.book().upsert(
-                        com.bibot.app.data.db.BookProgress(
-                            bookId = book.id,
-                            path = book.localFile?.absolutePath ?: book.title,
-                            position = item.chapIdx * 100 + (item.sentIdx + 1), // legacy giữ 1 bản
-                            total = totalSentences,
-                            chapterIdx = item.chapIdx, // A2.4: vị trí thật (đúng >100 câu/chương)
-                            sentenceIdx = item.sentIdx + 1,
-                            anchorPage = selAnchor?.page ?: -1,
-                            anchorOffset = selAnchor?.offset ?: 0,
-                            readMode = "read",
-                            fileHash = fileHashState
+                // G3.2: chunk TÊN CHƯƠNG không phải câu đã đọc → không ghi progress
+                // (không được cộng oan 1 câu khi đang nghe tên chương).
+                if (!item.isTitle) {
+                    try {
+                        db.book().upsert(
+                            com.bibot.app.data.db.BookProgress(
+                                bookId = book.id,
+                                path = book.localFile?.absolutePath ?: book.title,
+                                position = item.chapIdx * 100 + (item.sentIdx + 1), // legacy giữ 1 bản
+                                total = totalSentences,
+                                chapterIdx = item.chapIdx, // A2.4: vị trí thật (đúng >100 câu/chương)
+                                sentenceIdx = item.sentIdx + 1,
+                                anchorPage = selAnchor?.page ?: -1,
+                                anchorOffset = selAnchor?.offset ?: 0,
+                                readMode = "read",
+                                fileHash = fileHashState
+                            )
                         )
-                    )
-                } catch (_: Exception) {}
+                    } catch (_: Exception) {}
+                }
                 // Tạm nghỉ mỗi câu — dài hơn nếu câu kết thúc bằng dấu phẩy
                 // B6.14: không ngắt interstitial giữa chừng — đọc liên tục.
                 val spokenText = if (item is ReaderTtsItem.Direct) item.text else ""

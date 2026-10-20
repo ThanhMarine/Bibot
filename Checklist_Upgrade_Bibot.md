@@ -978,11 +978,36 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
   chống wrap) + `mdHeading` (`##`) + `CHAPTER-BREAK title=` (`chapterBreakTitle`).
   EPUB `h1-h3`/spine title: spine đã có ở `EpubReader.chapters`, tách `h1-h3` trong spine
   chưa làm (ghi nhận).
-- [ ] G3.2 Hành vi mới: producer phát **tiêu đề chương là chunk đầu tiên kèm pause**
-  (`pauseAfterMs` = `BOOK_PAUSE_BETWEEN_MS`, hoặc marker `⏸` như pause 2s) rồi mới tới
-  câu nội dung; karaoke highlight tab tương ứng. Hiện tại title chỉ hiện UI, TTS bỏ qua.
-- [ ] G3.3 Verify máy ảo: mở sách bất kỳ → audio đầu tiên là tên chương + khoảng lặng
-  rõ rệt trước câu đầu; chương `##`, `Chương X`, `Part One`, `h2` EPUB đều đọc.
+- [x] G3.2 Hành vi mới: producer phát **tiêu đề chương là chunk đầu tiên kèm pause**
+  (`pauseAfterMs` = `READER_PAUSE_BETWEEN_MS` = 450ms → khoảng lặng ~630ms) rồi mới tới
+  câu nội dung; karaoke highlight tab tương ứng — **XONG 2026-10-20**:
+  - `ReaderScreen.kt`: `ReaderTtsItem` thêm cờ `isTitle`; local `emitChunk(...)` cho cả
+    title lẫn câu (1 đường synth/cache duy nhất); mediaId title =
+    `${audioPrefix}${chapIdx}_t${sentIdx}_${jumpSeq}` (**khác** câu nội dung — trùng id
+    thì `onMediaItemTransition` xóa nhầm → `awaitAudioDone` thoát sớm → karaoke lệch pha);
+    neo `sentIdx` = câu mục tiêu (progress/percent không lệch); không ghi `BookProgress`
+    cho item title; cờ `suppressTitleOnStart` đặt ở nhánh resume của `startPlayFlow`
+    (F2.2) → đọc tiếp sau pause im lặng.
+  - `ReaderHeadings.kt`: `shouldAnnounceChapterTitle` + `normalizeTitleForCompare` —
+    bỏ qua sách ≤1 chương, title rỗng/>200 ký tự, nhãn chế tạo `Đoạn N`, title trùng/prefix
+    với câu đầu (EPUB h1) — test `ReaderHeadingsTest` 9/9.
+  - **Kèm fix bug có sẵn lộ ra lúc verify**: `OfflineTtsHelper.stop()` không đánh thức
+    coroutine đang chờ → sau `stopAll()` (nhảy chương/pause/Back) `speakOffline` treo hết
+    timeout `90_000ms` (đo được 81–90s) mới đọc tiếp. Thêm `pendingSpeakStop`
+    (AtomicReference callback) — `stop()` trả `false` ngay → đo lại 28–135ms.
+- [x] G3.3 Verify máy ảo — **XONG 2026-10-20** (sách EN `How it Works by Archibald
+  Williams.epub`, 7 chương, engine offline, 0 FATAL):
+  - đầu lượt đọc (anchor Yes): `speak title c2 s78 ... text=Chapter V.` +
+    `mediaId=book_2_t78_1` → 0,7s pause → `book_2_78_1` (speak title chạy trước audio);
+  - nhảy TOC sang chương khác khi đang READ (hộp B3.3 → Có): `stopAll` → `speak title
+    c3 s0 text=Chapter XI.` + `book_3_t0_2` (khoảng lặng title ~2,3s);
+  - auto-advance (`chapIdx++`, chương Cover rỗng → HOW IT WORKS): `speak title c1 s0` +
+    `book_1_t0_3` — cùng nhánh code với đọc hết chương (dòng `announceTitle = true`);
+  - pause → resume: **không** phát title (`book_1_24_4`), cờ suppress hoạt động;
+  - nhảy câu CÙNG chương (Search hit → `goHit` → `jumpNow`): **không** phát title
+    (`jc == chapIdx`), `book_1_56_5`;
+  - fix 90s: `speakOffline done ok=false` 28–135ms sau `stopAll` (trước fix: 81–90s);
+  - chương `##`/`Chương X`/`h2` EPUB: cover bằng `ReaderHeadingsTest` (ruler 64/64).
 
 ---
 
@@ -1232,8 +1257,12 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   rules **ĐÃ PUBLISH** (verify REST: create `wiki_books` 200, reports `status=pending`,
   read-back cloud OK) + verify máy ảo + **contribute LLM E2E** (key mới 200, tóm tắt
   upload shared=true, turns 3→2, xóa local row vẫn đọc từ cloud), xem B5.8).
+- ĐÃ XONG 2026-10-20 (phiên G3.2/G3.3): title chương = chunk đầu + pause (5 nhánh verify
+  máy ảo, xem G3.2/G3.3) + fix `OfflineTtsHelper.stop()` treo 90s sau `stopAll()`;
+  gate: JVM 78/78 (thêm `ReaderHeadingsTest` 9/9), ruler 64/64, `go vet`/`go test` 0,
+  `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` PASS, `install -r` 0 FATAL.
 - CÒN MỞ: E2 (view nguyên bản), G1.2/G1.3,
-  G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
+  G2.2 (e.g./i.e./vs./etc.), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
 - VERIFY CUỐI (2026-10-20): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,8MB +
@@ -1242,4 +1271,4 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
-- NỢ SANG PHIÊN SAU: E2, G1.2/G1.3, G2.2, G3.2/G3.3, H3, I2.3/I2.4, J1.
+- NỢ SANG PHIÊN SAU: E2, G1.2/G1.3, G2.2, H3, I2.3/I2.4, J1.

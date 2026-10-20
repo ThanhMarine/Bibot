@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 
 /**
@@ -32,6 +33,8 @@ class OfflineTtsHelper private constructor(private val context: Context) : TextT
     private var pendingInit: (() -> Unit)? = null
     // Fix kẹt speakOffline (Điểm tin/Story): serialize mọi lần speak + chờ init không mất callback.
     private val speakMutex = Mutex()
+    // Callback trả false cho lần speak ĐANG chạy khi stop() được gọi giữa chừng.
+    private val pendingSpeakStop = AtomicReference<(() -> Unit)?>(null)
     private val initLock = Any()
     private val initWaiters = mutableListOf<CompletableDeferred<Boolean>>()
 
@@ -106,27 +109,36 @@ class OfflineTtsHelper private constructor(private val context: Context) : TextT
             }
             setSpeed(speed)
             // Timeout chống treo vô hạn nếu engine không gọi onDone/onError (VD stop giữa chừng).
-            withTimeoutOrNull(90_000L) {
-                suspendCancellableCoroutine { cont ->
-                    val done = AtomicBoolean(false)
-                    fun safeResume(v: Boolean) {
-                        if (done.compareAndSet(false, true) && cont.isActive) cont.resume(v)
+            try {
+                withTimeoutOrNull(90_000L) {
+                    suspendCancellableCoroutine { cont ->
+                        val done = AtomicBoolean(false)
+                        fun safeResume(v: Boolean) {
+                            if (done.compareAndSet(false, true) && cont.isActive) cont.resume(v)
+                        }
+                        // stop() giữa chừng (nhảy chương/jumpNow/Back/stopAll) KHÔNG luôn làm
+                        // engine gọi onDone/onError cho utterance đang chạy → nếu không có callback
+                        // này thì coroutine treo hết 90s (mỗi nhảy chương = chậm ~90s mới đọc tiếp).
+                        pendingSpeakStop.set { safeResume(false) }
+                        // Hủy coroutine (đổi tin/dừng/auto-read cancel) → dừng engine ngay, không kẹt mutex.
+                        cont.invokeOnCancellation { try { tts?.stop() } catch (_: Exception) {} }
+                        val id = "bibot_${System.currentTimeMillis()}_${speakText.hashCode()}"
+                        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                            override fun onStart(utteranceId: String?) {}
+                            override fun onDone(utteranceId: String?) { if (utteranceId == id) safeResume(true) }
+                            @Deprecated("Deprecated") override fun onError(utteranceId: String?) { safeResume(false) }
+                            override fun onError(utteranceId: String?, errorCode: Int) { safeResume(false) }
+                        })
+                        val res = try {
+                            tts?.speak(speakText, TextToSpeech.QUEUE_FLUSH, null, id) ?: TextToSpeech.ERROR
+                        } catch (_: Exception) { TextToSpeech.ERROR }
+                        if (res == TextToSpeech.ERROR) safeResume(false)
                     }
-                    // Hủy coroutine (đổi tin/dừng/auto-read cancel) → dừng engine ngay, không kẹt mutex.
-                    cont.invokeOnCancellation { try { tts?.stop() } catch (_: Exception) {} }
-                    val id = "bibot_${System.currentTimeMillis()}_${speakText.hashCode()}"
-                    tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                        override fun onStart(utteranceId: String?) {}
-                        override fun onDone(utteranceId: String?) { if (utteranceId == id) safeResume(true) }
-                        @Deprecated("Deprecated") override fun onError(utteranceId: String?) { safeResume(false) }
-                        override fun onError(utteranceId: String?, errorCode: Int) { safeResume(false) }
-                    })
-                    val res = try {
-                        tts?.speak(speakText, TextToSpeech.QUEUE_FLUSH, null, id) ?: TextToSpeech.ERROR
-                    } catch (_: Exception) { TextToSpeech.ERROR }
-                    if (res == TextToSpeech.ERROR) safeResume(false)
-                }
-            } ?: false
+                } ?: false
+            } finally {
+                // Vẫn trong speakMutex → không thể xoá nhầm callback của lần speak kế tiếp.
+                pendingSpeakStop.set(null)
+            }
         }
     }
 
@@ -148,7 +160,15 @@ class OfflineTtsHelper private constructor(private val context: Context) : TextT
         }
     }
 
-    fun stop() { try { tts?.stop() } catch (_: Exception) {} }
+    /**
+     * Dừng utterance đang chạy. Engine Android không gọi onDone/onError cho utterance bị stop
+     * giữa chừng → phải tự đánh thức coroutine đang chờ trong [speakOffline] (trả false ngay),
+     * nếu không lần speak đó treo tới hết timeout 90s (vd nhảy chương = ~90s mới đọc tiếp).
+     */
+    fun stop() {
+        pendingSpeakStop.getAndSet(null)?.invoke()
+        try { tts?.stop() } catch (_: Exception) {}
+    }
 
     /**
      * Dừng vĩnh viễn — CHỈ gọi khi chắc chắn không màn nào dùng nữa (vd app thoát).
