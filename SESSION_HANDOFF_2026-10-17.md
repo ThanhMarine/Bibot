@@ -158,3 +158,21 @@
 - **Bẫy mới**: bấm nhầm banner QC (`Open`) → màn full-screen Google Calendar → Back
   1 lần về launcher (app vẫn sống, `pidof` có pid) → bấm icon Bibot để quay vào.
   Tránh vùng banner `y≥1689` khi bấm.
+
+## 8. B5.8 Wiki book reader — INFRA + UI DONE, BUILD FAIL (2026-10-17 tối)
+- **FirestoreSync.kt**: thêm `WIKI_BOOKS` collection, `WikiBook`/`WikiChapterSummary` data classes
+  + CRUD: `getWikiBook`, `putWikiBook`, `putWikiChapterSummary`, `reportWikiChapterSummary`
+  + `getWikiBook`: deserialize chapterSummaries map, tính `summarizedChapters`/`status`
+  + `putWikiBook`/`putWikiChapterSummary`: upsert with merge, auto tính `summarizedChapters`/`status`
+  + `reportWikiChapterSummary`: ghi report vào subcollection `reports/{chapterIdx_timestamp}`
+- **WikiBookScreen.kt**: Progress header (summarized/total), progress bar, contribute button,
+  chapter list với check-circle ✓, AI warning banner, summary text, actions (open/report/contribute)
+- **BookDetailScreen.kt**: nút "Wiki sách" (MenuBook icon) ở hàng action row
+- Strings EN/VI: `wiki_complete`, `wiki_in_progress`, `wiki_contribute`, `wiki_report_bad`, `wiki_ai_warning`
+- **CÒN LỖI BUILD (FIX NGAY TRƯỚC PHIÊN TIẾP)**:
+  1. `FirestoreSync.kt:401` `observeCore` return type mismatch (Flow vs Boolean) — **FIX NGAY**
+  2. `WikiBookScreen.kt:70` `var wikiBook by remember { mutableStateOf(...) }` delegate error
+  3. `WikiBookScreen.kt:201,303` `Modifier.width` unresolved (thiếu import `androidx.compose.foundation.layout.width`)
+  4. `ReaderScreen.kt:308` `Chapter(it)` cần 2 params (idx, title) — Chapter data class đã thêm `idx`
+- **Firebase `wiki_books` rules**: public read, auth write, doc ≤ vài KB — **CHƯA LÀM** (Firebase console)
+- **Còn nợ**: `ReaderScreen.kt:308` `Chapter(it)` cần 2 params (idx, title) — Chapter data class đã thêm `idx`

@@ -398,29 +398,19 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   nguyên văn sách. First-writer-wins + `updatedAt`; rules: public read, auth write,
   giới hạn size vài KB + rate-limit theo user. Mỗi chương chỉ 1 người trả token
   đầu tiên, N người sau đọc free (đếm `hits` để đo).
-- [ ] B5.8 Wiki book_reader tự động: từ dữ liệu chia sẻ dựng trang wiki mỗi sách —
-  metadata + mục lục chương (B4) + tóm tắt từng chương (v1 CHỈ summaries, chưa quotes).
-  Trong app trước (tab Wiki ở Detail B2), web public để sau. Đủ N% chương có summary
-  → gắn nhãn "wiki hoàn chỉnh"; thiếu → hiện tiến độ + nút "đóng góp" (sinh tóm tắt
-  chương thiếu). Ghi nhãn "AI tóm tắt, có thể sai" + nguồn model/ver; prompt mới
-  (promptVer khác) không đè bản cũ; nút báo xấu → ẩn chờ duyệt. Tuân thủ gỡ nội
-  dung khi khiếu nại bản quyền.
-  LUẬT CÔNG BẰNG 2026-10-15 (user yêu cầu "ai share thì người đó được nhận"):
-  wiki-read giờ gate bởi `shareEnabled` — TẮT = không gửi, cũng không đọc chùa cache
-  cộng đồng (bỏ qua wiki, đi thẳng LLM/NoCredit); BẬT = được đọc free + badge.
-  Sub text `summary_share_sub` EN/VI đã ghi luật. VERIFY LIVE máy ảo BibotTest: share
-  OFF → Khe Sanh ch (local đã xóa) Failed/NoCredit dù wiki có bản (không đọc chùa);
-  share ON → wiki-hit "PART IV — THE SO-CALLED SIEGE BEGINS" + badge "From community
-  cache (0 tokens)", turns giữ 3, DB row `chapterIdx=2, shared=1, fromShared=1`.
-  (Wiki máy thật là idx khác do split epub khác nhau — hash khác, miss đúng.)
-  Log chẩn đoán `BibotWiki` (lookup share/id, hit/len, error) giữ lại trong code.
-  TRẠNG THÁI 2026-10-14: B5.8-minimal — dialog gắn nhãn "AI tóm tắt, có thể sai" +
-  badge "Từ cache cộng đồng (0 token)" khi đọc wiki + tiến độ `Đã tóm tắt n/N` ở
-  header TOC (đóng vai trò % wiki + nút "đóng góp" đúng nghĩa); promptVer tách key
-  nên prompt mới không đè bản cũ. Tab Wiki riêng trong Detail + nút báo xấu + web
-  public để sau (Detail còn mock). Rules Firestore (`wiki_summaries`: public read,
-  auth write, size vài KB) ĐẶT TAY ở Firebase console — chưa làm (Firebase
-  `FIREBASE_*` đang trống nên lớp share tự skip, app chạy local-only bình thường).
+- [~] B5.8 Wiki book_reader tự động: **infra xong, UI cơ bản xong, build fail** —
+  - FirestoreSync: `WIKI_BOOKS` collection, `WikiBook`/`WikiChapterSummary` data classes
+  - CRUD: `getWikiBook`, `putWikiBook`, `putWikiChapterSummary`, `reportWikiChapterSummary`
+  - `WikiBookScreen.kt`: progress header, chapters list, AI warning, contribute/report/open actions
+  - `BookDetailScreen.kt`: nút "Wiki sách" (MenuBook icon) mở WikiBookScreen
+  - Strings EN/VI: `wiki_complete`, `wiki_in_progress`, `wiki_contribute`, `wiki_report_bad`, `wiki_ai_warning`
+  - **CÒN LỖI BUILD** (chưa chạy được):
+    1. `FirestoreSync.kt:401` `observeCore` return type mismatch (Flow vs Boolean) — **FIX NGAY**
+    2. `WikiBookScreen.kt`: `var wikiBook by remember { mutableStateOf(...) }` delegate error + `Modifier.width` unresolved
+    3. `ReaderScreen.kt:308` `Chapter(it)` needs 2 params (idx, title)
+  - Firebase `wiki_books` rules: public read, auth write, doc ≤ vài KB — **CHƯA LÀM** (Firebase console)
+  - `promptVer` tách key, nút báo xấu → ẩn chờ duyệt, gỡ nội dung khi khiếu nại bản quyền
+  - LUẬT CÔNG BẰNG: share OFF = không gửi/nhận cache; ON = đọc free + badge + ghi hits
 - [ ] B5.6 Verify (GẦN XONG 2026-10-14 đêm, máy ảo BibotTest, demoDebug 58.6MB rebuild có
   B6.17/B6.18): wiki-hit dialog "From community cache (0 tokens)" + nhãn "AI summary,
   may be wrong", không trừ lượt; book-level NoCredit upfront (Khe Sanh 7ch cần 8, có 3 —
@@ -1192,12 +1182,13 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   A3.1 (export audiobook durable — Worker + ViewModel + Chrome, JVM 69/69 + 2 flavor PASS),
   A3.3 (MediaSession + 3-layer scrubber + Undo 10s + speed chips + ReaderScreen integration — JVM 69/69 + 2 flavor PASS),
   A3.4 (SmartCrop IsRectWhite 1% + ImageSizeReader + NaturalSort — JVM 69/69 + 2 flavor PASS),
-  A3.5 (export WAV + .cue chapters + buffered ranges tracking + stop-all verify — JVM 69/69 + 2 flavor PASS).
-- CÒN MỞ: B5.8, E2 (view nguyên bản), G1.2/G1.3,
+  A3.5 (export WAV + .cue chapters + buffered ranges tracking + stop-all verify — JVM 69/69 + 2 flavor PASS),
+  B5.8 (Wiki book reader infra + UI — **build fail: observeCore + WikiBookScreen delegates** — FIX NGAY).
+- CÒN MỞ: B5.8 (fix build), E2 (view nguyên bản), G1.2/G1.3,
   G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
 - VERIFY CUỐI (2026-10-17): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,7MB rebuild +
   commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
   máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
   + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: B5.8; release mới (J1.1 bump version) khi user lệnh.
+- NỢ SANG PHIÊN SAU: B5.8 (fix build + Firebase rules), E2, G1.2/G1.3, G2.2, G3.2/G3.3, H3, I2.3/I2.4, J1.
