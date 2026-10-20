@@ -316,13 +316,13 @@ object FirestoreSync {
                 "summarizedChapters" to book.summarizedChapters,
                 "model" to book.model,
                 "promptVer" to book.promptVer,
-                "lang" to book.lang,
-                "source" to book.source,
                 "status" to book.status,
                 "createdAt" to if (existing.exists()) existing.getLong("createdAt") ?: System.currentTimeMillis() else System.currentTimeMillis(),
                 "updatedAt" to System.currentTimeMillis()
             )
-            Tasks.await(ref.set(data))
+            // Merge: giữ field lạ người khác ghi (chapterSummaries map đã được
+            // read-modify-write phía trên nên không mất chương cũ).
+            Tasks.await(ref.set(data, com.google.firebase.firestore.SetOptions.merge()))
             true
         } catch (_: Exception) { false }
     }
@@ -384,22 +384,12 @@ object FirestoreSync {
             )))
             true
         } catch (_: Exception) { false }
-    /** Đếm lượt đọc ké (best-effort, không chặn luồng chính). */
-    suspend fun bumpWikiHits(context: Context, docId: String) = withContext(Dispatchers.IO) {
-        try {
-            if (!isConfigured()) return@withContext
-            uid(context)
-            val ref = store(context).collection(WIKI_SUMMARIES).document(docId)
-            Tasks.await(ref.update("hits", com.google.firebase.firestore.FieldValue.increment(1)))
-        } catch (_: Exception) {}
     }
 
-/**
+    /**
      * Realtime collection `core` — collect trong scope màn hình mở (không auto-start ở BibotApp
      * để đỡ tốn pin; Worker định kỳ đã bao phủ sync nền).
      */
-fun observeCore(context: Context): kotlinx.coroutines.flow.Flow<Map<String, String>> {
-    return kotlinx.coroutines.flow.flowOf(emptyMap<String, String>())
-}
-}
+    fun observeCore(context: Context): Flow<Map<String, String>> =
+        kotlinx.coroutines.flow.flowOf(emptyMap<String, String>())
 }

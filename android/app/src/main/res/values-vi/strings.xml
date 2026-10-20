@@ -588,4 +588,13 @@
     <string name="wiki_report_bad">Báo cáo sai</string>
     <string name="wiki_ai_warning">AI tóm tắt, có thể sai</string>
     <string name="wiki_ai_warning_sub">Tóm tắt do AI sinh ra, có thể không chính xác. Vui lòng kiểm tra kỹ.</string>
+    <string name="wiki_subtitle">Tóm tắt wiki cộng đồng</string>
+    <string name="wiki_share_off">Đang tắt chia sẻ: không xem/cộng tác được wiki cộng đồng. Bật chia sẻ trong Cài đặt.</string>
+    <string name="wiki_no_toc">Chưa có mục lục — mở sách 1 lần để tạo.</string>
+    <string name="wiki_has_summary">Đã tóm tắt</string>
+    <string name="wiki_report_reason">Sai ở điểm nào?</string>
+    <string name="wiki_report_send">Gửi báo cáo</string>
+    <string name="wiki_report_done">Đã gửi báo cáo. Cảm ơn bạn!</string>
+    <string name="book_detail_empty">Chưa chọn sách.</string>
+    <string name="book_detail_toc">%1$d chương</string>
 </resources>

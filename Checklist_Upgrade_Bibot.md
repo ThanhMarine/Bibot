@@ -398,18 +398,63 @@ Quy ước: `- [ ]` chưa làm, `- [x]` xong. Mỗi mục ghi file Bibot bị ch
   nguyên văn sách. First-writer-wins + `updatedAt`; rules: public read, auth write,
   giới hạn size vài KB + rate-limit theo user. Mỗi chương chỉ 1 người trả token
   đầu tiên, N người sau đọc free (đếm `hits` để đo).
-- [~] B5.8 Wiki book_reader tự động: **infra xong, UI cơ bản xong, build fail** —
+- [x] B5.8 Wiki book_reader tự động: **XONG 2026-10-20** (build xanh + wiring thật + verify máy ảo):
   - FirestoreSync: `WIKI_BOOKS` collection, `WikiBook`/`WikiChapterSummary` data classes
-  - CRUD: `getWikiBook`, `putWikiBook`, `putWikiChapterSummary`, `reportWikiChapterSummary`
-  - `WikiBookScreen.kt`: progress header, chapters list, AI warning, contribute/report/open actions
-  - `BookDetailScreen.kt`: nút "Wiki sách" (MenuBook icon) mở WikiBookScreen
-  - Strings EN/VI: `wiki_complete`, `wiki_in_progress`, `wiki_contribute`, `wiki_report_bad`, `wiki_ai_warning`
-  - **CÒN LỖI BUILD** (chưa chạy được):
-    1. `FirestoreSync.kt:401` `observeCore` return type mismatch (Flow vs Boolean) — **FIX NGAY**
-    2. `WikiBookScreen.kt`: `var wikiBook by remember { mutableStateOf(...) }` delegate error + `Modifier.width` unresolved
-    3. `ReaderScreen.kt:308` `Chapter(it)` needs 2 params (idx, title)
-  - Firebase `wiki_books` rules: public read, auth write, doc ≤ vài KB — **CHƯA LÀM** (Firebase console)
+  - CRUD: `getWikiBook`, `putWikiBook` (read-modify-write `chapterSummaries` + **merge**,
+    không wipe field lạ), `putWikiChapterSummary`, `reportWikiChapterSummary`
+  - `WikiBookScreen.kt`: viết lại — load `getWikiBook` **gated share-ON** (luật công bằng),
+    union chương local ∪ wiki doc ∪ "Chương N+1", progress %, banner `wiki_share_off`,
+    contribute button ẩn khi share OFF, per-chapter `enabled = !busy && shareEnabled`
+  - `BookDetailScreen.kt`: nhận `book` thật (empty state nếu null), nạp TOC `BookPrepStore`
+    (fallback `build`), ĐỌC/Đọc-from đầu → `onOpenReader(chap,sent)`, wiki thay hẳn
+    detail (fix 2 màn xếp chồng), contribute → `SummaryRepository.summarizeChapter` →
+    Ready hiện SummaryDialog + `uploadWikiBook` (khi share ON) / NoCredit-NeedKey → Gate
+    / watch-ad retry mirror reader, report → `reportWikiChapterSummary`
+  - `ReaderHandoff.kt` (mới): object post/consume handoff Detail→Reader
+  - `BibotNavSuite.kt`: `detailBook` + `openDetail` (mode ABOUT) + `openReader`
+    (ReaderHandoff.post + mode theo collection), 3 `ReaderScreen(..., onOpenDetail=...)`
+  - `ReaderScreen.kt`: param `onOpenDetail`, `loadBook(book, forceChap, forceSent)`,
+    icon Info trên card EN/story → `onOpenDetail`, consume handoff
+  - Strings EN/VI mới: `wiki_subtitle`, `wiki_share_off`, `wiki_no_toc`, `wiki_has_summary`,
+    `wiki_report_reason/_send/_done`, `book_detail_empty`, `book_detail_toc`
+  - Firebase `wiki_books` + subcollection `reports`: **RULES ĐÃ VIẾT** trong
+    `firestore.rules` (public read, auth create/update `hasOnly` 12 keys + `hasAll` 4 keys,
+    chapterSummaries ≤500 entries, title ≤300, source ≤500, no delete; reports: auth
+    read/create, no update/delete) — **ĐÃ PUBLISH + verify REST 2026-10-20**
+    (create 200 / read-back 200 / reports pending / share-OFF 404)
+  - Gate: JVM 69/69 + ruler 64/64 + go vet 0 + 2 flavor PASS (Bibot.apk 58,8MB /
+    BibotV.apk 60,0MB) — VERIFY MÁY ẢO 2026-10-20: About → Detail thật (bookmark từ
+    Room, "1 chapters") → Read mở reader đúng sách (handoff consume) → Wiki hiện TOC
+    thật + contribute dialog → share OFF hiện banner + disable contribute → 0 FATAL
+  - **B5.8b cơ chế Summarize cho local + public (pdrive) — VERIFY MÁY ẢO 2026-10-20:**
+    2 đường trigger sẵn: (1) Reader TOC icon tóm tắt chương/cả sách (tự tải khi mở),
+    (2) Detail → Wiki → contribute (B5.8). Vá 3 lỗ hổng cho sách CHƯA tải:
+    `BookDetailScreen` nút **Download wire thật** (repo.download → `b.localFile` update
+    → `prepKey++` nạp lại TOC, spinner + toast — verify: xóa file 18KB qua run-as →
+    Detail "Not downloaded" → bấm Download → file 19KB quay lại + "4 chapters");
+    `contribute()` prep==null → **Toast "Not downloaded"** (trước chết im lặng);
+    Wiki ẩn nút contribute khi `total==0` + hiện `wiki_no_toc` (verify: "0/0 chapters"
+    + "No table of contents yet…", KHÔNG có nút Contribute).
+  - **Verify Firestore end-to-end (rules đã publish 20-10, REST + app):**
+    `wiki_books` create HTTP 200 (doc thật 12 keys, rules chấp nhận auth create) →
+    **máy ảo đọc lại**: mở lại Wiki → "Building wiki: **1/7**, 14%" + badge "Has summary"
+    + text tóm tắt từ cloud (local Room không có row nào → 100% từ Firestore);
+    **report** → dialog reason → subcollection `reports` tạo doc `status=pending` (rows=1);
+    lưu ý: cùng process cũ reopen lần đầu vẫn 0/7 (Firestore memory cache stale) —
+    force-stop + mở lại là đúng, không phải bug app.
+  - **CONTRIBUTE LLM E2E — XONG 2026-10-20** (How it Works chương 3 "Chapter V."):
+    key cũ trên máy ảo sai format (không phải `AIza…`) → 401 `ACCESS_TOKEN_TYPE_UNSUPPORTED`,
+    user nhập key mới (verify REST `GET …/models` → **200**) → bấm "Summarize this
+    chapter" → SummaryDialog **Content**: tóm tắt tiếng VI 654 ký tự + badge "AI
+    summary, may be wrong" + **Summary turns left: 3→2** (trừ đúng 1 lượt), log
+    `BibotWiki lookup share=true … hit=false len=0` (wiki miss → LLM);
+    REST `wiki_books/pdrive-1M77…`: **summarizedChapters=2/7, chapterSummaries keys=1,2**
+    (merge không mất chương cũ, `updatedAt` mới), ch2 `model=gemini-3-5-flash-lite,
+    shared=true`; **read-back chứng minh**: `run-as sqlite3` xóa local row chương 2
+    (count=0) → reopen app → Wiki vẫn "Has summary" + text (100% từ Firestore),
+    progress "Building wiki: 2/7, 28%".
   - `promptVer` tách key, nút báo xấu → ẩn chờ duyệt, gỡ nội dung khi khiếu nại bản quyền
+    (nút report đã hoạt động; còn nợ server-side duyệt/ẩn)
   - LUẬT CÔNG BẰNG: share OFF = không gửi/nhận cache; ON = đọc free + badge + ghi hits
 - [ ] B5.6 Verify (GẦN XONG 2026-10-14 đêm, máy ảo BibotTest, demoDebug 58.6MB rebuild có
   B6.17/B6.18): wiki-hit dialog "From community cache (0 tokens)" + nhãn "AI summary,
@@ -1183,12 +1228,18 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   A3.3 (MediaSession + 3-layer scrubber + Undo 10s + speed chips + ReaderScreen integration — JVM 69/69 + 2 flavor PASS),
   A3.4 (SmartCrop IsRectWhite 1% + ImageSizeReader + NaturalSort — JVM 69/69 + 2 flavor PASS),
   A3.5 (export WAV + .cue chapters + buffered ranges tracking + stop-all verify — JVM 69/69 + 2 flavor PASS),
-  B5.8 (Wiki book reader infra + UI — **build fail: observeCore + WikiBookScreen delegates** — FIX NGAY).
-- CÒN MỞ: B5.8 (fix build), E2 (view nguyên bản), G1.2/G1.3,
+  B5.8 (Wiki book reader — **XONG 2026-10-20**: build fix + wiring Detail↔Wiki↔Reader +
+  rules **ĐÃ PUBLISH** (verify REST: create `wiki_books` 200, reports `status=pending`,
+  read-back cloud OK) + verify máy ảo + **contribute LLM E2E** (key mới 200, tóm tắt
+  upload shared=true, turns 3→2, xóa local row vẫn đọc từ cloud), xem B5.8).
+- CÒN MỞ: E2 (view nguyên bản), G1.2/G1.3,
   G2.2 (e.g./i.e./vs./etc.), G3.2/G3.3 (title chương đọc-pause), H3 (OTA rulepack),
-  I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới).
-- VERIFY CUỐI (2026-10-17): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,7MB rebuild +
-  commercialDebug PASS, release cũ Bibot 33.7MB/BibotV 34MB (ký release, apksigner 0),
-  máy ảo BibotTest (AVD path mới: chạy emulator với `ANDROID_AVD_HOME=H:\androidkit\.android\avd`)
-  + máy thật sạch FATAL.
-- NỢ SANG PHIÊN SAU: B5.8 (fix build + Firebase rules), E2, G1.2/G1.3, G2.2, G3.2/G3.3, H3, I2.3/I2.4, J1.
+  I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
+  B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
+- VERIFY CUỐI (2026-10-20): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,8MB +
+  commercialDebug 60,0MB; **4 bản RELEASE mới** (gate test 69/69 + 2 flavor): Bibot.apk
+  33,80MB / Bibot.aab 22,54MB / BibotV.apk 34,06MB / BibotV.aab 22,71MB — apksigner
+  v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
+  máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
+  emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
+- NỢ SANG PHIÊN SAU: E2, G1.2/G1.3, G2.2, G3.2/G3.3, H3, I2.3/I2.4, J1.

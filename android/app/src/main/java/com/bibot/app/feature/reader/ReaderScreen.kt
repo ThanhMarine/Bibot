@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -119,6 +120,8 @@ fun ReaderScreen(
     collection: ReaderCollection = ReaderCollection.EN,
     // Kệ sách (chưa mở sách): Back → về Home (không còn nút Home ở bottom bar).
     onBackHome: () -> Unit = {},
+    // B2/B5.8: icon info ở hàng sách → màn About (BookDetailScreen) của cuốn đó.
+    onOpenDetail: (BookMeta) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -229,7 +232,9 @@ fun ReaderScreen(
         repo.books.collect { books = it }
     }
 
-    fun loadBook(book: BookMeta) {
+    // B2.3/B5.8: [forceChap] >= 0 = mở đúng chương/câu chỉ định (từ Detail/Wiki),
+    // -1 = theo progress như cũ (resume).
+    fun loadBook(book: BookMeta, forceChap: Int = -1, forceSent: Int = 0) {
         selectedBook = book
         // B1.1: chạm kệ "Đang đọc" (fire-and-forget, không chặn mở sách).
         scope.launch(Dispatchers.IO) {
@@ -313,14 +318,26 @@ fun ReaderScreen(
                 totalSentencesAll = session.sentenceTotal ?: session.estimateTotal
 
                 // Resume A2.4: đọc từ cột mới (đúng với chương >100 câu),
-                // fallback legacy/anchor cho dữ liệu cũ.
+                // fallback legacy/anchor cho dữ liệu cũ. B2.3: forceChap ghi đè progress.
+                val forced = forceChap >= 0 && chapters.isNotEmpty()
                 val resumePos = if (progress != null) ReadingPosition.fromProgress(progress) else ReadingPosition()
-                val startChap = if (progress != null && chapters.isNotEmpty())
-                    resumePos.chap.coerceIn(0, chapters.lastIndex) else 0
+                val startChap = when {
+                    forced -> forceChap.coerceIn(0, chapters.lastIndex)
+                    progress != null && chapters.isNotEmpty() -> resumePos.chap.coerceIn(0, chapters.lastIndex)
+                    else -> 0
+                }
                 currentChapter = startChap
                 sentences = session.sentences(startChap)
-                currentSentence = if (progress != null)
-                    resumePos.sent.coerceIn(0, (sentences.size - 1).coerceAtLeast(0)) else 0
+                currentSentence = when {
+                    forced -> forceSent.coerceIn(0, (sentences.size - 1).coerceAtLeast(0))
+                    progress != null -> resumePos.sent.coerceIn(0, (sentences.size - 1).coerceAtLeast(0))
+                    else -> 0
+                }
+                if (forced) {
+                    // Chip resume/announce phải theo vị trí MỤC TIÊU, không theo bookmark cũ.
+                    savedResume = ReadingPosition(startChap, currentSentence)
+                    savedPos = savedResume.toLegacy()
+                }
 
                 // B3+E1.1+F2: VIEW mặc định + fileHash + scan-lock + neo đã lưu.
                 // PDF → PAGE (ảnh); EPUB scan → PAGE rich-ảnh; còn lại TEXT.
@@ -364,7 +381,7 @@ fun ReaderScreen(
                     }
                 } else null
 
-                if (progress != null && (resumePos.isStarted || progress.position > 0)) {
+                if (!forced && progress != null && (resumePos.isStarted || progress.position > 0)) {
                     scope.launch {
                         val currentPos = progress.position
                         val totalNow = if (totalSentencesAll > 0) totalSentencesAll else progress.total
@@ -425,6 +442,12 @@ fun ReaderScreen(
                 status = context.getString(R.string.reader_error, e.message ?: "")
             }
         }
+    }
+
+    // B2/B5.8: yêu cầu mở sách từ màn About/Wiki — post trước khi switchMode sang mode đọc
+    // (ABOUT → BOOK/STORY/COTICH luôn đổi state → ReaderScreen compose mới → effect chạy 1 lần).
+    LaunchedEffect(Unit) {
+        ReaderHandoff.consume()?.let { req -> loadBook(req.book, req.chapterIdx, req.sentenceIdx) }
     }
 
     fun switchChapter(idx: Int, sentence: Int = 0) {
@@ -1180,13 +1203,13 @@ fun ReaderScreen(
                 item { Text(stringResource(R.string.book_section_en, enBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
             }
             items(enBooks, key = { it.id }) { book ->
-                ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } })
+                ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } }, onInfo = { onOpenDetail(book) })
             }
             if (otherBooks.isNotEmpty()) {
                 item { Text(stringResource(R.string.book_section_local, otherBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
             }
             items(otherBooks, key = { it.id }) { book ->
-                ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } })
+                ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } }, onInfo = { onOpenDetail(book) })
             }
             item {
                 // Chỉ 1 vạch loading (ở đầu list) — bỏ vạch cuối list (trùng khi kệ trống).
@@ -1236,6 +1259,10 @@ fun ReaderScreen(
                             Text(collection.resolveLang(story) + " \u2022 " + story.source + " \u2022 " + (if (story.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + story.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
                         }
                         FilledTonalButton(onClick = { loadBook(story) }) { Text(stringResource(if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read), fontSize = 12.sp) }
+                        // B2/B5.8: icon info → màn About của truyện (metadata + Wiki).
+                        IconButton(onClick = { onOpenDetail(story) }) {
+                            Icon(Icons.Default.Info, contentDescription = stringResource(R.string.nav_about), modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
@@ -1903,7 +1930,9 @@ private fun ReaderCard(
     book: BookMeta,
     onLoad: () -> Unit,
     onDownload: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    // B2/B5.8: icon info → màn About (metadata, đọc tiếp, Wiki sách).
+    onInfo: () -> Unit = {}
 ) {
     Card(modifier = Modifier.fillMaxWidth().clickable { onLoad() }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1912,6 +1941,9 @@ private fun ReaderCard(
             Column(Modifier.weight(1f)) {
                 Text(book.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text(book.source + " • " + book.lang.uppercase() + " • " + book.mimeType + " • " + (if (book.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + book.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+            }
+            IconButton(onClick = onInfo) {
+                Icon(Icons.Default.Info, contentDescription = stringResource(R.string.nav_about), modifier = Modifier.size(20.dp))
             }
             if (!book.isDownloaded) {
                 IconButton(onClick = onDownload) { Icon(Icons.Default.Download, contentDescription = stringResource(R.string.book_download)) }

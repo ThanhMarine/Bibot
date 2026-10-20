@@ -17,5 +17,40 @@ service cloud.firestore {
           || request.resource.data.chapterTitle.size() <= 200);
       allow delete: if false;
     }
+    // Wiki sach (B5.8): public read, auth write, chi tom tat phai sinh (khong bao gio
+    // nguyen van sach). Gioi han: <=500 chuong, chuoi gioi han ky tu, chi cac field cho phep
+    // (chan "smuggle" nguyen van vao field la).
+    match /wiki_books/{bookId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.chapterSummaries is map
+        && request.resource.data.chapterSummaries.size() <= 500
+        && request.resource.data.keys().hasOnly(
+             ['bookId', 'title', 'lang', 'source', 'chapterSummaries', 'totalChapters',
+              'summarizedChapters', 'model', 'promptVer', 'status', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(
+             ['chapterSummaries', 'summarizedChapters', 'status', 'updatedAt'])
+        // title/source co duoc khi tao doc day du metadata (putWikiBook);
+        // putWikiChapterSummary chi ghi 4 field -> chi kiem tra neu co.
+        && (!("title" in request.resource.data)
+          || (request.resource.data.title is string && request.resource.data.title.size() <= 300))
+        && (!("source" in request.resource.data)
+          || (request.resource.data.source is string && request.resource.data.source.size() <= 500))
+        && request.resource.data.summarizedChapters is int
+        && request.resource.data.status is string
+        && request.resource.data.updatedAt is int;
+      allow delete: if false;
+
+      // Bao cao tom tat sai: chi auth duoc ghi (trang thai pending cho duyet),
+      // khong cho phep sua/xoa de giu bang chung.
+      match /reports/{reportId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.chapterIdx is int
+          && request.resource.data.reason is string
+          && request.resource.data.reason.size() <= 1000;
+        allow update, delete: if false;
+      }
+    }
   }
 }

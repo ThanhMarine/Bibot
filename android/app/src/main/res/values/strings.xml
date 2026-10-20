@@ -593,4 +593,13 @@
     <string name="wiki_report_bad">Report bad summary</string>
     <string name="wiki_ai_warning">AI summary, may be wrong</string>
     <string name="wiki_ai_warning_sub">AI-generated summary, may be inaccurate. Please verify.</string>
+    <string name="wiki_subtitle">Community wiki summary</string>
+    <string name="wiki_share_off">Sharing is off: you cannot view or contribute to the community wiki. Turn it on in Settings.</string>
+    <string name="wiki_no_toc">No table of contents yet. Open the book once to build it.</string>
+    <string name="wiki_has_summary">Has summary</string>
+    <string name="wiki_report_reason">What is wrong with it?</string>
+    <string name="wiki_report_send">Send report</string>
+    <string name="wiki_report_done">Report sent. Thanks!</string>
+    <string name="book_detail_empty">No book selected.</string>
+    <string name="book_detail_toc">%1$d chapters</string>
 </resources>

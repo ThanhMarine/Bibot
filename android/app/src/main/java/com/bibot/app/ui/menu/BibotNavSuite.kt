@@ -25,6 +25,8 @@ import com.bibot.app.feature.reader.ReaderCollection
 import com.bibot.app.feature.reader.ReaderScreen
 import com.bibot.app.feature.reader.ReaderBackgroundLayer
 import com.bibot.app.feature.reader.BookDetailScreen
+import com.bibot.app.feature.reader.ReaderHandoff
+import com.bibot.app.data.books.BookMeta
 import com.bibot.app.feature.music.MusicScreen
 import com.bibot.app.feature.news.NewsScreen
 import com.bibot.app.feature.settings.SettingsScreen
@@ -89,6 +91,21 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
     fun goHome() { switchMode(null) }
     // Back ở Home = thoát app (như nút Back hệ thống).
     fun pressBack() { try { activity?.onBackPressedDispatcher?.onBackPressed() } catch (_: Exception) {} }
+
+    // B2/B5.8: màn About nhận SÁCH THẬT (từ icon info ở kệ) thay vì mock.
+    var detailBook by remember { mutableStateOf<BookMeta?>(null) }
+    fun openDetail(book: BookMeta) { detailBook = book; switchMode(BibotMode.ABOUT) }
+    // B2.3/B5.8: mở reader ở chương/câu chỉ định — mode theo kho sách của book.
+    fun openReader(book: BookMeta, chapterIdx: Int = -1, sentenceIdx: Int = 0) {
+        ReaderHandoff.post(book, chapterIdx, sentenceIdx)
+        switchMode(
+            when (book.collection) {
+                "story" -> BibotMode.STORY
+                "cotich" -> BibotMode.COTICH
+                else -> BibotMode.BOOK
+            }
+        )
+    }
 
     // Ads preferences for banner/interstitial/rewarded
     val adsPrefs = remember { AdsPreferences(context) }
@@ -170,10 +187,15 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                     } else {
                         when (currentMode) {
                             null -> HomeMenu(onModeSelected = { switchMode(it) })
-                                BibotMode.BOOK -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.EN, onBackHome = { goHome() })
-                                BibotMode.STORY -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.STORY_VI, onBackHome = { goHome() })
-                                BibotMode.COTICH -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.COTICH, onBackHome = { goHome() })
-                            BibotMode.ABOUT -> BookDetailScreen(onBack = { goHome() })
+                                BibotMode.BOOK -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.EN, onBackHome = { goHome() }, onOpenDetail = { openDetail(it) })
+                                BibotMode.STORY -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.STORY_VI, onBackHome = { goHome() }, onOpenDetail = { openDetail(it) })
+                                BibotMode.COTICH -> ReaderScreen(playerVm = playerViewModel, collection = ReaderCollection.COTICH, onBackHome = { goHome() }, onOpenDetail = { openDetail(it) })
+                            BibotMode.ABOUT -> BookDetailScreen(
+                                onBack = { detailBook = null; goHome() },
+                                book = detailBook,
+                                playerVm = playerViewModel,
+                                onOpenReader = { b, c, s -> openReader(b, c, s) }
+                            )
                             BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
                             BibotMode.WEATHER -> WeatherScreen(playerVm = playerViewModel)
                             BibotMode.NEWS -> NewsScreen(playerVm = playerViewModel)
