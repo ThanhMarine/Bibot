@@ -1,15 +1,18 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3: title chương = chunk đầu + pause (CHỐT PHIÊN)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 (title chương = chunk đầu + pause) + G2.2 (ruler v4 viết tắt/vỏ ngoặc) (CHỐT PHIÊN)
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3 đã đánh dấu XONG).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3 và G2.2 đã đánh dấu XONG).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **CHƯA COMMIT** (chờ lệnh user) — tree: 4 file sửa + 1 thư mục test mới.
+> **G3.2/G3.3 ĐÃ COMMIT `51069bb`**; **G2.2 CHƯA COMMIT** (chờ lệnh user) — tree:
 
 ```
  M Checklist_Upgrade_Bibot.md
- M android/app/src/main/java/com/bibot/app/data/offline/OfflineTtsHelper.kt
- M android/app/src/main/java/com/bibot/app/feature/reader/ReaderHeadings.kt
- M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
-?? android/app/src/test/java/com/bibot/app/feature/   (ReaderHeadingsTest.kt)
+ M android/app/src/main/assets/reading-rules.json
+ M android/app/src/test/java/com/bibot/app/core/text/ReadingRulesTest.kt
+ M android/app/src/test/java/com/bibot/app/core/text/TextRulesTest.kt
+ M internal/rules/reading-rules.json
+ M internal/rules/rules_test.go
+ M tools/rules/reading-rules.json
+ M tools/rules/reading-rules.ruler
 ```
 
 ## 1. Việc đã xong
@@ -64,12 +67,44 @@ Sửa:
 
 `adb logcat` filter `FATAL EXCEPTION` = **0** trong toàn phiên; `install -r` Success.
 
-## 2. Gate (chạy lại sau khi sửa `OfflineTtsHelper`)
-- `python tools/rules/compile_rules.py` → **64/64 (17 rules)**, sha256 `f1b3414a6abb…`.
+### 1.4 G2.2 — ruler v4: viết tắt đọc RA TỪ + vỏ ngoặc ngoài → phẩy (2026-10-20, phần "CÒN LẠI" của G2.2)
+
+Thêm **12 rule** (priority 33–36, scope `[tts]` → display giữ nguyên), `version: 3 → 4`, tổng **29 rules**:
+- `abbrev.{eg,ie,vs,etc}.{vi,en}` (8 rule, p33): `e.g.`→`ví dụ`/`for example`, `i.e.`→`nghĩa là`/
+  `that is`, `vs.`→`so với`/`versus`, `etc.`→`vân vân`/`and so on` — chạy **TRƯỚC** `abbrevDotRegex`
+  (bước 5 `cleanForTts`) để engine không nghe "e g"/"e t c".
+- `paren.comma` (p34): `(\s*)\(([^()]{1,200}?)\)(\s*[.,!?;:]?)` → `, {2}{3}`
+  (nuốt space trước ngoặc → phẩy dính từ; giữ nguyên dấu câu ngay sau ngoặc).
+- `paren.dup` (p35): `,` + (`\s*` + `,`)+ → `,` (nén phẩy đôi do ngoặc liền nhau sinh ra).
+- `paren.leftover` (p35): `[()]` → `''` (lồng nhau / nội dung >200 ký tự chưa kịp thành phẩy
+  → bỏ ký tự, GIỮ nội dung). `paren.dup` (id `d`) chạy trước `paren.leftover` (id `l`) khi cùng priority.
+- `paren.start` (p36): `^[\s,]+` → `''` (phẩy/khoảng trắng đầu câu sinh ra từ ngoặc ở đầu).
+
+JSON: sinh tại `tools/rules/reading-rules.json` + mirror `internal/rules/` + **copy tay**
+sang `android/app/src/main/assets/reading-rules.json` (sha256 `f824bf137547…`). `.prep` không đổi
+→ **KHÔNG** bump `PREP_VERSION` (vẫn 4, vì cleanForTts chạy speak-time).
+
+Test cập nhật cả 3 engine: `ReadingRulesTest` count 17→29 + parity paren/abbrev;
+`TextRulesTest` sửa `figureRefs_viEn` (ngoặc đã thành phẩy) + 2 test mới
+(`g22_abbrevReadAsWords`, `g22_outerParensBecomeCommas` — cover `()`, lồng nhau, display không đổi);
+`rules_test.go` count 29 + case vi/en mới.
+
+Verify máy ảo (search "molecular movement" → đọc tiếp trong chương 2):
+gốc `A form of injector very commonly used is Giffard's (Fig. 16).` →
+logcat `BibotDbg: speak sent c1 s277 ruler=true lang=en text=A form of injector very
+commonly used is Giffard's, figure 16.` (ngoặc + `Fig.` → phẩy + `figure`), **0 FATAL**.
+
+Quan sát KHÔNG phải lỗi G2.2: `TextCleaner.kt:259` đổi em dash → phẩy (bước 10, pre-existing)
+nên gốc `valves"—that is` nghe thành `valves",that is` (EPUB dùng `—` không cách).
+
+## 2. Gate (chạy lại sau G2.2)
+- `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
+  (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **78/78, 0 fail** (11 suite; mới: `ReaderHeadingsTest 9/9`).
+- JVM `:app:testDemoDebugUnitTest` → **80/80, 0 fail** (13 suite; mới: `ReaderHeadingsTest 9/9`
+  ở G3.2, +2 test G2.2; lúc G3.2/G3.3: 78/78).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -88,8 +123,10 @@ Sửa:
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
 
 ## 4. Nợ sang phiên sau
-- E2 (view nguyên bản), G1.2/G1.3, G2.2 (e.g./i.e./vs./etc.), H3 (OTA rulepack),
+- E2 (view nguyên bản), G1.2/G1.3, H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
-  B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
+  B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
+  G2.4 nợ **verify tai nghe** (unit đã cover, chỉ còn nghe VI/EN 3 câu ngoặc).
 - Việc gợi ý gần nhất (từ quan sát §3): kiểm `roman.single` cho EN + đưa
   `session.sentences()`/đọc `.prep` sang IO (bấm StrictMode).
+- Lưu ý tree: `ui.xml` ở root là rác dump UI (không commit).

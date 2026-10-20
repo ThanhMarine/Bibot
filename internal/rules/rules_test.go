@@ -10,7 +10,8 @@ func loadTestPack(t *testing.T) *Pack {
 	if err != nil {
 		t.Fatalf("LoadEmbedded: %v", err)
 	}
-	if p.Version == "" || len(p.Rules) != 17 {
+	// v4 (G2.2): 17 rules v3 + 12 rule viết-tắt/vỏ-ngoặc.
+	if p.Version == "" || len(p.Rules) != 29 {
 		t.Fatalf("pack lạ: version=%q rules=%d", p.Version, len(p.Rules))
 	}
 	return p
@@ -71,16 +72,29 @@ func TestApplyV2(t *testing.T) {
 		"31-12-2026":              "ngày ba mươi mốt tháng mười hai năm hai nghìn hai mươi sáu",
 		"25°C hôm nay":            "25 độ C hôm nay",
 		"thế kỷ XI-XIX rực rỡ":    "thế kỷ mười mốt đến thế kỷ mười chín rực rỡ",
-		"Xem (Fig. 5) nhé":        "Xem (hình 5) nhé",
+		"Xem (Fig. 5) nhé":        "Xem, hình 5 nhé", // G2.2: vỏ ngoặc ngoài → phẩy
 		"Chương 1 .... 5 còn đọc": "Chương 1 .... 5 còn đọc", // drop chỉ theo dòng
+		// G2.2: viết tắt đọc ra từ (gói đủ → ngoặc ngoài cũng thành phẩy).
+		"nhiều loài (e.g. mèo, chó)": "nhiều loài, ví dụ mèo, chó",
+		"mèo, chó, etc. đều được":    "mèo, chó, vân vân đều được",
+		"A vs. B hay hơn":            "A so với B hay hơn",
+		"không ai (i.e. tôi) đến":     "không ai, nghĩa là tôi đến",
+		"A, , b":                      "A, b",
+		"ngoặc vuông [giữ]":           "ngoặc vuông [giữ]",
 	}
 	for in, want := range cases {
 		if got := p.Apply(in, "vi"); got != want {
 			t.Errorf("Apply(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := p.Apply("See (Fig. 5).", "en"); got != "See (figure 5)." {
+	if got := p.Apply("See (Fig. 5).", "en"); got != "See, figure 5." {
 		t.Errorf("Apply en fig = %q", got)
+	}
+	if got := p.Apply("the winner (i.e. me) wins.", "en"); got != "the winner, that is me wins." {
+		t.Errorf("Apply en ie = %q", got)
+	}
+	if got := p.Apply("cats, dogs, etc. live here.", "en"); got != "cats, dogs, and so on live here." {
+		t.Errorf("Apply en etc = %q", got)
 	}
 	// Scope B: display giữ "[Pg 62]", TTS (Apply) bỏ qua.
 	if got := p.Apply("Text Tam[Pg 62] continues.", "en"); got != "Text Tam continues." {

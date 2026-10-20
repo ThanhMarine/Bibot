@@ -10,7 +10,7 @@
 # Quy ước pattern: CHỈ giao Java∩RE2∩Python (cấm lookbehind/lookahead/atomic/
 # possessive/backref) — compile_rules.py từ chối pattern ngoài giao.
 
-version: 3
+version: 4
 
 rules:
   # ---- Tầng nhận diện mốc vào sách (chạy trước mọi rewrite) ----
@@ -240,6 +240,160 @@ rules:
     tests:
       - {in: 'Table No. 3 here.', out: 'Table number 3 here.'}
       - {in: 'There is no 5 here.', out: 'There is no 5 here.'}
+
+  # ---- G2.2: viết tắt đọc RA TỪ (chạy TRƯỚC abbrevDotRegex ở cleanForTts bước 5,
+  #      nếu không engine sẽ bỏ chấm → "e g", "i e" nghe sai) ----
+  - id: abbrev.eg.vi
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 33
+    pattern: '(?i)\be\.g\.'
+    template: 'ví dụ'
+    tests:
+      - {in: 'nhiều loài (e.g. mèo, chó)', out: 'nhiều loài (ví dụ mèo, chó)'}
+      - {in: 'Chọn (E.g. mèo) nhé', out: 'Chọn (ví dụ mèo) nhé'}
+      - {in: 'eg không chấm giữ nguyên', out: 'eg không chấm giữ nguyên'}
+
+  - id: abbrev.eg.en
+    kind: rewrite
+    scope: [tts]
+    lang: [en]
+    priority: 33
+    pattern: '(?i)\be\.g\.'
+    template: 'for example'
+    tests:
+      - {in: 'Many (e.g. cats) live here.', out: 'Many (for example cats) live here.'}
+      - {in: 'E.g. one case', out: 'for example one case'}
+      - {in: 'an egg stays', out: 'an egg stays'}
+
+  - id: abbrev.ie.vi
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 33
+    pattern: '(?i)\bi\.e\.'
+    template: 'nghĩa là'
+    tests:
+      - {in: 'không ai (i.e. tôi) đến', out: 'không ai (nghĩa là tôi) đến'}
+      - {in: 'I.e. rõ nghĩa', out: 'nghĩa là rõ nghĩa'}
+      - {in: 'ie không chấm giữ', out: 'ie không chấm giữ'}
+
+  - id: abbrev.ie.en
+    kind: rewrite
+    scope: [tts]
+    lang: [en]
+    priority: 33
+    pattern: '(?i)\bi\.e\.'
+    template: 'that is'
+    tests:
+      - {in: 'the winner (i.e. me) wins', out: 'the winner (that is me) wins'}
+      - {in: 'I.E. clarify', out: 'that is clarify'}
+      - {in: 'ie no dot stays', out: 'ie no dot stays'}
+
+  - id: abbrev.vs.vi
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 33
+    pattern: '(?i)\bvs\.'
+    template: 'so với'
+    tests:
+      - {in: 'A vs. B hay hơn', out: 'A so với B hay hơn'}
+      - {in: 'hai đội (vs. nhau)', out: 'hai đội (so với nhau)'}
+      - {in: 'so sánh chung', out: 'so sánh chung'}
+
+  - id: abbrev.vs.en
+    kind: rewrite
+    scope: [tts]
+    lang: [en]
+    priority: 33
+    pattern: '(?i)\bvs\.'
+    template: 'versus'
+    tests:
+      - {in: 'Team A vs. Team B', out: 'Team A versus Team B'}
+      - {in: 'a versus b unchanged', out: 'a versus b unchanged'}
+      - {in: 'VS. upper case', out: 'versus upper case'}
+
+  - id: abbrev.etc.vi
+    kind: rewrite
+    scope: [tts]
+    lang: [vi]
+    priority: 33
+    pattern: '(?i)\betc\.'
+    template: 'vân vân'
+    tests:
+      - {in: 'mèo, chó, etc. đều được', out: 'mèo, chó, vân vân đều được'}
+      - {in: 'gọi (etc.)', out: 'gọi (vân vân)'}
+      - {in: 'không có etc giữ nguyên', out: 'không có etc giữ nguyên'}
+
+  - id: abbrev.etc.en
+    kind: rewrite
+    scope: [tts]
+    lang: [en]
+    priority: 33
+    pattern: '(?i)\betc\.'
+    template: 'and so on'
+    tests:
+      - {in: 'cats, dogs, etc. live here.', out: 'cats, dogs, and so on live here.'}
+      - {in: 'and so on already', out: 'and so on already'}
+      - {in: 'etc no dot stays', out: 'etc no dot stays'}
+
+  # ---- G2.2: vỏ ngoặc ngoài → dấu phẩy (TTS không phát âm ngoặc; phẩy tạo
+  #      đúng nhịp ngắt như ReadEra). Nhóm sau cùng để không phá fig/no/abbrev. ----
+  - id: paren.comma
+    kind: rewrite
+    scope: [tts]
+    lang: [vi, en]
+    priority: 34
+    pattern: '(\s*)\(([^()]{1,200}?)\)(\s*[.,!?;:]?)'
+    template: ', {2}{3}'
+    note: 'Nuốt khoảng trắng trước ngoặc (để phẩy dính từ, không thành "từ , phẩy") + giữ dấu câu ngay sau ngoặc. Nội dung >200 ký tự hoặc lồng nhau -> paren.leftover bỏ ký tự ngoặc.'
+    tests:
+      - {in: 'Xem (hình 5) nhé', out: 'Xem, hình 5 nhé'}
+      - {in: 'See (figure 5).', out: 'See, figure 5.'}
+      - {in: 'A (b), C', out: 'A, b, C'}
+      - {in: 'không ngoặc giữ nguyên', out: 'không ngoặc giữ nguyên'}
+      - {in: '(mở đầu)', out: ', mở đầu'}
+
+  - id: paren.dup
+    kind: rewrite
+    scope: [tts]
+    lang: [vi, en]
+    priority: 35
+    pattern: ',(\s*,)+'
+    template: ','
+    note: '2 ngoặc liền nhau hoặc "(a), b" sinh phẩy đôi → nén 1.'
+    tests:
+      - {in: 'A, , b', out: 'A, b'}
+      - {in: 'A, b', out: 'A, b'}
+      - {in: 'A,,, b', out: 'A, b'}
+
+  - id: paren.leftover
+    kind: rewrite
+    scope: [tts]
+    lang: [vi, en]
+    priority: 35
+    pattern: '[()]'
+    template: ''
+    note: 'Còn sót ngoặc (lồng nhau/QUÁ dài chưa kịp thành phẩy) → bỏ ký tự, GIỮ nội dung.'
+    tests:
+      - {in: 'lồng (a (b) c) ra', out: 'lồng a b c ra'}
+      - {in: 'ngoặc vuông [giữ]', out: 'ngoặc vuông [giữ]'}
+      - {in: 'sạch ngoặc', out: 'sạch ngoặc'}
+
+  - id: paren.start
+    kind: rewrite
+    scope: [tts]
+    lang: [vi, en]
+    priority: 36
+    pattern: '^[\s,]+'
+    template: ''
+    note: 'Phẩy/ khoảng trắng đầu câu do ngoặc ở đầu sinh ra → bỏ (tránh TTS ngắt vô nghĩa đầu câu).'
+    tests:
+      - {in: ', mở đầu', out: 'mở đầu'}
+      - {in: 'a, b giữ', out: 'a, b giữ'}
+      - {in: '  ,, dọn', out: 'dọn'}
 
   # ---- Tham số chunker (không regex — engine đọc params) ----
   # GIỚI HẠN KHOA HỌC: pageNum "Trang 456" (loại trừ thập phân/khoảng bằng

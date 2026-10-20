@@ -25,8 +25,8 @@ class ReadingRulesTest {
     @Test
     fun pack_v2_shape() {
         val rules = loadPack()
-        // v3: 17 rules (16 v2 + drop.pageno_inline scope B) — đổi số này khi thêm rule.
-        assertEquals(17, rules.size)
+        // v4 (G2.2): 17 rules v3 + 12 rule viết-tắt/vỏ-ngoặc — đổi số này khi thêm rule.
+        assertEquals(29, rules.size)
         assertTrue(rules.any { it.id == "date.full" })
         assertTrue(rules.any { it.id == "roman.range" })
         assertTrue(rules.any { it.id == "drop.toc_leader" })
@@ -62,10 +62,16 @@ class ReadingRulesTest {
             ReadingRules.apply("thế kỷ XI-XIX rực rỡ", "vi", rules)
         )
         assertEquals("Chương mười mở đầu", ReadingRules.apply("Chương X mở đầu", "vi", rules))
-        // Trích dẫn theo lang (code: readFigureRefs).
-        assertEquals("Xem (hình 5) nhé", ReadingRules.apply("Xem (Fig. 5) nhé", "vi", rules))
-        assertEquals("See (figure 5).", ReadingRules.apply("See (Fig. 5).", "en", rules))
+        // Trích dẫn theo lang (code: readFigureRefs) — G2.2: vỏ ngoặc ngoài → phẩy.
+        assertEquals("Xem, hình 5 nhé", ReadingRules.apply("Xem (Fig. 5) nhé", "vi", rules))
+        assertEquals("See, figure 5.", ReadingRules.apply("See (Fig. 5).", "en", rules))
         assertEquals("There is no 5 here.", ReadingRules.apply("There is no 5 here.", "en", rules))
+        // G2.2: viết tắt đọc ra từ (vi/en) — gói đầy đủ nên ngoặc ngoài cũng đã thành phẩy.
+        assertEquals("nhiều loài, ví dụ mèo, chó", ReadingRules.apply("nhiều loài (e.g. mèo, chó)", "vi", rules))
+        assertEquals("mèo, chó, vân vân đều được", ReadingRules.apply("mèo, chó, etc. đều được", "vi", rules))
+        assertEquals("A so với B hay hơn", ReadingRules.apply("A vs. B hay hơn", "vi", rules))
+        assertEquals("the winner, that is me wins", ReadingRules.apply("the winner (i.e. me) wins", "en", rules))
+        assertEquals("cats, dogs, and so on live here.", ReadingRules.apply("cats, dogs, etc. live here.", "en", rules))
         // Negatives giữ nguyên.
         assertEquals("1.440 đồng", ReadingRules.apply("1.440 đồng", "vi", rules))
         assertEquals("Louis XIV đến chơi", ReadingRules.apply("Louis XIV đến chơi", "vi", rules))

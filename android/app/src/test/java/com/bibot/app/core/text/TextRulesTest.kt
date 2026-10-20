@@ -65,12 +65,38 @@ class TextRulesTest {
     @Test
     fun figureRefs_viEn() {
         // H2.1: readFigureRefs đã xóa — khóa hành vi qua pipeline đầy đủ (ruler fig/no).
-        assertEquals("Xem (hình 5) nhé.", TextCleaner.cleanForTts("Xem (Fig. 5) nhé.", "vi"))
+        // G2.2: vỏ ngoặc ngoài thành phẩy (nghe trôi, không phát âm ngoặc).
+        assertEquals("Xem, hình 5 nhé.", TextCleaner.cleanForTts("Xem (Fig. 5) nhé.", "vi"))
         assertEquals("Trích số 12 hay.", TextCleaner.cleanForTts("Trích No. 12 hay.", "vi"))
-        assertEquals("See (figure 5).", TextCleaner.cleanForTts("See (Fig. 5).", "en"))
+        assertEquals("See, figure 5.", TextCleaner.cleanForTts("See (Fig. 5).", "en"))
         assertEquals("Bảng number 3.", TextCleaner.cleanForTts("Bảng No. 3.", "en"))
         // Không chấm → giữ nguyên (không ăn "no 5" tiếng Anh).
         assertEquals("There is no 5 here.", TextCleaner.cleanForTts("There is no 5 here.", "en"))
+    }
+
+    @Test
+    fun g22_abbrevReadAsWords() {
+        // G2.2: e.g./i.e./vs./etc. đọc RA TỪ — nếu bỏ chấm kiểu cũ thì engine nghe "e g".
+        assertEquals("nhiều loài, ví dụ mèo, chó nhé.", TextCleaner.cleanForTts("nhiều loài (e.g. mèo, chó) nhé.", "vi"))
+        assertEquals("không ai, nghĩa là tôi đến.", TextCleaner.cleanForTts("không ai (i.e. tôi) đến.", "vi"))
+        assertEquals("A so với B hay hơn.", TextCleaner.cleanForTts("A vs. B hay hơn.", "vi"))
+        assertEquals("mèo, chó, vân vân đều được.", TextCleaner.cleanForTts("mèo, chó, etc. đều được.", "vi"))
+        assertEquals("the winner, that is me wins.", TextCleaner.cleanForTts("the winner (i.e. me) wins.", "en"))
+        assertEquals("cats, dogs, and so on live here.", TextCleaner.cleanForTts("cats, dogs, etc. live here.", "en"))
+        // Không chấm / không phải viết tắt → giữ nguyên.
+        assertEquals("eg giữ nguyên", TextCleaner.cleanForTts("eg giữ nguyên", "vi"))
+        assertEquals("an egg stays", TextCleaner.cleanForTts("an egg stays", "en"))
+    }
+
+    @Test
+    fun g22_outerParensBecomeCommas() {
+        // G2.2: vỏ ngoặc ngoài → phẩy; ngoặc rỗng (); lồng nhau chỉ còn phẩy.
+        assertEquals("Chọn loài, ví dụ mèo, chó nhé.", TextCleaner.cleanForTts("Chọn loài (e.g. mèo, chó) nhé.", "vi"))
+        assertEquals("All, cats, dogs, and so on live.", TextCleaner.cleanForTts("All (cats, dogs, etc.) live.", "en"))
+        assertEquals("Có đây.", TextCleaner.cleanForTts("Có () đây.", "vi"))
+        assertEquals("Lồng a, b c ra.", TextCleaner.cleanForTts("Lồng (a (b) c) ra.", "vi"))
+        // Display KHÔNG đổi (chỉ đường TTS mới rewrite).
+        assertTrue(TextCleaner.cleanForDisplay("Xem (Fig. 5) nhé.").contains("(Fig. 5)"))
     }
 
     @Test

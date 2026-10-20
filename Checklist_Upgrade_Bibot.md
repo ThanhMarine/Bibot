@@ -961,15 +961,24 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
   (`insideBracketsOrQuote` depth + quote-toggle + ép yield khi quá dài, cả 2 phía).
 - [x] G2.2 Chuẩn hoá đọc — XONG 1 PHẦN ở D6.3 + H2.0 (`Fig.`→`hình`/`figure`,
   `No.`→`số`/`number` theo `fixedLang`, rule `fig.vi/en + no.vi/en` trong ruler).
-  CÒN LẠI (chưa làm): `e.g.`→`ví dụ`, `i.e.`→`nghĩa là`, `vs.`→`so với`,
-  `etc.`→`vân vân` (+EN); vỏ ngoặc ngoài → dấu phẩy; bỏ ngoặc rỗng `()`.
+  **PHẦN CÒN LẠI XONG 2026-10-20 (ruler v4, +12 rule → 29 rules, priority 33–36)**:
+  `abbrev.{eg,ie,vs,etc}.{vi,en}` (`e.g.`→`ví dụ`/`for example`, `i.e.`→`nghĩa là`/
+  `that is`, `vs.`→`so với`/`versus`, `etc.`→`vân vân`/`and so on` — chạy TRƯỚC
+  `abbrevDotRegex` bước 5 của `cleanForTts`, scope `[tts]`) + `paren.comma` (vỏ ngoặc
+  ngoài → dấu phẩy, nuốt space trước ngoặc) + `paren.dup` (` , ` đôi → 1) +
+  `paren.leftover` (còn sót `()` → bỏ ký tự, GIỮ nội dung) + `paren.start` (phẩy
+  đầu câu → bỏ). Verify: `compile_rules.py` 102/102 test (3 engine 1 chuẩn) ×
+  29 rules, JVM 80/80, `go vet`/`go test` 0, 2 flavor PASS, máy ảo logcat
+  `BibotDbg: ... Giffard's, figure 16.` (gốc `Giffard's (Fig. 16).`), `install -r` 0 FATAL.
 - [x] G2.3 Mirror Go — XONG ở D6 (`internal/chunker`: `insideBracketsOrQuote` +
   `endsWithCiteAbbrev`; `readFigureRefsGo` theo lang) + `go test` case mới.
   Params chunker đã khai báo ở rule `chunk.brackets` (H2.0); cắm `chunkGuard()` vào
   chunker còn ở H2.3.
 - [ ] G2.4 Verify: `(from 1989 to 2011)`, `(see Fig. 5)`, `"trích dẫn dài..."` không bao giờ
-  bị chẻ làm đôi (unit đã cover parenthetical/quote/Fig ở cả 2 phía); nghe VI/EN mỗi loại
-  3 câu ngoặc (còn nợ verify tai nghe); `go test` + `compile_rules.py` pass.
+  bị chẻ làm đôi (unit ĐÃ cover parenthetical/quote/Fig ở cả 2 phía + G2.2:
+  `g22_outerParensBecomeCommas` (ngoặc rỗng/lồng nhau), `g22_abbrevReadAsWords`,
+  `figureRefs_viEn`; `compile_rules.py` 102/102 + `go test` PASS) — CÒN NỢ:
+  nghe tai nghe VI/EN mỗi loại 3 câu ngoặc.
 
 ### G3. Nhận diện đề mục + đọc có ngắt câu
 
@@ -1261,8 +1270,14 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   máy ảo, xem G3.2/G3.3) + fix `OfflineTtsHelper.stop()` treo 90s sau `stopAll()`;
   gate: JVM 78/78 (thêm `ReaderHeadingsTest` 9/9), ruler 64/64, `go vet`/`go test` 0,
   `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` PASS, `install -r` 0 FATAL.
+- ĐÃ XONG 2026-10-20 (phiên G2.2): ruler **v4** — 12 rule mới (`abbrev.eg/ie/vs/etc` ×2 lang
+  + `paren.comma/dup/leftover/start`) → 29 rules; JSON 3 bản đồng bộ (tools/ + internal/ +
+  assets); test cập nhật cả 3 engine (`ReadingRulesTest` +2 test, `TextRulesTest` +2 test,
+  `rules_test.go` count 29); verify máy ảo: `Giffard's (Fig. 16).` → `Giffard's, figure 16.`
+  trong `BibotDbg text=`. Gate: ruler 102/102 (29 rules), JVM 80/80, `go vet`/`go test` 0,
+  2 flavor PASS, `install -r` 0 FATAL.
 - CÒN MỞ: E2 (view nguyên bản), G1.2/G1.3,
-  G2.2 (e.g./i.e./vs./etc.), H3 (OTA rulepack),
+  H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
 - VERIFY CUỐI (2026-10-20): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,8MB +
@@ -1271,4 +1286,4 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
-- NỢ SANG PHIÊN SAU: E2, G1.2/G1.3, G2.2, H3, I2.3/I2.4, J1.
+- NỢ SANG PHIÊN SAU: E2, G1.2/G1.3, H3, I2.3/I2.4, J1.

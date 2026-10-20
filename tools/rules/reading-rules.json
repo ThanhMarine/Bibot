@@ -1,5 +1,5 @@
 {
- "version": 3,
+ "version": 4,
  "rules": [
   {
    "id": "chunk.brackets",
@@ -234,7 +234,167 @@
    "priority": 32,
    "pattern": "(?i)\\bno\\.\\s*(\\d{1,4})\\b",
    "template": "số {1}"
+  },
+  {
+   "id": "abbrev.eg.en",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "en"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\be\\.g\\.",
+   "template": "for example"
+  },
+  {
+   "id": "abbrev.eg.vi",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\be\\.g\\.",
+   "template": "ví dụ"
+  },
+  {
+   "id": "abbrev.etc.en",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "en"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\betc\\.",
+   "template": "and so on"
+  },
+  {
+   "id": "abbrev.etc.vi",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\betc\\.",
+   "template": "vân vân"
+  },
+  {
+   "id": "abbrev.ie.en",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "en"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\bi\\.e\\.",
+   "template": "that is"
+  },
+  {
+   "id": "abbrev.ie.vi",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\bi\\.e\\.",
+   "template": "nghĩa là"
+  },
+  {
+   "id": "abbrev.vs.en",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "en"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\bvs\\.",
+   "template": "versus"
+  },
+  {
+   "id": "abbrev.vs.vi",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi"
+   ],
+   "priority": 33,
+   "pattern": "(?i)\\bvs\\.",
+   "template": "so với"
+  },
+  {
+   "id": "paren.comma",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 34,
+   "pattern": "(\\s*)\\(([^()]{1,200}?)\\)(\\s*[.,!?;:]?)",
+   "template": ", {2}{3}"
+  },
+  {
+   "id": "paren.dup",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 35,
+   "pattern": ",(\\s*,)+",
+   "template": ","
+  },
+  {
+   "id": "paren.leftover",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 35,
+   "pattern": "[()]",
+   "template": ""
+  },
+  {
+   "id": "paren.start",
+   "kind": "rewrite",
+   "scope": [
+    "tts"
+   ],
+   "lang": [
+    "vi",
+    "en"
+   ],
+   "priority": 36,
+   "pattern": "^[\\s,]+",
+   "template": ""
   }
  ],
- "checksum": "f1b3414a6abb2d237cf54c64d01a51cd4cdbb302a54102a67646daa6517777f2"
+ "checksum": "f824bf13754738731ee56be27f20ac28db98a587e1b3b4a02a60bfe02a290e6e"
 }
