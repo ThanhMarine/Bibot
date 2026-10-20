@@ -4,6 +4,19 @@ File duy nhất cần sửa: `tools/rules/reading-rules.ruler`.
 Xong chạy: `python tools/rules/compile_rules.py` (phải `tests pass`, JSON sinh lại).
 Commit cả 2 file `.ruler` + `.json` (JSON là artifact có version, review được diff).
 
+## 0. Gate BẮT BUỘC trước khi commit (H3.1)
+
+1. `python tools/rules/compile_rules.py` — exit 0 = pattern hợp giao (Java ∩ RE2 ∩ Python)
+   + test nhúng trong `.ruler` xanh; exit 1 = pattern cấm / test đỏ → **không được commit**.
+2. Drift 3 bản JSON phải = nhau (script tự mirror `internal/`; assets copy tay):
+   `tools/rules/reading-rules.json` = `internal/rules/reading-rules.json`
+   = `android/app/src/main/assets/reading-rules.json`.
+3. Test engine: `go test ./internal/... ./cmd/...` + `:app:testDemoDebugUnitTest`
+   (`ReadingRulesTest` đọc JSON thật).
+4. CI (`.github/workflows/rules.yml`) chạy lại đúng bước 1 + drift-check + go vet/test
+   ở mọi push/PR đụng `tools/rules/**` — local vẫn phải chạy trước, CI chỉ là lưới an toàn.
+
+
 ## 1. Thêm 1 rule mới (4 bước)
 
 1. Chọn `kind`:
@@ -69,3 +82,15 @@ Commit cả 2 file `.ruler` + `.json` (JSON là artifact có version, review đ�
    `PREP_VERSION` (`BookPrepStore`) để cache `.prep` cũ build lại — rulepack đổi
    mà `PREP_VERSION` giữ nguyên thì sách mở từ cache vẫn là text clean cũ.
 5. Commit cả `.ruler` + 3 bản `.json` (tools, internal, assets).
+
+## 5. Publish qua OTA — không cần cài APK lại (H3.2/H3.3)
+
+- App tự tải `reading-rules.json` từ GitHub raw (`RulesOta.SOURCE_URL` trong
+  `core/text/RulesOta.kt`), verify `checksum` + `version` lớn hơn bản đang dùng →
+  ghi `filesDir/reading-rules.json`; lỗi/404/checksum sai → giữ bản nhúng trong APK.
+- Rule mới **hiệu lực từ lần mở app sau** (không đổi rule giữa phiên đang đọc).
+- Vì vậy publish = đẩy file `tools/rules/reading-rules.json` lên nhánh `main` của repo
+  GitHub (cùng commit `.ruler`) → máy cũ tự nhận, không phát hành APK mới.
+- Lưu ý: rule ảnh hưởng **tách câu/số dòng** (`drop_line`/`start_marker`/`split_guard`)
+  chỉ ăn ở lúc build `.prep` → sách đã có cache `.prep` cũ cần mở lại từ sách chưa đọc
+  hoặc bump `PREP_VERSION` (bước 4 §4). Rule `rewrite` scope `tts` áp ngay lúc đọc.

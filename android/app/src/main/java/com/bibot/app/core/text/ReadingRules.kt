@@ -39,11 +39,26 @@ object ReadingRules {
     @Volatile
     private var cached: List<Rule>? = null
 
-    /** Nạp 1 lần từ assets, cache RAM (JSON v2 ~5KB, trần 30KB). */
+    /** version pack đang dùng (assets hoặc file OTA) — mốc so cho RulesOta.sync. */
+    @Volatile
+    var loadedVersion: Long = 0
+        private set
+
+    /** Nạp 1 lần, cache RAM (JSON v2 ~5KB, trần 30KB). Ưu tiên file OTA trên
+     * filesDir (H3.2) nếu version lớn hơn + checksum đúng; hỏng/cũ hơn → xoá, dùng nhúng. */
     fun load(context: Context): List<Rule> {
         cached?.let { return it }
         val rules = try {
-            val text = context.assets.open("reading-rules.json").bufferedReader().use { it.readText() }
+            val assets = context.assets.open("reading-rules.json").bufferedReader().use { it.readText() }
+            val disk = RulesOta.diskFile(context)
+            val diskText = try {
+                if (disk.exists()) disk.readText(Charsets.UTF_8) else null
+            } catch (_: Exception) { null }
+            val text = RulesOta.pickPack(assets, diskText)
+            if (diskText != null && text != diskText) {
+                try { disk.delete() } catch (_: Exception) {}
+            }
+            loadedVersion = RulesOta.versionOf(text) ?: 0L
             parse(text)
         } catch (_: Exception) {
             emptyList()

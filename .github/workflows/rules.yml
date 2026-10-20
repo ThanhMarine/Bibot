@@ -1,0 +1,42 @@
+# Gate rulepack (H3.1) — chặn pattern ngoài giao + test đỏ + drift 3 bản JSON.
+# Chạy local TRƯỚC khi commit (bắt buộc): python tools/rules/compile_rules.py
+name: rules-gate
+
+on:
+  push:
+    paths:
+      - "tools/rules/**"
+      - ".github/workflows/rules.yml"
+  pull_request:
+    paths:
+      - "tools/rules/**"
+      - ".github/workflows/rules.yml"
+
+jobs:
+  ruler:
+    name: compile_rules (pattern contract + embedded tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile + test reading rules
+        run: python tools/rules/compile_rules.py
+      - name: Drift check - 3 bản JSON phải trùng nhau (tools + internal + assets)
+        run: |
+          cmp tools/rules/reading-rules.json internal/rules/reading-rules.json
+          cmp tools/rules/reading-rules.json android/app/src/main/assets/reading-rules.json
+
+  go:
+    name: go vet + test (engine Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Vet
+        run: go vet ./internal/... ./cmd/...
+      - name: Test
+        run: go test ./internal/... ./cmd/...

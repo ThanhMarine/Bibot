@@ -1142,16 +1142,36 @@ JSON thắng về nhẹ + đa nền tảng 0-dependency.
 - [ ] H2.4 Mỗi H2.x xong: `go test`, `compile_rules.py` (thay `regex_check`),
   APK không tăng quá 0.2MB (JSON nhúng v2 ~4.3KB).
 
-### H3. Cập nhật bởi người/AI + OTA nhẹ
+### H3. Cập nhật bởi người/AI + OTA nhẹ — [x] xong 2026-10-21
 
-- [ ] H3.1 Quy trình: sửa `.ruler` → chạy `compile_rules.py` (sinh JSON + test xanh) →
+- [x] H3.1 Quy trình: sửa `.ruler` → chạy `compile_rules.py` (sinh JSON + test xanh) →
   commit cả 2 file (JSON là artifact có version, review được diff). CI chặn pattern
-  ngoài giao + test đỏ.
-- [ ] H3.2 OTA tùy chọn: tải JSON mới về `filesDir` (verify checksum + `version` lớn
+  ngoài giao + test đỏ. XONG 2026-10-21: `.github/workflows/rules.yml` (job `ruler`:
+  compile_rules + drift-check `cmp` 3 bản JSON; job `go`: vet+test `./internal/...`
+  `./cmd/...`; trigger paths `tools/rules/**`) + `RULES_AUTHORING.md` §0 "Gate BẮT
+  BUỘC" (4 bước) + §5 "Publish qua OTA" (push JSON lên main = phát hành).
+- [x] H3.2 OTA tùy chọn: tải JSON mới về `filesDir` (verify checksum + `version` lớn
   hơn), fallback JSON nhúng khi lỗi — không cần update APK để sửa cách đọc.
-- [ ] H3.3 Verify cuối: người không biết code thêm được 1 rule theo `RULES_AUTHORING.md`
+  XONG 2026-10-21: `RulesOta.kt` (SOURCE_URL GitHub raw URL cứng, trần 64KB, canonical
+  JSON sort_keys + sha256, version gate chặn downgrade, dbg `BibotDbg` gated DEBUG) +
+  `ReadingRules.loadedVersion` + `load()` disk-first (hồng/cũ → xoá, dùng nhúng) +
+  `BibotApp` wire `appScope.launch { RulesOta.sync }` + `src/debug/AndroidManifest`
+  (cleartext debug-only) + `RulesOtaTest` 4 test (cross-check checksum Python thật,
+  gate version, canonical escape) → JVM **88/88**.
+- [x] H3.3 Verify cuối: người không biết code thêm được 1 rule theo `RULES_AUTHORING.md`
   (VD: `e.g.`→`ví dụ`); AI đọc `.ruler` đề xuất rule mới từ log sách lỗi; máy ảo nghe
-  đúng sau OTA mà không cài lại APK.
+  đúng sau OTA mà không cài lại APK. XONG 2026-10-21 (verify dùng temp URL patch
+  `http://10.0.2.2:8123` + server local; APK chính thức GitHub raw URL = 404 thật
+  tới khi push code lên main, fallback nhúng): a) server v4 → `v4 <= v4 — không đổi`;
+  b) server v5 (rule `temp.degree.en`: `(\d+…)\s*°` → `{1} degrees`) → `nhận v5
+  (hiện v4)` + persist filesDir; c) relaunch → `v5 <= v5 — không đổi`; d) mở How it
+  Works ch.2, anchor câu 45° (s315), Yes → log `speak … text=In figure 20 each crank
+  is at 45 degrees…` — **TTS đọc "45 degrees" nhờ rule OTA, không cài lại APK**;
+  e) serve JSON checksum sai → `pack sai checksum/rules — bỏ, giữ bản nhúng`;
+  f) serve lại v4 → `v4 <= v5 — không đổi` (chống downgrade). 0 FATAL toàn bộ;
+  dọn sạch: revert URL GitHub, xoá file rule tạm trên máy, APK cuối cài lại → 404
+  fallback nhúng bình thường. Checksum = chống hỏng hột, KHÔNG phải chữ ký
+  (trust HTTPS + GitHub).
 
 ---
 
@@ -1304,8 +1324,13 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   → `ReaderViewModel` + `SavedStateHandle` (pipeline TTS giữ ở Compose); test mới
   `ReaderViewModelTest` 4/4 → JVM **84/84**; verify máy ảo 3 test A (Back không ghost),
   B (font-scale recreate), C (`am kill` process death) — tự mở lại đúng sách/chương, 0 FATAL.
+- ĐÃ XONG 2026-10-21 (phiên H3 — OTA rulepack): GitHub Actions `rules.yml` (ruler +
+  drift-check + go) + `RULES_AUTHORING.md` §0/§5 + `RulesOta.kt` (GitHub raw, sha256
+  canonical, version gate, 64KB cap) + `ReadingRules` disk-first + `BibotApp` wire +
+  debug cleartext + `RulesOtaTest` 4 test → JVM **88/88**; verify máy ảo 6 kịch bản
+  a–f (nhận v5 từ server local, TTS đọc `45 degrees` không cài lại APK, checksum
+  hỏng → fallback, chống downgrade, 404 GitHub → nhúng), 0 FATAL (xem H3.1/H3.2/H3.3).
 - CÒN MỞ: E2 (view nguyên bản),
-  H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
 - VERIFY CUỐI (2026-10-20): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,8MB +
@@ -1314,4 +1339,4 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
-- NỢ SANG PHIÊN SAU: E2, H3, I2.3/I2.4, J1.
+- NỢ SANG PHIÊN SAU: E2, I2.3/I2.4, J1.

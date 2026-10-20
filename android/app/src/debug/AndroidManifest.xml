@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- H3.3 verify OTA nội bộ: debug build được phép HTTP (10.0.2.2) để RulesOta
+     tải rulepack từ server cục bộ. Release/commercial KHÔNG có file này →
+     HTTPS-only như targetSdk 36 mặc định. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true" />
+</manifest>

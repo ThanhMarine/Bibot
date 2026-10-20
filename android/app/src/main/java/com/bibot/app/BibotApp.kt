@@ -66,6 +66,11 @@ class BibotApp : Application(), ComponentCallbacks2 {
         try { com.bibot.app.data.sync.MemorySyncWorker.schedule(this) } catch (_: Exception) {}
         // H2 ruler: nạp rulepack đọc sách 1 lần (nhẹ ~5KB, cache RAM, có fallback cứng)
         try { com.bibot.app.core.text.ReadingRules.init(this) } catch (_: Exception) {}
+        // H3.2 OTA rulepack: tải JSON mới ở nền (404/lỗi → giữ bản nhúng),
+        // bản mới ghi filesDir → hiệu lực từ lần mở app sau.
+        appScope.launch {
+            try { com.bibot.app.core.text.RulesOta.sync(this@BibotApp) } catch (_: Exception) {}
+        }
         // AdMob initialize — chi ban demo (chinh thuc, ENABLE_ADS=true); ban commercial VIP (vip_only) khong init
         if (com.bibot.app.BuildConfig.ENABLE_ADS) {
             try { com.bibot.app.data.ads.AdManager.initialize(this) } catch (_: Exception) {}

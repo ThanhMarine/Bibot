@@ -1,16 +1,20 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 (CHỐT PHIÊN)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 (CHỐT PHIÊN)
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2 đã đánh dấu XONG).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3 đã đánh dấu XONG).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **G3.2/G3.3 ĐÃ COMMIT `51069bb`; G2.2 ĐÃ COMMIT `3d8c9f1`; G1.3 ĐÃ COMMIT `47d539a`**;
-> **G1.2 CHƯA COMMIT** (code + test + docs đang chờ commit lần này):
+> **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd` — TẤT CẢ ĐÃ COMMIT**;
+> **H3 (OTA rulepack) CHƯA COMMIT** (code + test + docs đang chờ commit lần này):
 
 ```
  M Checklist_Upgrade_Bibot.md
  M SESSION_HANDOFF_2026-10-21.md
- M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
-?? android/app/src/main/java/com/bibot/app/feature/reader/ReaderViewModel.kt
-?? android/app/src/test/java/com/bibot/app/feature/reader/ReaderViewModelTest.kt
+ M RULES_AUTHORING.md
+ M android/app/src/main/java/com/bibot/app/BibotApp.kt
+ M android/app/src/main/java/com/bibot/app/core/text/ReadingRules.kt
+?? .github/workflows/rules.yml
+?? android/app/src/debug/AndroidManifest.xml
+?? android/app/src/main/java/com/bibot/app/core/text/RulesOta.kt
+?? android/app/src/test/java/com/bibot/app/core/text/RulesOtaTest.kt
 ```
 
 ## 1. Việc đã xong
@@ -151,14 +155,70 @@ Verify máy ảo (sách EN `How it Works` / `The Battle for Khe Sanh`, 0 FATAL c
 cũ của task** (hiển thị đúng reader trước đó dù process đã chết) → chờ ≥25s (cold start đo được
 `Displayed … +21s486ms`) rồi dump lại mới là UI thật (Home).
 
-## 2. Gate (chạy lại sau G1.2)
+## 1.7 H3 — OTA rulepack + CI gate (2026-10-21)
+
+Thiết kế (đã chốt với người dùng): **GitHub raw URL cứng**
+`https://raw.githubusercontent.com/ThanhMarine/Bibot/main/tools/rules/reading-rules.json`
+(repo `ThanhMarine/Bibot` PUBLIC nhưng chưa push code → 404 thật, app fallback nhúng) +
+**CI "làm cả hai"** (gate cục bộ + GitHub Actions).
+
+Sửa/thêm:
+- **Mới** `core/text/RulesOta.kt`: `SOURCE_URL` (const), `MAX_BYTES=64KB`, `diskFile`
+  (`filesDir/reading-rules.json`), `versionOf`/`isValidPack` (checksum + version int),
+  `pickPack` (chỉ nhận nếu version **lớn hơn** pack đang dùng → chặn downgrade),
+  `canonicalJson` (sort_keys đệ quy + compact), `sha256Hex`, `sync()` (đọc disk → nếu
+  version cao hơn pack RAM thì `ReadingRules.reload`), `download()` (URL→bytes→parse→
+  verify→ghi file, dbg `Log.d("BibotDbg", …)` gated `BuildConfig.DEBUG`).
+- `ReadingRules.kt`: thêm `loadedVersion` (version pack đang nạp) + `load()` **disk-first**
+  (file OTA checksum đúng + version ≥ assets → dùng; hỏng/cũ hơn → **xoá file**, dùng nhúng).
+- `BibotApp.kt`: sau `ReadingRules.init` → `appScope.launch { RulesOta.sync() }` (nền, 404
+  không crash).
+- **Mới** `android/app/src/debug/AndroidManifest.xml`: `usesCleartextTraffic=true` (debug-only)
+  để verify nội bộ qua `10.0.2.2`; release manifest không đổi.
+- **Mới** `.github/workflows/rules.yml`: job `ruler` (`compile_rules.py` + `cmp` drift-check
+  3 bản JSON tools/internal/assets) + job `go` (`go vet` + `go test ./internal/... ./cmd/...`),
+  trigger paths `tools/rules/**`.
+- `RULES_AUTHORING.md`: §0 "Gate BẮT BUỘC trước khi commit" (4 bước) + §5 "Publish qua OTA"
+  (push JSON lên main = phát hành; rule hiệu lực lần mở app sau; drop_line/start_marker/
+  split_guard cần prep mới).
+- **Mới** `RulesOtaTest.kt` 4 test: (1) cross-check checksum với JSON thật sinh bằng
+  `json.dumps(..., ensure_ascii=False, sort_keys=True)` (canonical Python); (2) gate version
+  + checksum sai → reject; (3) canonical sort_keys đệ quy + escape; (4) vector sha256 chuẩn.
+
+Verify máy ảo H3.3 (temp URL patch `http://10.0.2.2:8123` + server local python + v5 temp
+rule `temp.degree.en` `(\d+…)\s*°` → `{1} degrees`, ruler 105/105 — KHÔNG pollute repo;
+APK chính thức URL GitHub = 404 fallback ✓):
+
+| Kịch bản | Kết quả |
+|---|---|
+| a) server v4 | `rules ota: v4 <= v4 — không đổi` |
+| b) server v5 | `nhận v5 (hiện v4)` → persist `filesDir`; hiệu lực lần mở sau |
+| c) relaunch | `v5 <= v5 — không đổi` (disk v5 = pack đang dùng) |
+| d) TTS thật | anchor câu `In Fig. 20 … 45° …` (s315) → Yes → `speak … text=In figure 20 each crank is at **45 degrees** with the horizontal…` — **rule OTA đọc thay ký hiệu, không cài lại APK** |
+| e) checksum sai | `pack sai checksum/rules — bỏ, giữ bản nhúng` |
+| f) downgrade v4 | `v4 <= v5 — không đổi` |
+
+Dọn sạch sau verify: revert `SOURCE_URL` về GitHub raw, kill server local, `rm files/reading-rules.json`
+trên máy, cài lại APK chính thức → 404 fallback + 0 FATAL. **Bài học thao tác H3.3:**
+- kapt Java stub xử lý `\u` trong comment KDoc → KHÔNG viết `\u00xx` (không phải hex) trong KDoc Kotlin;
+  Kotlin expression-body function KHÔNG được chứa `return` (dùng block body).
+- Canonical JSON Python = `json.dumps(..., ensure_ascii=False, sort_keys=True)` KHÔNG compact:
+  ngăn cách `", "` / `": "`, sort_keys TOÀN BỘ map đệ quy, escape `"\/\b\f\n\r\t`, còn lại
+  <0x20 → `\u00xx` hex thường — Kotlin phải khớp từng byte (test cross-check JSON thật).
+- `adb shell input text` KHÔNG hỗ trợ unicode (`°` → NPE) → search trong sách không gõ được
+  unicode; workaround: pull EPUB → grep `45°` (How it Works.epub 7.89MB) rồi search ASCII
+  một phần câu ("pistons are able").
+- Tap câu khi overlay (resume chip / hint banner) đè lên → tap "nuốt" không đổi anchor →
+  swipe nội dung xuống vùng trống rồi tap lại (bounds câu sẽ đầy đủ multi-line).
+
+## 2. Gate (chạy lại sau H3)
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
   (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **84/84, 0 fail** (14 suite; mới `ReaderViewModelTest 4/4`
-  ở G1.2; trước đó 80/80 — `ReaderHeadingsTest 9/9` G3.2 + 2 test G2.2).
+- JVM `:app:testDemoDebugUnitTest` → **88/88, 0 fail** (13 suite; mới `RulesOtaTest 4/4` ở H3;
+  trước đó 84/84 — `ReaderViewModelTest 4/4` G1.2).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -180,10 +240,12 @@ cũ của task** (hiển thị đúng reader trước đó dù process đã ch�
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
 
 ## 4. Nợ sang phiên sau
-- E2 (view nguyên bản), H3 (OTA rulepack),
+- E2 (view nguyên bản),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
   G2.4 nợ **verify tai nghe** (unit đã cover, chỉ còn nghe VI/EN 3 câu ngoặc).
 - Việc gợi ý gần nhất (từ quan sát §3): kiểm `roman.single` cho EN + đưa
   `session.sentences()`/đọc `.prep` sang IO (bấm StrictMode).
 - Lưu ý tree: `ui.xml` ở root là rác dump UI — **đã xóa + đưa vào `.gitignore`** (không commit).
+- Lưu ý OTA: GitHub raw URL sẽ **404 thật** tới khi push repo `ThanhMarine/Bibot` lên
+  main (app fallback nhúng, không lỗi) — khi push xong, JSON trên main = phát hành ngay.
