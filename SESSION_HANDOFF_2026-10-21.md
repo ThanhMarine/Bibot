@@ -1,18 +1,12 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 (title chương = chunk đầu + pause) + G2.2 (ruler v4 viết tắt/vỏ ngoặc) (CHỐT PHIÊN)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 (CHỐT PHIÊN)
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3 và G2.2 đã đánh dấu XONG).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3 đã đánh dấu XONG).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **G3.2/G3.3 ĐÃ COMMIT `51069bb`**; **G2.2 CHƯA COMMIT** (chờ lệnh user) — tree:
+> **G3.2/G3.3 ĐÃ COMMIT `51069bb`; G2.2 ĐÃ COMMIT `3d8c9f1`**; **G1.3 (verify, chỉ docs) CHƯA COMMIT**:
 
 ```
  M Checklist_Upgrade_Bibot.md
- M android/app/src/main/assets/reading-rules.json
- M android/app/src/test/java/com/bibot/app/core/text/ReadingRulesTest.kt
- M android/app/src/test/java/com/bibot/app/core/text/TextRulesTest.kt
- M internal/rules/reading-rules.json
- M internal/rules/rules_test.go
- M tools/rules/reading-rules.json
- M tools/rules/reading-rules.ruler
+ M SESSION_HANDOFF_2026-10-21.md
 ```
 
 ## 1. Việc đã xong
@@ -97,6 +91,30 @@ commonly used is Giffard's, figure 16.` (ngoặc + `Fig.` → phẩy + `figure`)
 Quan sát KHÔNG phải lỗi G2.2: `TextCleaner.kt:259` đổi em dash → phẩy (bước 10, pre-existing)
 nên gốc `valves"—that is` nghe thành `valves",that is` (EPUB dùng `—` không cách).
 
+## 1.5 G1.3 — verify ma trận xoay màn hình (2026-10-20, KHÔNG sửa code)
+
+| Nhánh xoay (landscape↔portrait) | Bằng chứng |
+|---|---|
+| **READ** (đang đọc) | `BibotDbg` liên tục s311 (land) → s314–s316 (portrait) → s327–s344; KHÔNG `speak title` mới; 0 FATAL |
+| **IDLE** (tạm dừng) | UI re-layout đủ 2 chiều, 0 FATAL |
+| **BROWSE** (thư viện EN Books) | list re-layout đủ 2 chiều, 0 FATAL |
+| **Giữa dialog anchor** (`Read from here? / C2 câu 317`) | dialog sống sót cả 2 chiều; `Yes` sau đó → `speak title c1 s316` + `speak sent c1 s317` (đọc tiếp đúng câu), 0 FATAL |
+
+Tổng ~30 lần xoay; `adb logcat` filter `FATAL EXCEPTION` = **0**.
+`dumpsys meminfo com.bibot.app` (trước/sau 24 lần xoay, có GC tự nhiên):
+- `Objects`: `Activities=1`, `ViewRootImpl=1`, `AppContexts=6` — **không đổi**.
+- TOTAL PSS 211→298MB **dao động** (271–298MB), Java heap 25→40→52MB — **KHÔNG** leo đơn điệu.
+- `ps -A -T | grep -iE 'exo|codec'` = **0** trước & sau (path offline TTS không dựng ExoPlayer)
+  → **không leak ExoPlayer**.
+
+Quan sát phụ: `Views 112→178` / `WebViews 19→30` tăng theo đợt lúc đổi cấu hình/đợi ad nhưng
+đứng yên khi đọc liên tục 150s (176–178 / 30) → nghi ad-SDK, không phải ExoPlayer.
+Quan sát khác: `45°`, `1⁄500` (U+2044 fraction slash) được TTS đọc nguyên ký hiệu — pre-existing.
+Mẹo thao tác: xoay bằng `adb shell settings put system accelerometer_rotation 0` rồi
+`user_rotation 0|1` (đặt lại `0` sau mỗi chuỗi); dialog anchor mở bằng cách bấm pill overlay
+`Read` trong reader (`ReaderScreen.kt:1863` `anchorConfirm`); dump UI helper:
+`C:\Users\Thanh Marine\AppData\Local\Temp\opencode\dump.ps1`.
+
 ## 2. Gate (chạy lại sau G2.2)
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
   (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
@@ -117,13 +135,17 @@ nên gốc `valves"—that is` nghe thành `valves",that is` (EPUB dùng `—` k
   `session.sentences(chapIdx)`) — không fatal nhưng chặn frame; cân nhắc đưa sang IO.
 - Ruler: title `Chapter XI.` được log **nguyên văn** (không thấy đổi thành số) — cần check
   rule `roman.single` có áp cho EN `Chapter X` hay không (D4 mới cover `Chương X`).
+- `Views/WebViews` (ad-SDK) tăng theo đợt khi xoay/đợi ad — thấy ở G1.3, KHÔNG phải ExoPlayer;
+  nếu sau này dọn ads thì kiểm lại.
+- `45°`, `1⁄500` (fraction slash U+2044) được đọc nguyên ký hiệu (G1.3) — pre-existing.
 - Tương tác `adb shell input tap` hơi "nhạy lần đực lần cá" (nhiều lần bấm top-bar/TOC không ăn
   hoặc sheet chỉ đóng khi bấm ngoài) → luôn dump UI xác nhận trạng thái trước/sau mỗi tap;
   helper: `C:\Users\Thanh Marine\AppData\Local\Temp\opencode\dump.ps1` (retry nếu `null root node`).
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
 
 ## 4. Nợ sang phiên sau
-- E2 (view nguyên bản), G1.2/G1.3, H3 (OTA rulepack),
+- E2 (view nguyên bản), G1.2 (hoist state vào `ReaderViewModel` + `SavedStateHandle`),
+  H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
   G2.4 nợ **verify tai nghe** (unit đã cover, chỉ còn nghe VI/EN 3 câu ngoặc).

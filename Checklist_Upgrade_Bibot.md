@@ -950,10 +950,18 @@ libs hoặc `PdfRenderer` render thu nhỏ, không thêm Glide/MuPDF/Readium AAR
 - [ ] G1.2 Hoist state đọc (`prepSession`, `jumpSeq`, producer job, `currentChapter/Sentence`)
   vào `ReaderViewModel` + `SavedStateHandle` (CHƯA làm — không tồn tại file này; state vẫn
   `remember`, B3.6 đã đủ để hết crash nên hoist thành hardening, không còn là fix crash).
-- [ ] G1.3 Verify máy ảo (ma trận xoay): xoay khi IDLE / đang READ TTS / đang BROWSE /
-  giữa dialog đổi anchor → không FATAL, đọc tiếp đúng câu
-  (logcat + `dumpsys meminfo` không leak ExoPlayer). (Bỏ case "khi QC interstitial" —
-  interstitial trong reader đã xóa ở B6.14.)
+- [x] G1.3 Verify máy ảo (ma trận xoay) — **XONG 2026-10-20** (sách EN `How it Works.epub`,
+  engine offline): xoay landscape↔portrait khi **READ** (đọc tiếp đúng câu s311→s314…s344,
+  KHÔNG title mới), **IDLE** (tạm dừng), **BROWSE** (thư viện) và **giữa dialog
+  "Read from here?"** (dialog sống sót cả 2 chiều, Yes vẫn đọc tiếp từ `C2 câu 317`)
+  → tổng ~30 lần xoay, logcat `FATAL EXCEPTION` = **0**.
+  `dumpsys meminfo`: `Activities=1`, `ViewRootImpl=1` không đổi; PSS/Java heap dao động
+  theo GC (271–298MB, **KHÔNG** leo đơn điệu sau 24 lần xoay) và **0 thread
+  ExoPlayer/MediaCodec** trước & sau → không leak ExoPlayer.
+  Quan sát phụ (không chặn G1.3): `Views/WebViews` tăng thỉnh thoảng lúc đổi cấu hình
+  (112→178 / 19→30) rồi đứng yên khi đọc liên tục 150s (176–178 / 30) — nghi ad-SDK,
+  không phải ExoPlayer. (Bỏ case "khi QC interstitial" — interstitial trong reader
+  đã xóa ở B6.14.)
 
 ### G2. Nguyên tắc gom chunk cho đoạn trong ngoặc (...)/{...}/[...]/"..." (XONG lõi ở D6 — đính chính 2026-10-12)
 
@@ -1276,7 +1284,11 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   `rules_test.go` count 29); verify máy ảo: `Giffard's (Fig. 16).` → `Giffard's, figure 16.`
   trong `BibotDbg text=`. Gate: ruler 102/102 (29 rules), JVM 80/80, `go vet`/`go test` 0,
   2 flavor PASS, `install -r` 0 FATAL.
-- CÒN MỞ: E2 (view nguyên bản), G1.2/G1.3,
+- ĐÃ XONG 2026-10-20 (phiên G1.3 — verify, KHÔNG sửa code): ma trận xoay màn hình
+  ~30 lần (READ/IDLE/BROWSE/dialog anchor) 0 FATAL, đọc tiếp đúng câu;
+  `dumpsys meminfo`: Activities/ViewRootImpl = 1, 0 thread ExoPlayer/MediaCodec,
+  PSS/Java heap không leo đơn điệu sau GC (xem G1.3).
+- CÒN MỞ: E2 (view nguyên bản), G1.2 (hoist state vào ViewModel),
   H3 (OTA rulepack),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
@@ -1286,4 +1298,4 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
-- NỢ SANG PHIÊN SAU: E2, G1.2/G1.3, H3, I2.3/I2.4, J1.
+- NỢ SANG PHIÊN SAU: E2, G1.2, H3, I2.3/I2.4, J1.
