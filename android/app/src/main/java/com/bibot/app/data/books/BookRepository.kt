@@ -8,6 +8,7 @@ import com.bibot.app.core.tts.VietnameseChunker
 import com.bibot.app.data.db.BibotDatabase
 import com.bibot.app.data.db.BookBookmark
 import com.bibot.app.data.db.BookTocEntry
+import com.bibot.app.data.db.PdfAnnotation
 import com.bibot.app.data.files.FilePaths
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -234,6 +235,9 @@ class BookRepository(private val context: Context) {
             File(dir, meta.title).delete()
             File(dir, "en/${meta.title}").delete()
         }
+        // E2.4: dọn highlight PDF khi xóa sách — neo chính là fileHash, bookId
+        // chỉ là cột phụ dùng đúng lúc này (không còn đường liên kết khác).
+        BibotDatabase.get(context).pdfAnnotations().deleteByBook(meta.id)
     }
 
     fun localBooks(): List<File> = scanLocalBooks().mapNotNull { it.localFile }
@@ -327,5 +331,19 @@ class BookRepository(private val context: Context) {
 
     suspend fun deleteBookmark(id: Long) = withContext(Dispatchers.IO) {
         BibotDatabase.get(context).bookmark().deleteById(id)
+    }
+
+    // E2.4: Highlight PDF CRUD — neo theo fileHash (E1.3).
+    suspend fun getAnnotations(fileHash: String): List<PdfAnnotation> = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).pdfAnnotations().getByFileHash(fileHash)
+    }
+
+    // Insert IGNORE + unique index (fileHash,page,startOffset,endOffset) → double-tap không tạo bản sao.
+    suspend fun addAnnotation(a: PdfAnnotation) = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).pdfAnnotations().insert(a)
+    }
+
+    suspend fun deleteAnnotation(id: Long) = withContext(Dispatchers.IO) {
+        BibotDatabase.get(context).pdfAnnotations().deleteById(id)
     }
 }

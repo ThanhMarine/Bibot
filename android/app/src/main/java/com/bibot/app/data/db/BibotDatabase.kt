@@ -79,6 +79,33 @@ data class BookBookmark(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+// E2.4: annotation/highlight PDF — neo theo fileHash (E1.3) thay vì bookId/path:
+// cùng file di chuyển/đổi tên → hash giữ nguyên → dấu vẫn đúng sách. Offsets
+// tính trên text đã trích (iterPdfTextPages deterministic cùng file, khác file
+// hash khác → không nhầm). PdfRenderer không expose glyph → highlight nằm ở
+// text panel, không vẽ lên bitmap.
+@Entity(
+    tableName = "pdf_annotation",
+    indices = [
+        Index(value = ["fileHash", "page"]),
+        Index(value = ["fileHash", "page", "startOffset", "endOffset"], unique = true)
+    ]
+)
+data class PdfAnnotation(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val fileHash: String,
+    val bookId: String, // phụ: cleanup khi xoá sách (neo chính vẫn là fileHash)
+    val page: Int, // 0-based pageIndex
+    val startOffset: Int, // [start, end) trên pageText đã trim
+    val endOffset: Int,
+    val text: String, // snippet đã highlight (chọn từ panel)
+    val note: String = "",
+    val type: String = "highlight", // "highlight" | mở rộng sau
+    val color: String = "yellow",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
 // TOC entry từ heading parse
 @Entity(
     tableName = "book_toc",
@@ -237,6 +264,16 @@ interface BookBookmarkDao {
     @Query("DELETE FROM book_bookmark WHERE id=:id") suspend fun deleteById(id: Long)
 }
 
+// E2.4: highlight PDF theo fileHash (insert IGNORE — cùng dải chọn 2 lần = 1 dòng).
+@Dao
+interface PdfAnnotationDao {
+    @Query("SELECT * FROM pdf_annotation WHERE fileHash=:fileHash ORDER BY page, startOffset")
+    suspend fun getByFileHash(fileHash: String): List<PdfAnnotation>
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(e: PdfAnnotation)
+    @Query("DELETE FROM pdf_annotation WHERE id=:id") suspend fun deleteById(id: Long)
+    @Query("DELETE FROM pdf_annotation WHERE bookId=:bookId") suspend fun deleteByBook(bookId: String)
+}
+
 @Dao
 interface PdfJobDao {
     @Query("SELECT * FROM pdf_jobs ORDER BY updatedAt DESC") suspend fun all(): List<PdfJob>
@@ -258,12 +295,13 @@ interface TtsSegmentDao {
 }
 
 @Database(
-    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class, BookBookmark::class, BookTocEntry::class, ChapterSummary::class],
-    version = 7, exportSchema = false
+    entities = [MemoryCore::class, MemoryFact::class, ChatLog::class, BookProgress::class, PdfJob::class, TtsSegmentCache::class, LibraryMeta::class, BookBookmark::class, BookTocEntry::class, ChapterSummary::class, PdfAnnotation::class],
+    version = 8, exportSchema = false
     // B1.1: 2→3 thêm bảng library_meta. B3+F2: 3→4 thêm cột anchor vào book_progress.
     // B4.1: 4→5 thêm bảng book_bookmark + book_toc.
     // A2.4b: 5→6 thêm chapterIdx/sentenceIdx vào book_progress (backfill từ position).
     // B5.3: 6→7 thêm bảng chapter_summary.
+    // E2.4: 7→8 thêm bảng pdf_annotation (highlight PDF theo fileHash).
     // (AutoMigration kẹt kapt-setup nên dùng Migration thủ công.)
 )
 abstract class BibotDatabase : RoomDatabase() {
@@ -277,6 +315,7 @@ abstract class BibotDatabase : RoomDatabase() {
     abstract fun bookmark(): BookBookmarkDao
     abstract fun toc(): BookTocDao
     abstract fun summaries(): ChapterSummaryDao
+    abstract fun pdfAnnotations(): PdfAnnotationDao
 
     companion object {
         // B1.1: v2 → v3 chỉ thêm bảng library_meta (DDL khớp Room codegen —
@@ -393,10 +432,36 @@ abstract class BibotDatabase : RoomDatabase() {
             }
         }
 
+        // E2.4: v7 → v8 thêm bảng pdf_annotation. Theo bài học 6→7: DDL khớp
+        // byte Room codegen — KHÔNG DEFAULT, index tên `index_<bảng>_<cột>`,
+        // unique index khớp @Index(unique=true).
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pdf_annotation` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`fileHash` TEXT NOT NULL, " +
+                        "`bookId` TEXT NOT NULL, " +
+                        "`page` INTEGER NOT NULL, " +
+                        "`startOffset` INTEGER NOT NULL, " +
+                        "`endOffset` INTEGER NOT NULL, " +
+                        "`text` TEXT NOT NULL, " +
+                        "`note` TEXT NOT NULL, " +
+                        "`type` TEXT NOT NULL, " +
+                        "`color` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL" +
+                        ")"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pdf_annotation_fileHash_page` ON `pdf_annotation`(`fileHash`,`page`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_pdf_annotation_fileHash_page_startOffset_endOffset` ON `pdf_annotation`(`fileHash`,`page`,`startOffset`,`endOffset`)")
+            }
+        }
+
         @Volatile private var INSTANCE: BibotDatabase? = null
         fun get(context: Context): BibotDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(context.applicationContext, BibotDatabase::class.java, "bibot.db")
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
         }

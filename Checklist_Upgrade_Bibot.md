@@ -925,7 +925,20 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   `pendingJumpReport`, chỉ consume pending khi report thật); verify emulator:
   cycle 4 hàng, snap 1 trang/lượt, dual 2 cột + header trang lẻ, cold-start
   nhận đủ params, 0 FATAL; unit `PdfDisplayModeTest` 11/11 (JVM 129/129).
-- [ ] E2.4 (còn lại) — annotation/highlight persist theo `fileHash` (E1.3).
+- [x] E2.4 (còn lại) — annotation/highlight persist theo `fileHash` (E1.3): bảng
+  `pdf_annotation` (Room v8, migration 7→8, unique index fileHash+page+offsets,
+  insert IGNORE); panel text `BasicTextField` readOnly + `TextFieldValue` selection
+  (controlled `SelectionContainer` là internal foundation 1.7.4) → nút **Highlight**
+  khi đang chọn chữ; nền vàng `VisualTransformation` + `OffsetMapping.Identity`;
+  chips "P• snippet" (tap nhảy trang, ✕ xóa, take 40); repo CRUD + `deleteByBook`
+  khi xóa sách; strings en/vi `chrome_highlight*`; unit `PdfAnnotationLogicTest`
+  11/11 (JVM 140/140). Verify emulator: long-press MARKER → Highlight → chip
+  `P1 • MARKER` + vàng; **force-stop + reopen còn nguyên** (migration OK);
+  chip nhảy trang 2→1; xóa chip hết; **rename marker10.pdf→marker10b.pdf
+  (copy, cùng sha1) chip vẫn hiện** (chứng minh neo fileHash); 0 FATAL.
+  Ghi chú: NPE `getReaderFontSizeSp` khi tap EN Books (3 lần, build đầu) —
+  revert 2 file → hết; viết lại → không tái diễn (nghi incremental Compose
+  compiler cache); nếu tái diễn → `:app:clean`.
 - [ ] E2.5 EPUB — full rich + phân trang thật:
   mở rộng `EpubReader.richParse` (CSS, font-family/màu, `table/ul-ol/footnote/dropcap`),
   giữ `readImageBytes` sampled; phân trang theo font (paginated, tính % trang chuẩn)

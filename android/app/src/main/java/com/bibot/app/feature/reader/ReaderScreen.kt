@@ -50,6 +50,7 @@ import com.bibot.app.core.tts.delayUntilDone
 import com.bibot.app.data.books.BookMeta
 import com.bibot.app.data.books.BookRepository
 import com.bibot.app.data.db.BibotDatabase
+import com.bibot.app.data.db.PdfAnnotation
 import com.bibot.app.data.files.FilePaths
 import com.bibot.app.data.store.BotPromptManager
 import com.bibot.app.data.summary.SummaryRepository
@@ -191,6 +192,8 @@ fun ReaderScreen(
     var pdfPanelOpen by remember { mutableStateOf(false) }
     var pdfPanelQuery by remember { mutableStateOf("") }
     var pdfPageTexts by remember { mutableStateOf<List<String>?>(null) }
+    // E2.4: highlight PDF persist theo fileHash (E1.3) — neo offsets trên text đã trích.
+    var pdfAnnotations by remember { mutableStateOf<List<PdfAnnotation>>(emptyList()) }
     var readModeState by remember { mutableStateOf(ReadMode.BROWSE) }
     var selAnchor by remember { mutableStateOf<ReadAnchor?>(null) } // marker điểm neo
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
@@ -260,6 +263,13 @@ fun ReaderScreen(
         isLoading = false
         repo.lastSyncWarning.value?.let { status = it }
         repo.books.collect { books = it }
+    }
+
+    // E2.4: load highlight theo fileHash — hash tính nền khi loadBook (sha1File),
+    // tới sau → effect tự chạy lại khi fileHashState đổi.
+    LaunchedEffect(fileHashState) {
+        pdfAnnotations = if (fileHashState.isEmpty()) emptyList()
+        else repo.getAnnotations(fileHashState)
     }
 
     // B2.3/B5.8: [forceChap] >= 0 = mở đúng chương/câu chỉ định (từ Detail/Wiki),
@@ -396,6 +406,7 @@ fun ReaderScreen(
                 pdfPanelOpen = false
                 pdfPanelQuery = ""
                 pdfPageTexts = null
+                pdfAnnotations = emptyList()
                 if (isPdf && !scanned) {
                     pdfPageStarts = withContext(Dispatchers.IO) {
                         com.bibot.app.core.text.PdfPageMap.load(prepDir, cacheKey, file)
@@ -2093,14 +2104,42 @@ Column(
                 }
             }
             // E2.3: panel text-layer — chọn/copy text trang (PAGE) + tìm → nhảy trang có khớp.
+            // E2.4: highlight persist theo fileHash — chọn chữ → nút Highlight → chips nhảy/xóa.
             if (pdfPanelOpen) {
                 PdfTextPanelSheet(
                     pageTexts = pdfPageTexts,
                     pageCount = pageCount,
                     currentPage = pageIndex,
                     query = pdfPanelQuery,
+                    annotations = pdfAnnotations,
+                    canHighlight = fileHashState.isNotEmpty(),
                     onQuery = { pdfPanelQuery = it },
                     onJumpPage = { jumpToPage(it) }, // giữ sheet mở để bấm hit khác
+                    onSaveHighlight = { start, end, snippetText ->
+                        val fh = fileHashState
+                        val bid = selectedBook?.id.orEmpty()
+                        val page = pageIndex
+                        scope.launch {
+                            repo.addAnnotation(
+                                PdfAnnotation(
+                                    fileHash = fh,
+                                    bookId = bid,
+                                    page = page,
+                                    startOffset = start,
+                                    endOffset = end,
+                                    text = snippetText
+                                )
+                            )
+                            if (fh.isNotEmpty()) pdfAnnotations = repo.getAnnotations(fh)
+                        }
+                    },
+                    onDeleteAnnotation = { id ->
+                        val fh = fileHashState
+                        scope.launch {
+                            repo.deleteAnnotation(id)
+                            if (fh.isNotEmpty()) pdfAnnotations = repo.getAnnotations(fh)
+                        }
+                    },
                     onDismiss = { pdfPanelOpen = false }
                 )
             }

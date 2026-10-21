@@ -401,6 +401,39 @@ trước khi bấm tiếp.
   "header sai" lần đầu bị tưởng tap trượt; tap (540,700) dual trúng GAP 2 cột → không
   toggle chrome (không phải bug); `uiautomator dump` fail lần 1 sau install → retry.
 
+## 1.12 E2.4 (annotation persist) - highlight PDF theo fileHash (2026-10-21)
+- **Code (6 file sửa + 2 mới, CHƯA commit):** `BibotDatabase.kt` entity `PdfAnnotation`
+  (bảng `pdf_annotation`, unique index fileHash+page+startOffset+endOffset) + DAO
+  (`getByFileHash`, `insert` IGNORE, `deleteById`, `deleteByBook`) + `MIGRATION_7_8`
+  (v8, DDL khớp codegen — bài học 6→7); `BookRepository.kt` CRUD (IO) + `delete(meta)`
+  gọi `deleteByBook`; `PdfAnnotationLogic.kt` (mới) `clampSelection`/`snippet`/
+  `highlightRanges` (fallback indexOf khi offsets lệch — trust in-bounds, không verify
+  substring vì snippet có thể collapse whitespace) + test 11/11;
+  `PdfTextPanel.kt` viết lại: `BasicTextField(readOnly)` + `TextFieldValue.selection`
+  **(controlled `SelectionContainer`/`Selection` là INTERNAL trong foundation 1.7.4 —
+  compile fail dù bytecode public)**, nút Highlight khi `canHighlight && sel != null`,
+  nền vàng qua `VisualTransformation` + `OffsetMapping.Identity`, chips take(40)
+  tap=jump ✕=delete; `ReaderScreen.kt` state `pdfAnnotations` + `LaunchedEffect(fileHash)`
+  + wiring; strings en/vi `chrome_highlight*` (3 key, chèn sau `chrome_rotate_90`).
+- **Verify emulator (marker10, 6/6, 0 FATAL):** long-press "MARKER" → menu Copy/Select all
+  + nút **Highlight** → tap → chip `P1 • MARKER` + vàng nền; **force-stop + reopen còn
+  nguyên** (migration 7→8 OK, chip + vàng); sang page 2 → tap chip → jump về page 1;
+  ✕ chip → hết; **cp marker10.pdf→marker10b.pdf (cùng sha1) → Scan local → mở
+  marker10b → chip vẫn hiện** (chứng minh neo fileHash, không theo path).
+- **NPE CHƯA GIẢI THÍCH:** `getReaderFontSizeSp()` null khi tap EN Books — reproducible
+  3 lần với build đầu (stack `ReaderScreen.kt:257` derivedStateOf); bisect revert
+  `ReaderScreen.kt`+`PdfTextPanel.kt` → hết; viết lại 2 file → không tái diễn
+  (nghi incremental Compose-compiler cache; 2 file diff cũ bị `git checkout` xóa —
+  đã viết lại từ history). **Nếu tái diễn → `:app:clean` rồi assemble.**
+- **Bài học:** scrim ModalBottomSheet bắt TẤT cả tap ngoài sheet (tap `›` bị dismiss
+  thay vì chuyển trang — phải đóng sheet mới điều hướng được); menu chọn chữ hệ thống
+  ("Select all") có thể còn lởn vởn sau khi clear selection — tap vào vùng chữ khác
+  để dismiss; `run-as … sh -c '…'` cần đặt trong ngoặc kép kép ở PowerShell
+  (`adb shell "run-as … sh -c '…'"`) nếu không script sẽ bị tách thành nhiều arg;
+  `mv` trong run-as có thể báo RO FS → dùng `cp` (cùng hash vẫn proof được);
+  panel sheet mất ~6s mới hiện sau tap 📄 (trích text nền) — screenshot quá sớm sẽ
+  tưởng không mở.
+
 ## 2. Gate (chạy lại sau E2)
 
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
@@ -408,7 +441,8 @@ trước khi bấm tiếp.
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **129/129, 0 fail** (mới ở E2.4:
+- JVM `:app:testDemoDebugUnitTest` → **140/140, 0 fail** (mới ở E2.4 annotation:
+  `PdfAnnotationLogicTest 11/11` → 140; trước đó 129/129 — E2.4 display
   `PdfDisplayModeTest 11/11` → 129; trước đó 118/118 — E2.3 panel `PdfTextSearchTest 7/7`
   + TOC `PdfOutlineTest 8/8` → 118; E2.1 `BlockTextReaderPdfPagesTest 6/6` +
   `PdfPageMapTest 8/8` → 102; H3 `RulesOtaTest 4/4` → 88; G1.2 `ReaderViewModelTest 4/4`).
@@ -450,8 +484,7 @@ trước khi bấm tiếp.
 ## 4. Nợ sang phiên sau
 - **E2.3 còn lại: reflow-text button + crop margin `IsRectWhite`** (selection/copy/search/TOC
   đã XONG — panel text-layer, xem §1.10);
-  **E2.4 còn lại: annotation/highlight persist theo `fileHash`** (display modes +
-  fix `‹`/`›` đã XONG — §1.11); E2.5 EPUB rich,
+  **E2.4 annotation persist đã XONG (§1.12, chưa commit)** — E2.5 EPUB rich,
   E2.6 verify 1200 trang (outline parse cap 12MB → PDF lớn không có TOC outline),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
