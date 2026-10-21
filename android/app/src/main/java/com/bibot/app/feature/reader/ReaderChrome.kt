@@ -79,7 +79,9 @@ fun ReaderTopBar(
     onSearch: () -> Unit,
     onToc: () -> Unit,
     onToggleView: () -> Unit,
-    playLabel: String
+    playLabel: String,
+    // E2.3: panel text-layer PDF (null = ẩn — không phải PDF PAGE).
+    onTextPanel: (() -> Unit)? = null
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
@@ -108,6 +110,15 @@ fun ReaderTopBar(
             }
             IconButton(onClick = onToc, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.MenuBook, contentDescription = stringResource(R.string.chrome_toc))
+            }
+            // E2.3: chữ trang PDF → panel chọn/copy/tìm (view PAGE không text trong ảnh).
+            onTextPanel?.let { open ->
+                IconButton(onClick = open, modifier = Modifier.size(44.dp)) {
+                    Icon(
+                        Icons.Default.Description,
+                        contentDescription = stringResource(R.string.chrome_text_panel)
+                    )
+                }
             }
             // ⚙: chuyển TEXT ↔ PAGE (F1.1) + brightness + nền (B6.19) — bật mọi sách
             // (sách text-only vẫn cần đổi brightness/nền; chuyển view tự khóa trong popup).

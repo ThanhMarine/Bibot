@@ -878,8 +878,8 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   (hiện search chỉ trên `sentences TEXT`), TOC từ outline PDF
   (hiện PDF = 1 chương duy nhất), reflow-text option, crop margin
   (port `orecrop/smartcrop.cpp IsRectWhite 1%` — chung với A3.4).
-  **XONG 2026-10-21 (TOC outline — chừa selection/search-highlight do ràng buộc
-  `PdfRenderer`, xem phần CÒN LẠI):** parse `/Outlines` trong
+  **XONG 2026-10-21 (TOC outline + panel text-layer — chừa reflow/crop):** parse
+  `/Outlines` trong
   `BlockTextReader.parsePdfOutline` (DFS-preorder `/First`→con→`/Next`, title
   literal escape + ngoặc lồng / hex UTF-16BE-BOM, dest `/Dest`|`/A /GoTo /D` →
   PAGE obj → chỉ số trang theo page-tree, trần 2000 mục, file >12MB → rỗng) +
@@ -889,16 +889,33 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   `resolvePageSentence` + set `selAnchor` TEXT. Fix lộ ra khi verify:
   `startPlayFlow` lấy `selAnchor` bất chấp `viewMode` → neo PAGE cũ làm anchor
   khi đang TEXT → giờ `selAnchor?.takeIf { it.view == viewMode }`.
-  Test mới `PdfOutlineTest` 8/8 → JVM **111/111, 16 suite**. VERIFY máy ảo
+  **Panel text-layer (phương án chốt — `PdfRenderer` không expose glyph):** mới
+  `PdfTextSearch` (search text-theo-trang, case-insensitive, ≥2 ký tự, 1 hit/trang
+  + snippet) + `PdfTextPanelSheet` (ModalBottomSheet: SelectionContainer chọn/copy
+  hệ thống mặc định; query ≥2 → danh sách hit bấm nhảy; extract nền
+  `iterPdfTextPages` 1 lần/sách) + icon top-bar `Page text` (ẩn khi scan
+  `viewLockedPage`/không phải PDF PAGE) + **cơ chế nhảy canvas chung
+  `jumpPage`/`jumpTick`** cho TOC/panel/book-search/resume: trước đây mọi jump chỉ
+  đổi header — canvas LazyColumn đứng yên (`initialPage=0`). Fix buộc phải làm khi
+  verify: `scrollToItem` đo placeholder Ô CHỜ (Text thấp) → cộng dồn chiều cao
+  thiếu → rơi sai index rồi anchor đứng yên (land 3 thay vì 8) → precompute
+  **tỉ lệ khung hình mọi trang** (`Page.getSize` không render, khóa
+  `renderMutex` từng trang) + placeholder `aspectRatio` đúng bằng bitmap +
+  effect chờ đủ tỉ lệ (timeout 4s) trước khi scroll. `goHit` (book search) PAGE
+  thiếu `pdfJumpTarget/tick` → thêm; mũi tên search bật khi `hitCount ≥ 1`
+  (trước `> 1` làm search 1 kết quả không thể nhảy). Test mới `PdfOutlineTest`
+  8/8 + `PdfTextSearchTest` 7/7 → JVM **118/118, 17 suite**. VERIFY máy ảo
   (marker10.pdf + 10 outline, 34 obj, font đúng số): Contents → đủ 10 mục
   "Marker section N"; chọn #4 → header `Page 4 of 10`; ⚙→TEXT → Contents → #6 →
   dialog `C1 • câu 16` → Yes → `speak s15 text=MARKERPAGE06 opens…` (đúng trang 6
-  câu 1), 0 FATAL. **CÒN LẠI:** (1) selection/copy + dictionary trên PAGE và
-  (2) search-highlight trong PAGE — `PdfRenderer` KHÔNG expose glyph/rect text
-  (framework API chỉ render bitmap) → cần chốt phương án (text-layer panel/
-  copy-thay-thế vs wire lib PDF đọc glyph — MuPDF-GPL trước đây loại có chủ ý);
-  (3) reflow-text button (TEXT mode đã là reflow — cần nút chuyển rõ); (4) crop
-  margin port `IsRectWhite`.
+  câu 1), 0 FATAL. **Panel + jump canvas:** icon Page text (grimm10 scan → ẩn
+  ✓); panel header `Page text — Page N` live; search `marker-page-02` → hit →
+  bấm → canvas MARKER-PAGE-02 + chip `P2 • câu 4`, sheet GIỮ MỞ; TOC #9 → canvas
+  MARKER-PAGE-09 (log dọn: `scrollToItem` land 8/8 stable); book search
+  `marker-page-05` 1/1 → ↓ → `goHit idx=12 → page=4` → canvas trang 5 + chip
+  `P5 • câu 13`; long-press panel → menu Copy/Select all + handles; 0 FATAL.
+  **CÒN LẠI:** (1) reflow-text button (TEXT mode đã là reflow — cần nút chuyển
+  rõ); (2) crop margin port `IsRectWhite` (chung A3.4).
 - [ ] E2.4 PDF — modes hiển thị: fit-width/fit-page, single/continuous, dual-page,
   rotation, night/sepia recolor (hiện chỉ brightness `window.screenBrightness`),
   annotation/highlight persist theo `fileHash` (E1.3).

@@ -186,6 +186,11 @@ fun ReaderScreen(
     var pdfPageStarts by remember { mutableStateOf<IntArray?>(null) }
     // E2.3: TOC từ bookmark /Outlines của PDF (null = không có outline → TOC = chương prep).
     var pdfOutline by remember { mutableStateOf<List<BlockTextReader.PdfOutline>?>(null) }
+    // E2.3 panel text-layer: text-theo-trang PDF cho panel chọn/copy/tìm trên view PAGE
+    // (null = chưa trích — build nền khi mở panel lần đầu).
+    var pdfPanelOpen by remember { mutableStateOf(false) }
+    var pdfPanelQuery by remember { mutableStateOf("") }
+    var pdfPageTexts by remember { mutableStateOf<List<String>?>(null) }
     var readModeState by remember { mutableStateOf(ReadMode.BROWSE) }
     var selAnchor by remember { mutableStateOf<ReadAnchor?>(null) } // marker điểm neo
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
@@ -211,6 +216,12 @@ fun ReaderScreen(
     var hintOpen by remember { mutableStateOf(false) }
     var pageCount by remember { mutableIntStateOf(0) }
     var pageIndex by remember { mutableIntStateOf(0) }
+    // E2.3: bấm nhảy trang (TOC/panel/search/resume) → tick buộc PdfPageView scroll canvas
+    // (selectedPage giữ nguyên giá trị nếu user đã vuốt đi — vẫn phải nhảy lại).
+    // Chỉ bump khi COMMIT (BROWSE nhảy ngay / READ xác nhận trong enterRead) — hủy confirm
+    // không được kéo canvas về anchor cũ.
+    var pdfJumpTarget by remember { mutableStateOf<Int?>(null) }
+    var pageJumpTick by remember { mutableIntStateOf(0) }
     var brightness by remember { mutableStateOf<Float?>(null) } // null = hệ thống
     var bookFile by remember { mutableStateOf<File?>(null) }
     var fileHashState by remember { mutableStateOf("") } // SHA-1 (E1.3)
@@ -377,6 +388,10 @@ fun ReaderScreen(
                 viewMode = if (isPdf || (isEpub && scanned)) ReaderView.PAGE else ReaderView.TEXT
                 // E2.1: map pageIndex → câu (cache .pagemap cạnh .prep; build nền 1 lần).
                 pdfPageStarts = null
+                // E2.3: panel text-state gắn theo sách — reset khi đổi sách.
+                pdfPanelOpen = false
+                pdfPanelQuery = ""
+                pdfPageTexts = null
                 if (isPdf && !scanned) {
                     pdfPageStarts = withContext(Dispatchers.IO) {
                         com.bibot.app.core.text.PdfPageMap.load(prepDir, cacheKey, file)
@@ -768,14 +783,35 @@ fun ReaderScreen(
         } else 0
     }
 
-    // E2.3: nhảy tới mục outline — PAGE đổi neo (scroll/đọc), TEXT → câu theo map trang.
-    fun jumpToOutline(item: BlockTextReader.PdfOutline) {
-        val page = item.page.coerceAtLeast(0)
+    // E2.3: câu → trang (đảo map pdfPageStarts — hit search/TOC highlight trên view PAGE;
+    // không map → tỉ lệ theo tổng câu).
+    fun sentenceToPage(sent: Int): Int {
+        val starts = pdfPageStarts
+        if (starts != null && starts.isNotEmpty()) {
+            var p = 0
+            for (i in starts.indices) if (starts[i] <= sent) p = i
+            return p
+        }
+        val total = totalSentencesAll
+        return if (pageCount > 0 && total > 0) {
+            ((sent + 0.5) / total * pageCount).toInt().coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+        } else 0
+    }
+
+    // E2.3: nhảy tới TRANG — PAGE đổi neo (scroll/đọc), TEXT → câu theo map trang.
+    // Dùng chung: outline TOC + panel search + book-search hit (goHit).
+    fun jumpToPage(pageRaw: Int) {
+        val page = pageRaw.coerceAtLeast(0)
         if (viewMode == ReaderView.PAGE) {
             val a = ReadAnchor(ReaderView.PAGE, page, 0)
-            // Đang READ → hỏi lại như long-press/B3.3; còn lại nhảy ngay.
+            // Đang READ → hỏi lại như long-press/B3.3; còn lại nhảy ngay (tick ngay đây).
             if (isReading && readModeState == ReadMode.READ) anchorConfirm = a
-            else { selAnchor = a; pageIndex = page }
+            else {
+                selAnchor = a
+                pageIndex = page
+                pdfJumpTarget = page
+                pageJumpTick++
+            }
         } else {
             val sent = resolvePageSentence(page)
             // Cập nhật neo TEXT để chip/Play không giữ neo PAGE cũ của view trước.
@@ -784,17 +820,11 @@ fun ReaderScreen(
         }
     }
 
+    fun jumpToOutline(item: BlockTextReader.PdfOutline) = jumpToPage(item.page)
+
     // Gốc sáng của sheet outline: trang hiện (PAGE) / trang của câu hiện (TEXT, qua map).
     fun outlineTocCurrent(outline: List<BlockTextReader.PdfOutline>): Int {
-        val page = if (viewMode == ReaderView.PAGE) {
-            pageIndex
-        } else {
-            pdfPageStarts?.takeIf { it.isNotEmpty() }?.let { starts ->
-                var p = 0
-                for (i in starts.indices) if (starts[i] <= currentSentence) p = i
-                p
-            } ?: 0
-        }
+        val page = if (viewMode == ReaderView.PAGE) pageIndex else sentenceToPage(currentSentence)
         var idx = 0
         for (i in outline.indices) if (outline[i].page in 0..page) idx = i
         return idx
@@ -818,6 +848,9 @@ fun ReaderScreen(
             // fallback tỉ lệ khi PDF không trích được trang (stream-only).
             val sent = resolvePageSentence(anchor.page)
             currentChapter = 0
+            // E2.3: đã XÁC NHẬN nhảy → kéo canvas tới trang (tick tại đây, không ở lúc hỏi).
+            pdfJumpTarget = anchor.page
+            pageJumpTick++
             scope.launch {
                 val list = prepSession?.sentences(0) ?: emptyList()
                 sentences = list
@@ -977,6 +1010,17 @@ fun ReaderScreen(
         val next = ((searchPos + step) % hits.size + hits.size) % hits.size
         searchPos = next
         val idx = hits[next]
+        // E2.3: hit khi đang xem PAGE → nhảy TRANG chứa câu (trước chỉ đổi currentSentence
+        // → ảnh PAGE đứng yên). Đọc thì vẫn jumpNow (âm thanh) + neo trang.
+        if (viewMode == ReaderView.PAGE) {
+            val page = sentenceToPage(idx)
+            selAnchor = ReadAnchor(ReaderView.PAGE, page, 0)
+            pageIndex = page
+            // E2.3: canvas LazyColumn chỉ scroll qua jumpTick — thiếu dòng này
+            // header đổi mà ảnh trang đứng yên (bug y hệt panel/TOC trước đây).
+            pdfJumpTarget = page
+            pageJumpTick++
+        }
         if (isReading) jumpNow(currentChapter, idx)
         else currentSentence = idx.coerceIn(0, (sentences.size - 1).coerceAtLeast(0))
     }
@@ -1523,6 +1567,8 @@ fun ReaderScreen(
                         file = bf,
                         initialPage = 0,
                         selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
+                        jumpPage = pdfJumpTarget,
+                        jumpTick = pageJumpTick,
                         onVisiblePage = { pageIndex = it },
                         onPageCount = { pageCount = it },
                         onPageTap = { menuVisible = !menuVisible },
@@ -1677,7 +1723,11 @@ fun ReaderScreen(
                             onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
                             onToc = { tocOpen = true },
                             onToggleView = { settingsOpen = true },
-                            playLabel = playDesc
+                            playLabel = playDesc,
+                            // E2.3: chỉ PDF chữ + view PAGE (scan → ẩn vì không trích được).
+                            onTextPanel = if (viewMode == ReaderView.PAGE && isPdfBook && !viewLockedPage) {
+                                { pdfPanelQuery = ""; pdfPanelOpen = true }
+                            } else null
                         )
                     }
                     // B6.7: thanh chỉ báo mảnh sát dưới top-bar (hiển thị-only).
@@ -1712,7 +1762,10 @@ fun ReaderScreen(
                         query = searchQuery,
                         onQuery = { searchQuery = it; runSearch(it) },
                         hitText = if (hitCount == 0) "" else "${searchPos + 1}/$hitCount",
-                        hasPrevNext = hitCount > 1,
+                        // hitCount=1 vẫn bật mũi tên: goHit(1) wrap về hit duy nhất
+                        // = nhảy TỚI hit (cùng trang thì nhảy lại = vô hại). Trước đây
+                        // `> 1` làm search 1 kết quả không thể nhảy trang (E2.3).
+                        hasPrevNext = hitCount > 0,
                         onPrevHit = { goHit(-1) },
                         onNextHit = { goHit(1) },
                         onClose = { closeSearch() }
@@ -1808,6 +1861,8 @@ fun ReaderScreen(
                                 file = bf,
                                 initialPage = 0,
                                 selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
+                                jumpPage = pdfJumpTarget,
+                                jumpTick = pageJumpTick,
                                 onVisiblePage = { pageIndex = it },
                                 onPageCount = { pageCount = it },
                                 onPageTap = { menuVisible = !menuVisible },
@@ -1987,6 +2042,39 @@ Column(
                         onSummarizeBook = { tocOpen = false; startBookSummary() }
                     )
                 }
+            }
+            // E2.3 panel: mở lần đầu → trích text-theo-trang (nền, 1 lần/sách).
+            LaunchedEffect(pdfPanelOpen, bookFile) {
+                if (!pdfPanelOpen || pdfPageTexts != null) return@LaunchedEffect
+                val f = bookFile ?: return@LaunchedEffect
+                if (!isPdfBook) return@LaunchedEffect
+                pdfPageTexts = withContext(Dispatchers.IO) {
+                    val map = HashMap<Int, StringBuilder>()
+                    for (p in BlockTextReader.iterPdfTextPages(f)) {
+                        map.getOrPut(p.page.coerceAtLeast(-1)) { StringBuilder() }
+                            .append(' ').append(p.text)
+                    }
+                    when {
+                        map.isEmpty() -> emptyList()
+                        map.keys.all { it < 0 } -> listOf(map[-1].toString().trim())
+                        else -> {
+                            val maxPage = map.keys.filter { it >= 0 }.max()
+                            (0..maxPage).map { map[it]?.toString()?.trim().orEmpty() }
+                        }
+                    }
+                }
+            }
+            // E2.3: panel text-layer — chọn/copy text trang (PAGE) + tìm → nhảy trang có khớp.
+            if (pdfPanelOpen) {
+                PdfTextPanelSheet(
+                    pageTexts = pdfPageTexts,
+                    pageCount = pageCount,
+                    currentPage = pageIndex,
+                    query = pdfPanelQuery,
+                    onQuery = { pdfPanelQuery = it },
+                    onJumpPage = { jumpToPage(it) }, // giữ sheet mở để bấm hit khác
+                    onDismiss = { pdfPanelOpen = false }
+                )
             }
             // B5: dialog tóm tắt (4 trạng thái) + nút Nghe bằng chain TTS hiện có.
             if (summaryOpen) {

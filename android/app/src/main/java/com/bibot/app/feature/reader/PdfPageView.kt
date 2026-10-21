@@ -61,6 +61,10 @@ fun PdfPageView(
     file: File,
     initialPage: Int = 0,
     selectedPage: Int? = null,
+    // E2.3: bấm nhảy (TOC/panel/search/resume) → trang đích + tick: effect scroll chạy
+    // lại cả khi selectedPage không đổi (user đã vuốt đi chỗ khác).
+    jumpPage: Int? = null,
+    jumpTick: Int = 0,
     onVisiblePage: (Int) -> Unit,
     onPageTap: () -> Unit,
     onPageLongPress: (Int) -> Unit,
@@ -84,6 +88,12 @@ fun PdfPageView(
     var openError by remember(file.absolutePath) { mutableStateOf<String?>(null) }
     val bitmaps = remember(file.absolutePath) { mutableStateMapOf<Int, Bitmap>() }
     val failed = remember(file.absolutePath) { mutableStateMapOf<Int, Boolean>() }
+    // E2.3: tỉ lệ khung hình từng trang (PdfRenderer Page.getSize — chỉ parse
+    // mediabox, KHÔNG render). Placeholder item dùng đúng chiều cao NGAY khi
+    // LazyColumn đo list cho scrollToItem; nếu ô chờ là Text thấp sẵn thì
+    // scroll cộng dồn chiều cao thiếu → nhảy rơi sai index (vd land 3 thay vì 8)
+    // rồi bị anchor đứng yên ở đó khi bitmap render.
+    val pageRatios = remember(file.absolutePath) { mutableStateMapOf<Int, Float>() }
 
     // Mở renderer 1 lần / file (IO — open nhanh, không inflate).
     LaunchedEffect(file.absolutePath) {
@@ -95,6 +105,23 @@ fun PdfPageView(
                 renderer = r
                 pageCount = r.pageCount
                 onPageCount(r.pageCount)
+                // Đọc tỉ lệ mọi trang (không render). Khóa renderMutex TỪNG trang
+                // để renderPage đang chờ được xen lượt (PdfRenderer: 1 Page mở
+                // tại 1 thời điểm).
+                for (i in 0 until r.pageCount) {
+                    renderMutex.withLock {
+                        var p: PdfRenderer.Page? = null
+                        try {
+                            p = r.openPage(i)
+                            if (p.width > 0 && p.height > 0) {
+                                pageRatios[i] = p.width.toFloat() / p.height.toFloat()
+                            }
+                        } catch (_: Exception) {
+                        } finally {
+                            try { p?.close() } catch (_: Exception) {}
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 try { pfd?.close() } catch (_: Exception) {}
                 pfd = null
@@ -137,6 +164,24 @@ fun PdfPageView(
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = initialPage.coerceIn(0, pageCount - 1)
     )
+
+    // E2.3: nhảy tới trang neo (resume chip / TOC outline / panel search / book search) —
+    // trước đây CHỈ header đổi, canvas đứng yên vì list không ai scroll (initialPage=0).
+    LaunchedEffect(jumpPage, jumpTick) {
+        val t = jumpPage ?: return@LaunchedEffect
+        if (t in 0 until pageCount && t != listState.firstVisibleItemIndex) {
+            // Chờ đủ tỉ lệ MỌI trang trước khi scroll: scrollToItem đo item
+            // đang compose (placeholder) — thiếu tỉ lệ sẽ cộng dồn chiều cao
+            // sai và rơi index (best-effort, timeout 4s rồi vẫn scroll).
+            kotlinx.coroutines.withTimeoutOrNull(4000) {
+                while (pageRatios.size < pageCount) kotlinx.coroutines.delay(50)
+            }
+            // scrollToItem với layout chưa đủ tỉ lệ từng rơi sai index rồi bị
+            // anchor đứng yên (E2.3) — nuốt lỗi để không crash; nhảy hỏng chỉ
+            // là đứng yên như trước khi có tính năng.
+            try { listState.scrollToItem(t) } catch (_: Exception) {}
+        }
+    }
 
     suspend fun renderPage(idx: Int) {
         if (idx !in 0 until pageCount) return
@@ -219,19 +264,34 @@ fun PdfPageView(
                             .aspectRatio(bmp.width.toFloat() / bmp.height.toFloat())
                     )
                 } else if (failed.containsKey(idx)) {
-                    Text(
-                        "⚠ ${idx + 1}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(32.dp)
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                            .aspectRatio(pageRatios[idx] ?: 0.707f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "⚠ ${idx + 1}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(32.dp)
+                        )
+                    }
                 } else {
-                    Text(
-                        "${idx + 1} / $pageCount",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(32.dp)
-                    )
+                    // Ô chờ render PHẢI cao đúng tỉ lệ trang (giống Image bitmap):
+                    // Text thấp sẵn làm LazyColumn đo item thiếu → scrollToItem
+                    // nhảy rơi sai index rồi đứng yên (bug E2.3 canvas không nhảy).
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                            .aspectRatio(pageRatios[idx] ?: 0.707f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "${idx + 1} / $pageCount",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(32.dp)
+                        )
+                    }
                     LaunchedEffect(idx) { renderPage(idx) }
                 }
             }

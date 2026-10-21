@@ -1,17 +1,22 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2 + E2.3(TOC)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2 + E2.3(TOC + panel)
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3, **E2.1, E2.2** đã đánh dấu XONG;
-> E2.3 ghi tiến độ TOC-outline, còn selection/search-highlight chờ chốt phương án).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3, **E2.1, E2.2, E2.3(TOC
+> + panel text-layer)** đã đánh dấu XONG — E2.3 chừa reflow/crop margin).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
 > **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd`; H3 `f572830`;
-> E2.1+E2.2 `5c10887` — ĐÃ COMMIT**; **E2.3 (TOC outline) CHƯA COMMIT**:
+> E2.1+E2.2 `5c10887`; E2.3 TOC `e8a0493` — ĐÃ COMMIT**; **E2.3 (panel text-layer) CHƯA COMMIT**:
 
 ```
  M Checklist_Upgrade_Bibot.md
  M SESSION_HANDOFF_2026-10-21.md
- M android/app/src/main/java/com/bibot/app/core/text/BlockTextReader.kt
+ M android/app/src/main/java/com/bibot/app/feature/reader/PdfPageView.kt
+ M android/app/src/main/java/com/bibot/app/feature/reader/ReaderChrome.kt
  M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
-?? android/app/src/test/java/com/bibot/app/core/text/PdfOutlineTest.kt
+ M android/app/src/main/res/values-vi/strings.xml
+ M android/app/src/main/res/values/strings.xml
+?? android/app/src/main/java/com/bibot/app/core/text/PdfTextSearch.kt
+?? android/app/src/main/java/com/bibot/app/feature/reader/PdfTextPanel.kt
+?? android/app/src/test/java/com/bibot/app/core/text/PdfTextSearchTest.kt
 ```
 
 ## 1. Việc đã xong
@@ -298,6 +303,72 @@ glyph/rect text → selection/copy + search-highlight TRÊN BITMAP PAGE không l
 được bằng API hệ thống; phương án: (a) panel text-layer (copy/search trên text
 đã trích, nhảy trang có match), (b) wire lib đọc glyph (MuPDF-GPL — trước đây
 loại có chủ ý), (c) bỏ 2 mục này. Reflow button + crop margin thì khả thi.
+**(→ ĐÃ CHỐT: phương án (a) panel text-layer — xong + verify, xem §1.10.)**
+
+## 1.10 E2.3 (panel text-layer) — chọn/copy/search + nhảy canvas PAGE (2026-10-21)
+
+Phương án chốt = (a) **panel text-layer** (0 lib thêm; `PdfRenderer` không expose glyph
+nên highlight trên bitmap là bất khả thi — nhảy TRANG có khớp thay vì vẽ khung).
+
+- Mới `core/text/PdfTextSearch.kt`: `PdfTextHit(page, snippet)` + `search(pages, query,
+  maxHits=50, snippetChars=90)` — lowercase, query ≥2 ký tự, **1 hit/trang đầu**,
+  snippet ± ngữ cảnh + `…`, collapse whitespace.
+- Mới `feature/reader/PdfTextPanel.kt`: `PdfTextPanelSheet` (ModalBottomSheet): header
+  `chrome_text_panel` + `chrome_page_of` **sống theo trang** + Close; OutlinedTextField;
+  query ≥2 → LazyColumn hit `TextButton` ("N. snippet") → `onJumpPage` (**sheet GIỮ MỞ**);
+  rỗng/`chrome_text_panel_none`/loading; mặc định `SelectionContainer { Text(pageText) }`
+  → copy/share hệ thống. Strings mới `chrome_text_panel*` (en+vi) sau `chrome_page_of`.
+- `ReaderChrome.ReaderTopBar` thêm `onTextPanel` + icon `Icons.Default.Description`
+  (chỉ PDF chữ + PAGE; portrait — landscape CompactBar không thêm).
+- `ReaderScreen`: states `pdfPanelOpen/pdfPanelQuery/pdfPageTexts/pdfJumpTarget/pageJumpTick`
+  (reset cạnh `pdfPageStarts = null` khi đổi sách); trích nền `BlockTextReader.iterPdfTextPages`
+  1 lần/sách → `List<String>` theo maxPage; refactor **`jumpToPage(pageRaw)`** — PAGE BROWSE:
+  anchor+pageIndex+`pdfJumpTarget+tick` ngay, READ: `anchorConfirm` (tick khi xác nhận enterRead),
+  TEXT: `resolvePageSentence`+`requestJump`; `jumpToOutline = jumpToPage`; mới `sentenceToPage`
+  (đảo `pdfPageStarts`, fallback tỉ lệ) + `outlineTocCurrent` dùng lại; `goHit` PAGE-aware.
+- `PdfPageView`: param `jumpPage/jumpTick` → `LaunchedEffect` scroll canvas tới trang đích.
+
+**Bug root-cause buộc phải fix khi verify (canvas land SAI index rồi đứng yên):**
+placeholder ô chờ render là `Text` thấp sẵn → `scrollToItem(t)` đo item theo layout
+**chưa có bitmap** → cộng dồn chiều cao thiếu → land 0→**3** thay vì 0→8, và khi bitmap
+render lại bị anchor giữ ở 3 (log chẩn đoán: `scrolled to 3`, `late first=3`, item
+1392px vs placeholder ≈200px — số khớp chính xác). Fix:
+1. Precompute **tỉ lệ khung hình MỌI trang** — `r.openPage(i)` → `page.width/height`
+   (`getSize`, KHÔNG render) vào `pageRatios`, khóa `renderMutex` **từng trang** để
+   `renderPage` đang chờ được xen lượt (PdfRenderer: 1 Page mở tại 1 thời điểm).
+2. Placeholder + ô lỗi bọc `Box(...aspectRatio(pageRatios[idx] ?: 0.707f))` = cùng
+   tỉ lệ bitmap (`renderPdfBitmap` giữ nguyên w/h, kể cả cap 2400 hay half-width retry)
+   → chiều cao KHÔNG đổi khi render → anchor ổn định.
+3. Effect chờ `pageRatios.size == pageCount` (timeout 4s) rồi mới `scrollToItem`;
+   nuốt exception (nhảy hỏng = đứng yên như trước, không crash).
+
+**Bug 2:** `goHit` (book search) PAGE chỉ set `pageIndex` — thiếu `pdfJumpTarget/pageJumpTick`
+→ header đổi mà canvas đứng yên (cùng pattern). **Bug 3:** mũi tên search
+`hasPrevNext = hitCount > 1` → search ra 1 kết quả **không nhảy được** (arrow disabled)
+→ đổi `> 0` (goHit wrap về hit duy nhất = nhảy TỚI hit, cùng trang thì nhảy lại = vô hại).
+
+- Temp log `Log.d("E23", ...)` (jump/goHit/scroll/visible) chỉ để chẩn đoán — **đã xóa hết**
+  trước commit; cuối cùng chỉ còn logic + comment tiếng Việt.
+
+Test mới `PdfTextSearchTest` 7/7 → JVM **118/118, 17 suite**. Gates: rules **102/102**,
+`go vet`+`go test` ok, `assembleDemoDebug` + `assembleCommercialDebug` BUILD SUCCESSFUL.
+
+VERIFY máy ảo (screenshot + log; **0 FATAL**):
+| Kịch bản | Kết quả |
+|---|---|
+| icon top bar | marker10 (PDF chữ) có **Page text**; grimm10 (scan → `viewLockedPage`) ẩn ✓ |
+| panel mở | header `Page text — Page 9` sống; text trang đúng |
+| panel search `marker-page-02` | hit `2. MARKER-PAGE-02…` → bấm → **canvas MARKER-PAGE-02** + chip `P2 • câu 4`, sheet GIỮ MỞ, header đổi `Page 2 of 10` |
+| TOC #9 | canvas **MARKER-PAGE-09** + header `Page 9 of 10` + chip `P9 • câu 25` (land 8/8 stable — trước land 3) |
+| book search `marker-page-05` (1/1) ↓ | `goHit idx=12 → page=4` → canvas trang 5 + header `Page 5 of 10` + chip `P5 • câu 13` |
+| long-press panel text | menu **Copy / Select all** + selection handles |
+| resume chip F2.1 | vẫn `Page 1 of 10` = saved anchor — đúng design, KHÔNG phải stale |
+
+Bài học verify (đã ghi vào `§3`): `dump.ps1` cũ **dùng lại `/sdcard/ui.xml` cũ khi
+`uiautomator dump` fail** → trạng thái "giả" (reader thật đã về home, tap trúng card
+Storytelling) — giờ `rm -f` trước dump, báo `DUMP_FAILED`/`PULL_FAILED` + luôn
+fresh-dump trước MỖI tap quyết định; ad banner/Chrome mở do tap trúng ad → đọc dump
+trước khi bấm tiếp.
 
 ## 2. Gate (chạy lại sau E2)
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
@@ -305,9 +376,10 @@ loại có chủ ý), (c) bỏ 2 mục này. Reflow button + crop margin thì kh
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **111/111, 0 fail** (16 suite; mới ở E2.3:
-  `PdfOutlineTest 8/8`; E2.1: `BlockTextReaderPdfPagesTest 6/6` + `PdfPageMapTest 8/8`
-  → 102; trước đó 88/88 — `RulesOtaTest 4/4` H3, 84/84 — `ReaderViewModelTest 4/4` G1.2).
+- JVM `:app:testDemoDebugUnitTest` → **118/118, 0 fail** (17 suite; mới ở E2.3 panel:
+  `PdfTextSearchTest 7/7`; E2.3 TOC: `PdfOutlineTest 8/8`; E2.1: `BlockTextReaderPdfPagesTest 6/6`
+  + `PdfPageMapTest 8/8` → 102; trước đó 88/88 — `RulesOtaTest 4/4` H3, 84/84 —
+  `ReaderViewModelTest 4/4` G1.2).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -325,7 +397,11 @@ loại có chủ ý), (c) bỏ 2 mục này. Reflow button + crop margin thì kh
 - `45°`, `1⁄500` (fraction slash U+2044) được đọc nguyên ký hiệu (G1.3) — pre-existing.
 - Tương tác `adb shell input tap` hơi "nhạy lần đực lần cá" (nhiều lần bấm top-bar/TOC không ăn
   hoặc sheet chỉ đóng khi bấm ngoài) → luôn dump UI xác nhận trạng thái trước/sau mỗi tap;
-  helper: `C:\Users\Thanh Marine\AppData\Local\Temp\opencode\dump.ps1` (retry nếu `null root node`).
+  helper: `C:\Users\Thanh Marine\AppData\Local\Temp\opencode\dump.ps1`.
+  **ĐÃ FIX (E2.3):** dump cũ `SilentlyContinue` + pull `/sdcard/ui.xml` → khi
+  `uiautomator dump` fail (thường sau `adb install`) lấy nhầm xml CŨ → "lạc" trạng thái giả
+  (reader thật đã về home, tap 928,419 trúng card Storytelling); giờ `rm -f` trước dump +
+  báo `DUMP_FAILED`/`PULL_FAILED` — thấy báo vậy thì chờ 2s dump lại.
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
 - **Nút `>` chuyển trang PAGE không cập nhật header** (bấm `>` (1024,300) vẫn "Page 4 of 10",
   swipe dọc mới lên trang) — quan sát E2.1, thuộc nợ **E2.4**; khi sửa nhớ test `<`/`>` +
@@ -341,9 +417,8 @@ loại có chủ ý), (c) bỏ 2 mục này. Reflow button + crop margin thì kh
   check: `d.count(b' 0 obj') == 34` + `/BaseFont` có mặt + 10 `/Type /Page /Parent`.
 
 ## 4. Nợ sang phiên sau
-- **E2.3 còn lại — cần chốt phương án trước khi làm** (xem §1.9): selection/copy +
-  search-highlight trên PAGE (`PdfRenderer` không expose glyph/rect → panel text-layer
-  thay thế / wire MuPDF-GPL (lần trước loại có chủ ý) / bỏ), reflow button, crop margin;
+- **E2.3 còn lại: reflow-text button + crop margin `IsRectWhite`** (selection/copy/search/TOC
+  đã XONG — panel text-layer, xem §1.10);
   E2.4 (display modes + **fix nút `>` không cập nhật header**), E2.5 EPUB rich,
   E2.6 verify 1200 trang (outline parse cap 12MB → PDF lớn không có TOC outline),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
