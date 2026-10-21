@@ -1,19 +1,17 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2 + E2.3(TOC)
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3, **E2.1, E2.2** đã đánh dấu XONG).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3, **E2.1, E2.2** đã đánh dấu XONG;
+> E2.3 ghi tiến độ TOC-outline, còn selection/search-highlight chờ chốt phương án).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd`; H3 `f572830` — ĐÃ COMMIT**;
-> **E2.1+E2.2 (PDF text-layer theo trang + toggle TEXT↔PAGE) CHƯA COMMIT** (đang chờ commit lần này):
+> **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd`; H3 `f572830`;
+> E2.1+E2.2 `5c10887` — ĐÃ COMMIT**; **E2.3 (TOC outline) CHƯA COMMIT**:
 
 ```
  M Checklist_Upgrade_Bibot.md
  M SESSION_HANDOFF_2026-10-21.md
  M android/app/src/main/java/com/bibot/app/core/text/BlockTextReader.kt
- M android/app/src/main/java/com/bibot/app/feature/reader/ReadAnchor.kt
  M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
-?? android/app/src/main/java/com/bibot/app/core/text/PdfPageMap.kt
-?? android/app/src/test/java/com/bibot/app/core/text/BlockTextReaderPdfPagesTest.kt
-?? android/app/src/test/java/com/bibot/app/core/text/PdfPageMapTest.kt
+?? android/app/src/test/java/com/bibot/app/core/text/PdfOutlineTest.kt
 ```
 
 ## 1. Việc đã xong
@@ -259,15 +257,57 @@ Bài học E2.1 (đã fix trong code):
   pageCount=0 → header "Chapter 1/1" giả, dễ hiểu nhầm viewMode). E2.1 hỏng đầu tiên do
   `contains`-từng-câu, KHÔNG phải do fixture marker10 (fixture đó đúng).
 
+## 1.9 E2.3 (phần TOC outline) — TOC PDF từ bookmark /Outlines (2026-10-21)
+
+- `BlockTextReader`: data class `PdfOutline(title, page)`; 6 regex outline
+  (`/Type /Outlines`, `/First`, `/Next`, dest `(?:/Dest|/D) \[ N 0 R`, title
+  literal/hex); `parsePdfOutline(file)` (raw ≤12MB, lỗi → rỗng) +
+  `internal parsePdfOutlineRaw` (obj index → DFS-preorder stack LIFO đảo
+  Next/First, `MAX_OUTLINE_ENTRIES=2000`) + `outlinePageOrder` (Catalog→Pages→Kids,
+  fallback obj order — gồm trang không /Contents) + `pdfTitleOf` (literal:
+  matchPdfString đếm depth ngoặc lồng + unescape `\n\t\(\)\ octal`; hex: BOM
+  FEFF→UTF-16BE / FFFE→UTF-16LE, không BOM→ISO-8859-1).
+- `ReaderScreen`: state `pdfOutline` (reset ở đầu load, parse nền `if (isPdf)`
+  — kể cả sách scan, TOC nhảy theo TRANG vẫn hữu dụng); TOC sheet ưu tiên
+  outline `size > 1` (ẩn `onSummarize*` — idx outline ≠ idx chương; mặc định
+  params = null); `jumpToOutline` — PAGE: `ReadAnchor(PAGE,page,0)`, đang READ →
+  `anchorConfirm` (hỏi kiểu long-press), còn lại `selAnchor + pageIndex` ngay;
+  TEXT: `sent = resolvePageSentence(page)`, set `selAnchor = ReadAnchor(TEXT,0,sent)`
+  + `requestJump(0, sent)` (chương 0 — PDF thường 1 chương; nhiều chương → caveat
+  map chỉ build từ sentences(0)); `outlineTocCurrent` — PAGE: `pageIndex`, TEXT:
+  duyệt `pdfPageStarts` tìm trang chứa `currentSentence`.
+- **Bug fix lộ ra khi verify:** `startPlayFlow` lấy `selAnchor` bất chấp view →
+  neo PAGE cũ (`P4 • câu 10`) thành anchor khi đang TEXT. Sửa:
+  `selAnchor?.takeIf { it.view == viewMode } ?: neo tại vị trí hiện view`.
+- Test mới `PdfOutlineTest` 8/8 (DFS preorder, escape literal + octal, hex
+  UTF-16BE "Chương 1", `/A /GoTo`, không outline, named-dest/ghost-ref → -1,
+  thiếu `/First`, thiếu title → skip) → JVM **111/111, 16 suite**.
+
+VERIFY máy ảo (marker10.pdf sinh lại: 34 obj — đánh số lại font=95/root=80/
+items 81–90 TRÁNH đè page 3–22/content 4–22; 10 outline "Marker section N"; 0 FATAL):
+| Kịch bản | Kết quả |
+|---|---|
+| Contents (PAGE) | sheet đủ **10 mục** `1..10. Marker section N` (outline thay chương) |
+| Chọn #4 | sheet đóng → header **`Page 4 of 10`** |
+| ⚙→TEXT → Contents | outline vẫn hiện (mọi PDF) |
+| Chọn #6 (TEXT) | dialog Read **`C1 • câu 16 - marker10`** (starts[5]=15) → Yes → `speak c0 s15 text=MARKERPAGE06 opens…` rồi s16, s17 — đúng trang 6 câu 1 |
+| Đọc đang READ + nhảy outline PAGE | (code) `anchorConfirm` hỏi trước — cùng đường với long-press |
+
+**Ràng buộc E2.3 còn lại (cần chốt):** `PdfRenderer` (framework) KHÔNG expose
+glyph/rect text → selection/copy + search-highlight TRÊN BITMAP PAGE không làm
+được bằng API hệ thống; phương án: (a) panel text-layer (copy/search trên text
+đã trích, nhảy trang có match), (b) wire lib đọc glyph (MuPDF-GPL — trước đây
+loại có chủ ý), (c) bỏ 2 mục này. Reflow button + crop margin thì khả thi.
+
 ## 2. Gate (chạy lại sau E2)
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
   (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **102/102, 0 fail** (15 suite; mới ở E2.1:
-  `BlockTextReaderPdfPagesTest 6/6` + `PdfPageMapTest 8/8`; trước đó 88/88 —
-  `RulesOtaTest 4/4` H3, 84/84 — `ReaderViewModelTest 4/4` G1.2).
+- JVM `:app:testDemoDebugUnitTest` → **111/111, 0 fail** (16 suite; mới ở E2.3:
+  `PdfOutlineTest 8/8`; E2.1: `BlockTextReaderPdfPagesTest 6/6` + `PdfPageMapTest 8/8`
+  → 102; trước đó 88/88 — `RulesOtaTest 4/4` H3, 84/84 — `ReaderViewModelTest 4/4` G1.2).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -295,10 +335,17 @@ Bài học E2.1 (đã fix trong code):
   <25s (đã ghi G1.2).
 - `scanNoTts`/`viewLockedPage` set 1 lần lúc `loadBook` — đổi nội dung file (thay PDF trong
   inbox) phải xoá prep cache `cache/bibot/prep/<key>.*` rồi mở lại mới nhận lại.
+- **Sinh fixture PDF tự chế: số obj PHẢI trải đều, không đè nhau** — marker10 từng bị
+  font/outline ghi đè lên page+content (parser regex vẫn chịu được nên "chạy" tới E2.3 mới
+  vỡ); hiện font=95, outline root=80, items 81–90, page 3–22, content 4–22 — sinh xong
+  check: `d.count(b' 0 obj') == 34` + `/BaseFont` có mặt + 10 `/Type /Page /Parent`.
 
 ## 4. Nợ sang phiên sau
-- E2.3–E2.6 (select/copy/search/TOC PDF, display modes + fix nút `>` (E2.4), EPUB rich,
-  verify 1200 trang + TTS neo câu không lệch),
+- **E2.3 còn lại — cần chốt phương án trước khi làm** (xem §1.9): selection/copy +
+  search-highlight trên PAGE (`PdfRenderer` không expose glyph/rect → panel text-layer
+  thay thế / wire MuPDF-GPL (lần trước loại có chủ ý) / bỏ), reflow button, crop margin;
+  E2.4 (display modes + **fix nút `>` không cập nhật header**), E2.5 EPUB rich,
+  E2.6 verify 1200 trang (outline parse cap 12MB → PDF lớn không có TOC outline),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
   G2.4 nợ **verify tai nghe** (unit đã cover, chỉ còn nghe VI/EN 3 câu ngoặc).

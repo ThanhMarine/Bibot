@@ -184,6 +184,8 @@ fun ReaderScreen(
     var viewLockedPage by remember { mutableStateOf(false) } // scan: chỉ PAGE
     // E2.1: pageIndex → câu mở đầu (PDF text-readable; null = chưa build → fallback tỉ lệ).
     var pdfPageStarts by remember { mutableStateOf<IntArray?>(null) }
+    // E2.3: TOC từ bookmark /Outlines của PDF (null = không có outline → TOC = chương prep).
+    var pdfOutline by remember { mutableStateOf<List<BlockTextReader.PdfOutline>?>(null) }
     var readModeState by remember { mutableStateOf(ReadMode.BROWSE) }
     var selAnchor by remember { mutableStateOf<ReadAnchor?>(null) } // marker điểm neo
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
@@ -277,6 +279,7 @@ fun ReaderScreen(
         isEpubBook = false
         epubRichTitles = emptyList()
         viewLockedPage = false
+        pdfOutline = null
         menuVisible = true
         savedPos = 0
         savedResume = ReadingPosition()
@@ -382,6 +385,10 @@ fun ReaderScreen(
                             }
                     }
                 }
+                // E2.3: bookmark /Outlines → TOC (mọi PDF, kể cả scan — nhảy theo trang).
+                pdfOutline = if (isPdf) {
+                    withContext(Dispatchers.IO) { BlockTextReader.parsePdfOutline(file) }
+                } else null
                 if (isEpub) {
                     // Titles spine (KHỚP 1-1 chapters) để map session-chương → spine rich.
                     epubRichTitles = withContext(Dispatchers.IO) {
@@ -761,6 +768,38 @@ fun ReaderScreen(
         } else 0
     }
 
+    // E2.3: nhảy tới mục outline — PAGE đổi neo (scroll/đọc), TEXT → câu theo map trang.
+    fun jumpToOutline(item: BlockTextReader.PdfOutline) {
+        val page = item.page.coerceAtLeast(0)
+        if (viewMode == ReaderView.PAGE) {
+            val a = ReadAnchor(ReaderView.PAGE, page, 0)
+            // Đang READ → hỏi lại như long-press/B3.3; còn lại nhảy ngay.
+            if (isReading && readModeState == ReadMode.READ) anchorConfirm = a
+            else { selAnchor = a; pageIndex = page }
+        } else {
+            val sent = resolvePageSentence(page)
+            // Cập nhật neo TEXT để chip/Play không giữ neo PAGE cũ của view trước.
+            selAnchor = ReadAnchor(ReaderView.TEXT, 0, sent)
+            requestJump(0, sent)
+        }
+    }
+
+    // Gốc sáng của sheet outline: trang hiện (PAGE) / trang của câu hiện (TEXT, qua map).
+    fun outlineTocCurrent(outline: List<BlockTextReader.PdfOutline>): Int {
+        val page = if (viewMode == ReaderView.PAGE) {
+            pageIndex
+        } else {
+            pdfPageStarts?.takeIf { it.isNotEmpty() }?.let { starts ->
+                var p = 0
+                for (i in starts.indices) if (starts[i] <= currentSentence) p = i
+                p
+            } ?: 0
+        }
+        var idx = 0
+        for (i in outline.indices) if (outline[i].page in 0..page) idx = i
+        return idx
+    }
+
     fun enterRead(anchor: ReadAnchor) {
         if (selectedBook == null || chapters.isEmpty()) return
         selAnchor = anchor
@@ -809,8 +848,11 @@ fun ReaderScreen(
             com.bibot.app.ui.player.KeepAwakeService.start(context)
             return
         }
-        val anchor = selAnchor ?: if (viewMode == ReaderView.PAGE) ReadAnchor(ReaderView.PAGE, pageIndex, 0)
-        else ReadAnchor(ReaderView.TEXT, currentChapter, currentSentence)
+        // E2.3: anchor PHẢI khớp view hiện tại — neo PAGE cũ không được làm anchor khi TEXT
+        // (và ngược lại); không có → neo tại vị trí hiện view.
+        val anchor = selAnchor?.takeIf { it.view == viewMode }
+            ?: if (viewMode == ReaderView.PAGE) ReadAnchor(ReaderView.PAGE, pageIndex, 0)
+            else ReadAnchor(ReaderView.TEXT, currentChapter, currentSentence)
         anchorConfirm = anchor
     }
 
@@ -1925,15 +1967,26 @@ Column(
                 ) { anchorConfirm = null }
             }
             if (tocOpen) {
-                ReaderTocSheet(
-                    titles = chapters.map { it.title },
-                    current = currentChapter,
-                    onPick = { tocOpen = false; requestJump(it) },
-                    onDismiss = { tocOpen = false },
-                    onSummarize = { idx -> tocOpen = false; fetchChapterSummary(idx) },
-                    summarized = summarizedIdx,
-                    onSummarizeBook = { tocOpen = false; startBookSummary() }
-                )
+                // E2.3: PDF có bookmark /Outlines (>1 mục) → TOC outline; không thì TOC chương.
+                val outline = pdfOutline?.takeIf { it.size > 1 }
+                if (outline != null) {
+                    ReaderTocSheet(
+                        titles = outline.map { it.title },
+                        current = outlineTocCurrent(outline),
+                        onPick = { tocOpen = false; jumpToOutline(outline[it]) },
+                        onDismiss = { tocOpen = false }
+                    )
+                } else {
+                    ReaderTocSheet(
+                        titles = chapters.map { it.title },
+                        current = currentChapter,
+                        onPick = { tocOpen = false; requestJump(it) },
+                        onDismiss = { tocOpen = false },
+                        onSummarize = { idx -> tocOpen = false; fetchChapterSummary(idx) },
+                        summarized = summarizedIdx,
+                        onSummarizeBook = { tocOpen = false; startBookSummary() }
+                    )
+                }
             }
             // B5: dialog tóm tắt (4 trạng thái) + nút Nghe bằng chain TTS hiện có.
             if (summaryOpen) {

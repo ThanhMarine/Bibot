@@ -878,6 +878,27 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   (hiện search chỉ trên `sentences TEXT`), TOC từ outline PDF
   (hiện PDF = 1 chương duy nhất), reflow-text option, crop margin
   (port `orecrop/smartcrop.cpp IsRectWhite 1%` — chung với A3.4).
+  **XONG 2026-10-21 (TOC outline — chừa selection/search-highlight do ràng buộc
+  `PdfRenderer`, xem phần CÒN LẠI):** parse `/Outlines` trong
+  `BlockTextReader.parsePdfOutline` (DFS-preorder `/First`→con→`/Next`, title
+  literal escape + ngoặc lồng / hex UTF-16BE-BOM, dest `/Dest`|`/A /GoTo /D` →
+  PAGE obj → chỉ số trang theo page-tree, trần 2000 mục, file >12MB → rỗng) +
+  state `pdfOutline` load nền mọi PDF; `ReaderTocSheet` chuyển sang outline khi
+  có >1 mục (ẩn nút tóm tắt — outline-idx ≠ chương-idx); `jumpToOutline`: PAGE
+  đổi neo + scroll (đang READ → hỏi như long-press/B3.3), TEXT → câu theo
+  `resolvePageSentence` + set `selAnchor` TEXT. Fix lộ ra khi verify:
+  `startPlayFlow` lấy `selAnchor` bất chấp `viewMode` → neo PAGE cũ làm anchor
+  khi đang TEXT → giờ `selAnchor?.takeIf { it.view == viewMode }`.
+  Test mới `PdfOutlineTest` 8/8 → JVM **111/111, 16 suite**. VERIFY máy ảo
+  (marker10.pdf + 10 outline, 34 obj, font đúng số): Contents → đủ 10 mục
+  "Marker section N"; chọn #4 → header `Page 4 of 10`; ⚙→TEXT → Contents → #6 →
+  dialog `C1 • câu 16` → Yes → `speak s15 text=MARKERPAGE06 opens…` (đúng trang 6
+  câu 1), 0 FATAL. **CÒN LẠI:** (1) selection/copy + dictionary trên PAGE và
+  (2) search-highlight trong PAGE — `PdfRenderer` KHÔNG expose glyph/rect text
+  (framework API chỉ render bitmap) → cần chốt phương án (text-layer panel/
+  copy-thay-thế vs wire lib PDF đọc glyph — MuPDF-GPL trước đây loại có chủ ý);
+  (3) reflow-text button (TEXT mode đã là reflow — cần nút chuyển rõ); (4) crop
+  margin port `IsRectWhite`.
 - [ ] E2.4 PDF — modes hiển thị: fit-width/fit-page, single/continuous, dual-page,
   rotation, night/sepia recolor (hiện chỉ brightness `window.screenBrightness`),
   annotation/highlight persist theo `fileHash` (E1.3).

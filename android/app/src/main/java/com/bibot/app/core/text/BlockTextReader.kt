@@ -34,6 +34,12 @@ object BlockTextReader {
      */
     data class PdfPageText(val page: Int, val text: String)
 
+    /**
+     * E2.3 — 1 mục TOC từ `/Outlines` (bookmark) của PDF: tiêu đề + trang đích
+     * (0-based; -1 = không map được trang — dest theo tên / thiếu trang).
+     */
+    data class PdfOutline(val title: String, val page: Int)
+
     /** Cách nhận diện heading. */
     enum class Heading { NONE, MARKDOWN, MARKDOWN_OR_STORY, PARAGRAPH }
 
@@ -109,6 +115,13 @@ object BlockTextReader {
     private val pdfContentsRefRe = Regex("""/Contents\s+(\d+)\s+0\s+R""")
     private val pdfContentsArrRe = Regex("""/Contents\s*\[([^\]]*)\]""")
     private val pdfRefIn = Regex("""(\d+)\s+0\s+R""")
+    // E2.3: outline (bookmark) → TOC từ /Outlines: DFS /First → cây con → /Next.
+    private val pdfOutlineTypeRe = Regex("""/Type\s*/Outlines\b""")
+    private val pdfOutlineFirstRe = Regex("""/First\s+(\d+)\s+\d+\s+R""")
+    private val pdfOutlineNextRe = Regex("""/Next\s+(\d+)\s+\d+\s+R""")
+    private val pdfOutlineDestRe = Regex("""(?:/Dest|/D)\s*\[\s*(\d+)\s+\d+\s+R""")
+    private val pdfTitleLitRe = Regex("""/Title\s*\(""")
+    private val pdfTitleHexRe = Regex("""/Title\s*<([0-9A-Fa-f\s]+)>""")
     private val typeFontRe = Regex("""/Type\s*/Font\b""")
     private val baseFontRe = Regex("""/BaseFont\s*/([^\s/<>\[\]()]+)""")
     private val touRefRe = Regex("""/ToUnicode\s+(\d+)\s+0\s+R""")
@@ -745,6 +758,175 @@ object BlockTextReader {
             for (c in pageContents[pageObj].orEmpty()) map[c] = idx
         }
         return map
+    }
+
+    // ------------------------------------------------------------------ outline / TOC (E2.3)
+
+    private const val MAX_OUTLINE_ENTRIES = 2000
+
+    /**
+     * Đọc bookmark `/Outlines` của PDF → TOC (tiêu đề + trang đích).
+     * DFS-preorder đúng thứ tự hiển thị: `/First` (con đầu) trước, rồi `/Next` (kế).
+     * File >12MB → rỗng (giới hạn nạp raw một lần — cùng ngưỡng inflate;
+     * E2.6 sẽ ghi nhận). Lỗi parse → rỗng, không crash.
+     */
+    fun parsePdfOutline(file: File): List<PdfOutline> =
+        try {
+            if (!file.exists() || file.length() > PDF_MAX_INFLATE_BYTES) emptyList()
+            else parsePdfOutlineRaw(String(file.readBytes(), Charsets.ISO_8859_1))
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+    internal fun parsePdfOutlineRaw(raw: String): List<PdfOutline> {
+        val objNums = ArrayList<Int>(256)
+        val objPos = ArrayList<Int>(256)
+        for (m in pdfObjHeadRe.findAll(raw)) {
+            val n = m.groupValues[1].toIntOrNull() ?: continue
+            objNums.add(n)
+            objPos.add(m.range.first)
+        }
+        if (objNums.isEmpty()) return emptyList()
+        val bodies = HashMap<Int, String>(objNums.size * 2)
+        for (i in objNums.indices) {
+            val start = objPos[i]
+            val end = if (i + 1 < objPos.size) objPos[i + 1] else raw.length
+            bodies[objNums[i]] = raw.substring(start, minOf(end, start + 16384))
+        }
+        // Trang đích của dest trỏ tới PAGE obj → chỉ số theo page-tree (fallback obj order).
+        val pageIdx = HashMap<Int, Int>(64)
+        for ((idx, n) in outlinePageOrder(bodies, objNums).withIndex()) pageIdx[n] = idx
+        val root = bodies.values.firstOrNull { pdfOutlineTypeRe.containsMatchIn(it) }
+            ?: return emptyList()
+        val first = pdfOutlineFirstRe.find(root)?.groupValues?.get(1)?.toIntOrNull()
+            ?: return emptyList()
+        val out = ArrayList<PdfOutline>()
+        val seen = HashSet<Int>()
+        val stack = ArrayDeque<Int>()
+        stack.addLast(first)
+        while (stack.isNotEmpty() && out.size < MAX_OUTLINE_ENTRIES) {
+            val n = stack.removeLast()
+            if (!seen.add(n)) continue
+            val w = bodies[n] ?: continue
+            val title = pdfTitleOf(w)?.trim()
+            if (!title.isNullOrEmpty()) {
+                val dest = pdfOutlineDestRe.find(w)?.groupValues?.get(1)?.toIntOrNull()
+                out.add(PdfOutline(title, dest?.let { pageIdx[it] } ?: -1))
+            }
+            // Đảo thứ tự khi push: LIFO → con (/First) chạy trước kế (/Next) = preorder.
+            pdfOutlineNextRe.find(w)?.groupValues?.get(1)?.toIntOrNull()?.let { stack.addLast(it) }
+            pdfOutlineFirstRe.find(w)?.groupValues?.get(1)?.toIntOrNull()?.let { stack.addLast(it) }
+        }
+        return out
+    }
+
+    /** Thứ tự chỉ số trang (0-based) cho map dest → page: Catalog → Pages → Kids, fallback obj order. */
+    private fun outlinePageOrder(bodies: Map<Int, String>, objNums: List<Int>): List<Int> {
+        val pageObjs = HashSet<Int>(64)
+        val pagesKids = HashMap<Int, List<Int>>(16)
+        for (n in objNums) {
+            val w = bodies[n] ?: continue
+            when {
+                pdfPageTypeRe.containsMatchIn(w) -> pageObjs.add(n)
+                pdfPagesTypeRe.containsMatchIn(w) -> {
+                    pdfKidsRe.find(w)?.groupValues?.get(1)?.let { s ->
+                        val refs = pdfRefIn.findAll(s).mapNotNull { it.groupValues[1].toIntOrNull() }.toList()
+                        if (refs.isNotEmpty()) pagesKids[n] = refs
+                    }
+                }
+            }
+        }
+        if (pageObjs.isEmpty()) return emptyList()
+        var catalogPages = -1
+        for (n in objNums) {
+            val w = bodies[n] ?: continue
+            if (pdfCatalogRe.containsMatchIn(w)) {
+                catalogPages = pdfPagesRefRe.find(w)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+                break
+            }
+        }
+        val ordered = ArrayList<Int>(pageObjs.size)
+        val visited = HashSet<Int>()
+        fun walk(n: Int, depth: Int) {
+            if (depth > 32 || !visited.add(n)) return
+            if (pageObjs.contains(n)) { ordered.add(n); return }
+            pagesKids[n]?.forEach { walk(it, depth + 1) }
+        }
+        if (catalogPages >= 0) walk(catalogPages, 0)
+        if (ordered.isEmpty()) ordered.addAll(objNums.filter { pageObjs.contains(it) }.sorted())
+        return ordered
+    }
+
+    /** `/Title (…)` (escape + ngoặc lồng) hoặc `/Title <hex>` (UTF-16BE có BOM). */
+    private fun pdfTitleOf(w: String): String? {
+        pdfTitleHexRe.find(w)?.let { m ->
+            val hex = m.groupValues[1].replace(Regex("""\s"""), "")
+            if (hex.length >= 4 && hex.length % 2 == 0) {
+                val bytes = ByteArray(hex.length / 2) { i ->
+                    hex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
+                }
+                val b0 = bytes[0].toInt() and 0xFF
+                val b1 = bytes[1].toInt() and 0xFF
+                return when {
+                    b0 == 0xFE && b1 == 0xFF -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+                    b0 == 0xFF && b1 == 0xFE -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+                    else -> String(bytes, Charsets.ISO_8859_1)
+                }
+            }
+        }
+        pdfTitleLitRe.find(w)?.let { m ->
+            val open = m.range.last // index của '('
+            val end = matchPdfString(w, open) ?: return null
+            return unescapePdfString(w.substring(open + 1, end))
+        }
+        return null
+    }
+
+    /** Vị trí ')' đóng chuỗi PDF bắt đầu tại `open` == '(' — tôn trọng escape + đếm ngoặc lồng. */
+    private fun matchPdfString(s: String, open: Int): Int? {
+        var i = open + 1
+        var depth = 1
+        while (i < s.length) {
+            when (s[i]) {
+                '\\' -> i += 2
+                '(' -> { depth++; i++ }
+                ')' -> { depth--; if (depth == 0) return i; i++ }
+                else -> i++
+            }
+        }
+        return null
+    }
+
+    private fun unescapePdfString(s: String): String {
+        val sb = StringBuilder(s.length)
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            if (c != '\\' || i + 1 >= s.length) { sb.append(c); i++; continue }
+            when (val n = s[i + 1]) {
+                'n' -> { sb.append('\n'); i += 2 }
+                'r' -> { sb.append('\r'); i += 2 }
+                't' -> { sb.append('\t'); i += 2 }
+                'b' -> { sb.append('\b'); i += 2 }
+                'f' -> { sb.append(0x0C.toChar()); i += 2 }
+                '(' , ')' , '\\' -> { sb.append(n); i += 2 }
+                in '0'..'7' -> {
+                    var j = i + 1
+                    var v = 0
+                    var cnt = 0
+                    while (j < s.length && cnt < 3 && s[j] in '0'..'7') {
+                        v = v * 8 + (s[j] - '0')
+                        j++
+                        cnt++
+                    }
+                    sb.append(v.toChar())
+                    i = j
+                }
+                '\n', '\r' -> i += 2 // nối dòng (line continuation)
+                else -> { sb.append(n); i += 2 }
+            }
+        }
+        return sb.toString()
     }
 
     // ------------------------------------------------------------------ font PDF
