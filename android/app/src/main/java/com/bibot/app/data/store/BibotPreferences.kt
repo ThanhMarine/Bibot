@@ -52,6 +52,12 @@ object PrefKeys {
     val SUMMARY_SHARE_ENABLED = booleanPreferencesKey("summary_share_enabled")
     // B6.19: nền màn đọc — "drum" (trống đồng, mặc định) | "solid" (đơn sắc cùng tông)
     val READER_BACKGROUND = stringPreferencesKey("reader_background")
+    // E2.4: display modes PDF — fit "width"|"height"; lật trang
+    // "continuous"|"single"|"dual"; màu trang "normal"|"sepia"|"night"; xoay "0"|"90"|"180"|"270"
+    val READER_FIT_MODE = stringPreferencesKey("reader_fit_mode")
+    val READER_PAGING_MODE = stringPreferencesKey("reader_paging_mode")
+    val READER_PAGE_THEME = stringPreferencesKey("reader_page_theme")
+    val READER_PAGE_ROTATION = stringPreferencesKey("reader_page_rotation")
 }
 
 // A2.3: Allowed values from ReadEra eraepub
@@ -86,7 +92,12 @@ data class BibotPrefs(
     // B5.7: chia sẻ tóm tắt lên wiki công cộng
     val summaryShareEnabled: Boolean = true,
     // B6.19: nền màn đọc — "drum" (trống đồng) | "solid" (đơn sắc)
-    val readerBackground: String = "drum"
+    val readerBackground: String = "drum",
+    // E2.4: display modes PDF (khớp hằng ở PdfDisplayMode.kt)
+    val readerFitMode: String = "width",
+    val readerPagingMode: String = "continuous",
+    val readerPageTheme: String = "normal",
+    val readerPageRotation: String = "0"
 )
 
 class BibotPreferences(private val context: Context) {
@@ -116,7 +127,11 @@ class BibotPreferences(private val context: Context) {
             readerInterline = p[PrefKeys.READER_INTERLINE] ?: 1.2f,
             readerParagraphMargin = p[PrefKeys.READER_PARAGRAPH_MARGIN] ?: 8f,
             summaryShareEnabled = p[PrefKeys.SUMMARY_SHARE_ENABLED] ?: true,
-            readerBackground = p[PrefKeys.READER_BACKGROUND] ?: "drum"
+            readerBackground = p[PrefKeys.READER_BACKGROUND] ?: "drum",
+            readerFitMode = p[PrefKeys.READER_FIT_MODE] ?: "width",
+            readerPagingMode = p[PrefKeys.READER_PAGING_MODE] ?: "continuous",
+            readerPageTheme = p[PrefKeys.READER_PAGE_THEME] ?: "normal",
+            readerPageRotation = p[PrefKeys.READER_PAGE_ROTATION] ?: "0"
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }
@@ -144,6 +159,11 @@ class BibotPreferences(private val context: Context) {
     suspend fun setSummaryShareEnabled(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.SUMMARY_SHARE_ENABLED] = v } }
     // B6.19: nền màn đọc "drum"/"solid"
     suspend fun setReaderBackground(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_BACKGROUND] = v } }
+    // E2.4: display modes PDF (fit/paging/theme/rotation)
+    suspend fun setReaderFitMode(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_FIT_MODE] = v } }
+    suspend fun setReaderPagingMode(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_PAGING_MODE] = v } }
+    suspend fun setReaderPageTheme(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_PAGE_THEME] = v } }
+    suspend fun setReaderPageRotation(v: Int) { context.bibotDataStore.edit { it[PrefKeys.READER_PAGE_ROTATION] = v.toString() } }
 
     // API keys lưu EncryptedSharedPreferences nếu cần; ở đây lưu DataStore + backupRules exclude
     suspend fun setGeminiKey(v: String) { context.bibotDataStore.edit { it[PrefKeys.GEMINI_API_KEY] = v } }

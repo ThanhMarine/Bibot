@@ -916,9 +916,16 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
   `P5 • câu 13`; long-press panel → menu Copy/Select all + handles; 0 FATAL.
   **CÒN LẠI:** (1) reflow-text button (TEXT mode đã là reflow — cần nút chuyển
   rõ); (2) crop margin port `IsRectWhite` (chung A3.4).
-- [ ] E2.4 PDF — modes hiển thị: fit-width/fit-page, single/continuous, dual-page,
-  rotation, night/sepia recolor (hiện chỉ brightness `window.screenBrightness`),
-  annotation/highlight persist theo `fileHash` (E1.3).
+- [x] E2.4 PDF — modes hiển thị (display modes): fit-width/fit-page, continuous/
+  single(snap)/dual-page, rotation 0/90/180/270, night/sepia recolor — persist
+  DataStore (`readerFitMode/PagingMode/PageTheme/PageRotation`); popup ⚙ thêm
+  section display (4 hàng cycle, không tự đóng); **fix nút `‹`/`›` đổi TRANG
+  ±1** (trước luôn chương ±1 → header không đổi); ghim vị trí khi đổi paging
+  mode (dual↔single giữ đúng trang đang đọc qua `pagingAlignTarget/Tick` +
+  `pendingJumpReport`, chỉ consume pending khi report thật); verify emulator:
+  cycle 4 hàng, snap 1 trang/lượt, dual 2 cột + header trang lẻ, cold-start
+  nhận đủ params, 0 FATAL; unit `PdfDisplayModeTest` 11/11 (JVM 129/129).
+- [ ] E2.4 (còn lại) — annotation/highlight persist theo `fileHash` (E1.3).
 - [ ] E2.5 EPUB — full rich + phân trang thật:
   mở rộng `EpubReader.richParse` (CSS, font-family/màu, `table/ul-ol/footnote/dropcap`),
   giữ `readImageBytes` sampled; phân trang theo font (paginated, tính % trang chuẩn)

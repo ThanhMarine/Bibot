@@ -380,6 +380,19 @@
     <string name="chrome_text_panel_empty">No extractable text on this page.</string>
     <string name="chrome_text_panel_none">No pages match.</string>
     <string name="chrome_text_panel_loading">Extracting text…</string>
+    <!-- E2.4: display modes PDF trong popup ⚙ -->
+    <string name="chrome_fit">Page fit</string>
+    <string name="chrome_fit_width">Fit width</string>
+    <string name="chrome_fit_page">Fit page</string>
+    <string name="chrome_paging">Paging</string>
+    <string name="chrome_paging_continuous">Continuous</string>
+    <string name="chrome_paging_single">Single page</string>
+    <string name="chrome_paging_dual">Dual page</string>
+    <string name="chrome_theme">Page color</string>
+    <string name="chrome_theme_original">Original</string>
+    <string name="chrome_theme_sepia">Sepia</string>
+    <string name="chrome_theme_night">Night</string>
+    <string name="chrome_rotate_90">Rotate 90°</string>
     <string name="chrome_chapter_of">Chapter %1$d/%2$d</string>
     <string name="chrome_back_to_page">‹ Back to page %1$d</string>
     <string name="chrome_history_clear">Clear</string>

@@ -370,16 +370,48 @@ Storytelling) — giờ `rm -f` trước dump, báo `DUMP_FAILED`/`PULL_FAILED` 
 fresh-dump trước MỖI tap quyết định; ad banner/Chrome mở do tap trúng ad → đọc dump
 trước khi bấm tiếp.
 
+## 1.11 E2.4 (display modes) - fit/paging/theme/rotation + fix `‹`/`›` (2026-10-21)
+- **Code:** `PdfDisplayMode.kt` (mới, logic thuần + test JVM `PdfDisplayModeTest` 11/11):
+  cycle `nextFitMode/nextPagingMode/nextPageTheme/nextRotation`, `effPageRatio`,
+  `fitPageSize`, `sourceSizeForRotation`, `displaySizeFor`; `PdfPageView.kt` viết lại
+  (params `fitMode/pagingMode/pageTheme/pageRotation`, invalidate khi đổi xoay, jump
+  dual-aware + `pendingJumpReport`, visible-effect dual `{−1,+1,+2}`, `PagePane` local
+  với themeFilter `ColorMatrix`, snap `rememberSnapFlingBehavior` khi single, render
+  `Matrix.postRotate`); `ReaderChrome.kt` popup ⚙ + section display (4 hàng cycle,
+  không tự đóng, gated `isPdfBook && !viewLockedPage && viewMode==PAGE`); `ReaderScreen.kt`
+  **fix nút `‹`/`›` = TRANG ±1** (trước luôn chương ±1 → header không đổi), 2 call site
+  đủ args; `BibotPreferences.kt` +4 key persist; strings en/vi +12.
+- **3 bug race đã fix khi verify trên emulator** (quan trọng cho phiên sau):
+  1. Bump jump trong `onPagingChange` chạy với pagingMode CŨ → canvas lệch;
+  2. Visible effect re-key đọc lại `firstVisible` theo ghép MỚI TRƯỚC khi align scroll
+     → `pageIndex` clobbered → jumpTarget sai;
+  3. Skip-report consume `pendingJumpReport` dù không report → vis run sau report
+     `v=trang trái cặp` → header nhảy Page1 sau khi single→dual.
+  **Cơ chế chốt:** `pagingAlignTarget/Tick` set trong `onPagingChange` (pageIndex cũ
+  còn đúng) → `LaunchedEffect(pagingAlignTick, pagingMode)` trong PdfPageView chạy 2
+  lượt (mode cũ no-op, mode mới scroll + pending); vis chỉ consume pending KHI report
+  thật (`wantRep != lastReportedPage`).
+- **Verify emulator (marker10, rot=270, 0 FATAL):** cycle 4 hàng popup không tự đóng;
+  fit height↔width; paging continuous→single(snap 1 trang/lượt vuốt, header auto)
+  →dual (2 cột, `‹`/`›` header đúng trang lẻ) và **ghim vị trí cả 2 chiều**
+  (dual page2→single page2+header Page2→dual cặp(1,2)+header Page2); theme
+  sepia→night (screenshot trang tối chữ sáng); xoay 0/90/180/270 persist DataStore;
+  cold-start nhận đủ params (`rot=270 fit=… paging=… theme=…`).
+- **Bài học verify:** log tạm `E24` (đã xóa trước commit) cần thiết để thấy race —
+  "header sai" lần đầu bị tưởng tap trượt; tap (540,700) dual trúng GAP 2 cột → không
+  toggle chrome (không phải bug); `uiautomator dump` fail lần 1 sau install → retry.
+
 ## 2. Gate (chạy lại sau E2)
+
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
   (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **118/118, 0 fail** (17 suite; mới ở E2.3 panel:
-  `PdfTextSearchTest 7/7`; E2.3 TOC: `PdfOutlineTest 8/8`; E2.1: `BlockTextReaderPdfPagesTest 6/6`
-  + `PdfPageMapTest 8/8` → 102; trước đó 88/88 — `RulesOtaTest 4/4` H3, 84/84 —
-  `ReaderViewModelTest 4/4` G1.2).
+- JVM `:app:testDemoDebugUnitTest` → **129/129, 0 fail** (mới ở E2.4:
+  `PdfDisplayModeTest 11/11` → 129; trước đó 118/118 — E2.3 panel `PdfTextSearchTest 7/7`
+  + TOC `PdfOutlineTest 8/8` → 118; E2.1 `BlockTextReaderPdfPagesTest 6/6` +
+  `PdfPageMapTest 8/8` → 102; H3 `RulesOtaTest 4/4` → 88; G1.2 `ReaderViewModelTest 4/4`).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -403,9 +435,8 @@ trước khi bấm tiếp.
   (reader thật đã về home, tap 928,419 trúng card Storytelling); giờ `rm -f` trước dump +
   báo `DUMP_FAILED`/`PULL_FAILED` — thấy báo vậy thì chờ 2s dump lại.
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
-- **Nút `>` chuyển trang PAGE không cập nhật header** (bấm `>` (1024,300) vẫn "Page 4 of 10",
-  swipe dọc mới lên trang) — quan sát E2.1, thuộc nợ **E2.4**; khi sửa nhớ test `<`/`>` +
-  TOC/chip "x of N" cùng lúc.
+- **[ĐÃ FIX ở E2.4]** Nút `‹`/`›` chuyển trang PAGE — trước luôn chương ±1 (header
+  không đổi); giờ `‹`/`›` = TRANG ±1 (PDF PAGE mode, non-locked), verify dual + pending.
 - Shelf EN Books không tự thấy file mới → bấm **Refresh** (180,390) rồi scroll; Storytelling
   shelf cached 18 story không refresh. Mới mở app cold-start thấy snapshot window cũ nếu dump
   <25s (đã ghi G1.2).
@@ -419,7 +450,8 @@ trước khi bấm tiếp.
 ## 4. Nợ sang phiên sau
 - **E2.3 còn lại: reflow-text button + crop margin `IsRectWhite`** (selection/copy/search/TOC
   đã XONG — panel text-layer, xem §1.10);
-  E2.4 (display modes + **fix nút `>` không cập nhật header**), E2.5 EPUB rich,
+  **E2.4 còn lại: annotation/highlight persist theo `fileHash`** (display modes +
+  fix `‹`/`›` đã XONG — §1.11); E2.5 EPUB rich,
   E2.6 verify 1200 trang (outline parse cap 12MB → PDF lớn không có TOC outline),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,

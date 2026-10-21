@@ -380,6 +380,19 @@
     <string name="chrome_text_panel_empty">Trang này không trích được chữ.</string>
     <string name="chrome_text_panel_none">Không trang nào khớp.</string>
     <string name="chrome_text_panel_loading">Đang trích chữ…</string>
+    <!-- E2.4: display modes PDF trong popup ⚙ -->
+    <string name="chrome_fit">Khổ trang</string>
+    <string name="chrome_fit_width">Vừa bề rộng</string>
+    <string name="chrome_fit_page">Vừa màn hình</string>
+    <string name="chrome_paging">Chế độ trang</string>
+    <string name="chrome_paging_continuous">Liền mạch</string>
+    <string name="chrome_paging_single">Một trang</string>
+    <string name="chrome_paging_dual">Hai trang</string>
+    <string name="chrome_theme">Màu trang</string>
+    <string name="chrome_theme_original">Mặc định</string>
+    <string name="chrome_theme_sepia">Nâu cổ</string>
+    <string name="chrome_theme_night">Đêm</string>
+    <string name="chrome_rotate_90">Xoay 90°</string>
     <string name="chrome_chapter_of">Chương %1$d/%2$d</string>
     <string name="chrome_back_to_page">‹ Về trang %1$d</string>
     <string name="chrome_history_clear">XÓA</string>

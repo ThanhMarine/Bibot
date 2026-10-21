@@ -5,14 +5,20 @@ import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -30,11 +36,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bibot.app.R
 import com.bibot.app.ui.player.contentBottomInset
@@ -43,6 +53,21 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+
+// E2.4: ma trận màu 4x5 (cùng định dạng android ColorMatrix) — sepia cổ điển
+// và đảo màu chế độ Đêm (white→black, black→white — như night mode ReadEra).
+private val SEPIA_COLOR_MATRIX = floatArrayOf(
+    0.393f, 0.769f, 0.189f, 0f, 0f,
+    0.349f, 0.686f, 0.168f, 0f, 0f,
+    0.272f, 0.534f, 0.131f, 0f, 0f,
+    0f, 0f, 0f, 1f, 0f
+)
+private val NIGHT_COLOR_MATRIX = floatArrayOf(
+    -1f, 0f, 0f, 0f, 255f,
+    0f, -1f, 0f, 0f, 255f,
+    0f, 0f, -1f, 0f, 255f,
+    0f, 0f, 0f, 1f, 0f
+)
 
 /**
  * E1.1 — Đường DISPLAY thuần cho PDF (VIEW, không chứa logic TTS):
@@ -54,6 +79,8 @@ import java.io.File
  *   Lệch E1.5: PdfRenderer framework BẮT BUỘC ARGB_8888 (RGB_565 ném
  *   IllegalArgumentException) — bù lại bằng pool 3 trang.
  * - Trang lỗi render → ô lỗi, không crash cả list.
+ * - E2.4 display modes (PdfDisplayMode.kt): fit-width/fit-page, continuous/
+ *   single(snap)/dual, xoay lúc render, theme sepia/night (ColorFilter).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -65,6 +92,14 @@ fun PdfPageView(
     // lại cả khi selectedPage không đổi (user đã vuốt đi chỗ khác).
     jumpPage: Int? = null,
     jumpTick: Int = 0,
+    // E2.4: display modes — hằng ở PdfDisplayMode.kt (persist qua BibotPreferences).
+    fitMode: String = FIT_WIDTH,
+    pagingMode: String = PAGING_CONTINUOUS,
+    pageTheme: String = THEME_ORIGINAL,
+    pageRotation: Int = 0,
+    // E2.4: ghim vị trí khi đổi paging mode (target + tick set trong onPagingChange).
+    pagingAlignTarget: Int = 0,
+    pagingAlignTick: Int = 0,
     onVisiblePage: (Int) -> Unit,
     onPageTap: () -> Unit,
     onPageLongPress: (Int) -> Unit,
@@ -130,6 +165,16 @@ fun PdfPageView(
         }
     }
 
+    // E2.4: đổi XOAY → render lại mọi bitmap theo tỉ lệ mới (xoay lúc render
+    // giữ pixel; placeholder đổi tỉ lệ eff cùng lúc → không lệch chiều cao).
+    LaunchedEffect(pageRotation) {
+        if (bitmaps.isNotEmpty()) {
+            for (b in bitmaps.values) { try { b.recycle() } catch (_: Exception) {} }
+            bitmaps.clear()
+        }
+        if (failed.isNotEmpty()) failed.clear()
+    }
+
     DisposableEffect(file.absolutePath) {
         onDispose {
             try {
@@ -165,11 +210,40 @@ fun PdfPageView(
         initialFirstVisibleItemIndex = initialPage.coerceIn(0, pageCount - 1)
     )
 
+    // E2.4: jump tới trang LẺ trong cặp dual → header phải hiện đúng trang đó
+    // (không phải trang trái của cặp). Set trước khi scroll, consume khi báo.
+    var pendingJumpReport by remember(file.absolutePath) { mutableIntStateOf(-1) }
+    // E2.4: trang cuối header từng báo — đổi paging mode ghim lại theo trang
+    // NÀY (không dùng pageIndex ở ReaderScreen: visible effect re-key chạy
+    // trước mọi bump → pageIndex đã bị đọc lại theo ghép mới → clobber).
+    var lastReportedPage by remember(file.absolutePath) { mutableIntStateOf(initialPage.coerceIn(0, pageCount - 1)) }
+
+    // E2.4: ghim vị trí khi đổi paging mode. Target do ReaderScreen set NGAY
+    // TRONG onPagingChange (pageIndex cũ còn đúng, trước khi visible effect
+    // re-key đọc lại firstVisible theo ghép mới → clobber). Effect keyed
+    // (tick, mode): chạy lần 1 với mode cũ (no-op), lần 2 khi mode mới tới
+    // → scroll + pending báo header đúng trang.
+    LaunchedEffect(pagingAlignTick, pagingMode) {
+        if (pagingAlignTick <= 0) return@LaunchedEffect
+        if (pageCount <= 0) return@LaunchedEffect
+        val t = pagingAlignTarget.coerceIn(0, pageCount - 1)
+        val dualNew = pagingMode == PAGING_DUAL
+        val targetItem = if (dualNew) t / 2 else t
+        if (dualNew) pendingJumpReport = t else pendingJumpReport = -1
+        if (listState.firstVisibleItemIndex == targetItem) return@LaunchedEffect
+        try { listState.scrollToItem(targetItem) } catch (_: Exception) {}
+    }
+
     // E2.3: nhảy tới trang neo (resume chip / TOC outline / panel search / book search) —
     // trước đây CHỈ header đổi, canvas đứng yên vì list không ai scroll (initialPage=0).
+    // E2.4 dual: item = cặp (trang/2) — nhảy trang lẻ vẫn thấy trang đó (nửa phải).
     LaunchedEffect(jumpPage, jumpTick) {
         val t = jumpPage ?: return@LaunchedEffect
-        if (t in 0 until pageCount && t != listState.firstVisibleItemIndex) {
+        if (t !in 0 until pageCount) return@LaunchedEffect
+        val dual = pagingMode == PAGING_DUAL
+        val curPage = if (dual) listState.firstVisibleItemIndex * 2 else listState.firstVisibleItemIndex
+        if (t != curPage) {
+            if (dual) pendingJumpReport = t
             // Chờ đủ tỉ lệ MỌI trang trước khi scroll: scrollToItem đo item
             // đang compose (placeholder) — thiếu tỉ lệ sẽ cộng dồn chiều cao
             // sai và rơi index (best-effort, timeout 4s rồi vẫn scroll).
@@ -179,7 +253,10 @@ fun PdfPageView(
             // scrollToItem với layout chưa đủ tỉ lệ từng rơi sai index rồi bị
             // anchor đứng yên (E2.3) — nuốt lỗi để không crash; nhảy hỏng chỉ
             // là đứng yên như trước khi có tính năng.
-            try { listState.scrollToItem(t) } catch (_: Exception) {}
+            try { listState.scrollToItem(if (dual) t / 2 else t) } catch (_: Exception) {}
+        } else if (dual) {
+            // Đã đúng cặp nhưng header có thể đang hiện trang kia → báo lại.
+            pendingJumpReport = t
         }
     }
 
@@ -190,10 +267,10 @@ fun PdfPageView(
         try {
             val bmp = renderMutex.withLock {
                 withContext(Dispatchers.IO) {
-                    renderPdfBitmap(r, idx, widthPx)
+                    renderPdfBitmap(r, idx, widthPx, pageRotation)
                         // Trang nặng (Type3/ảnh lớn, vd grimm10) OOM/lỗi ở full-width →
                         // thử lại nửa chiều rộng thay vì bỏ trang (tôn trọng bản gốc).
-                        ?: renderPdfBitmap(r, idx, widthPx / 2)
+                        ?: renderPdfBitmap(r, idx, widthPx / 2, pageRotation)
                 }
             }
             if (bmp != null) bitmaps[idx] = bmp else failed[idx] = true
@@ -215,32 +292,84 @@ fun PdfPageView(
     // Mọi render qua renderMutex (PdfRenderer không thread-safe: 1 Page mở tại
     // 1 thời điểm — effect chính + fallback từng item mà song song là
     // "IllegalStateException: Current page not closed"); đổi trang cancel effect cũ.
-    LaunchedEffect(listState.firstVisibleItemIndex, pageCount) {
-        val v = listState.firstVisibleItemIndex.coerceIn(0, pageCount - 1)
-        onVisiblePage(v)
+    // E2.4 dual: item = cặp → v = trang trái của cặp, prefetch thêm trang phải.
+    // jumpTick trong key: jump trong CÙNG cặp (không đổi firstVisible) vẫn phải
+    // báo header lại đúng trang đích (pendingJumpReport).
+    LaunchedEffect(listState.firstVisibleItemIndex, pageCount, pagingMode, jumpTick) {
+        val dual = pagingMode == PAGING_DUAL
+        val first = listState.firstVisibleItemIndex.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+        val v = if (dual) (first * 2).coerceAtMost(pageCount - 1) else first
+        // Jump dual tới trang lẻ (nửa phải của cặp) → báo đúng trang đích.
+        // Chỉ consume pending KHI THỰC SỰ report: skip (rep==last) mà consume
+        // là mất pending → run vis sau report v=trang trái cặp → header nhảy
+        // sai sau khi đổi paging mode (single→dual thấy Page1 thay vì Page2).
+        val wantRep = if (dual && pendingJumpReport in v..(v + 1)) pendingJumpReport else v
+        if (wantRep != lastReportedPage) {
+            pendingJumpReport = -1
+            onVisiblePage(wantRep)
+            lastReportedPage = wantRep
+        }
         renderPage(v)
-        for (d in listOf(-1, 1)) {
+        val deltas = if (dual) listOf(-1, 1, 2) else listOf(-1, 1)
+        for (d in deltas) {
             val n = v + d
             if (n in 0 until pageCount && !bitmaps.containsKey(n) && !failed.containsKey(n)) {
                 renderPage(n)
             }
         }
-        evictExcept(setOf(v - 1, v, v + 1))
+        evictExcept(deltas.map { v + it }.toSet() + v)
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = contentBottomInset())
-    ) {
-        items(pageCount, key = { it }) { idx ->
+    // E2.4: filter màu trang + nền khung (theme) — tính 1 lần/setting.
+    val themeFilter = remember(pageTheme) {
+        when (pageTheme) {
+            THEME_SEPIA -> ColorFilter.colorMatrix(ColorMatrix(SEPIA_COLOR_MATRIX))
+            THEME_NIGHT -> ColorFilter.colorMatrix(ColorMatrix(NIGHT_COLOR_MATRIX))
+            else -> null
+        }
+    }
+    val paneBg = when (pageTheme) {
+        THEME_SEPIA -> Color(0xFFEFE3C8)
+        THEME_NIGHT -> Color(0xFF0E0E0E)
+        else -> Color.Transparent
+    }
+    // E2.4 single: snap 1 trang/lần vuốt (chỉ dùng khi mode single — còn lại
+    // fling mặc định của LazyColumn).
+    val snapFling = rememberSnapFlingBehavior(lazyListState = listState)
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // Khung thật của list — fit-page tính chiều cao theo khung này.
+        val boxW = maxWidth
+        val boxH = maxHeight
+        val dual = pagingMode == PAGING_DUAL
+
+        // Kích thước trang CHUNG cho bitmap VÀ placeholder với tỉ lệ HIỂNG THỊ
+        // (ảnh đã xoay → bmp w/h tự là tỉ lệ hiệu dụng; placeholder → effPageRatio).
+        // E2.3: 2 bên PHẢI trùng nhau, không là scrollToItem rơi index.
+        fun pageSizeDp(ratioEff: Float, availW: Dp): Pair<Dp, Dp> {
+            val maxW = availW - 8.dp       // padding khung giấy 4dp × 2
+            val maxH = boxH - 24.dp        // chừa nhịp trên/dưới
+            val (w, h) = fitPageSize(maxW.value, maxH.value, ratioEff, fitMode)
+            return w.dp to h.dp
+        }
+
+        @Composable
+        fun PagePane(idx: Int, availW: Dp, paneModifier: Modifier) {
+            if (idx !in 0 until pageCount) {
+                Spacer(paneModifier)
+                return
+            }
             val bmp = bitmaps[idx]
             val isSel = selectedPage == idx
+            val ratioEff = if (bmp != null && !bmp.isRecycled) {
+                bmp.width.toFloat() / bmp.height.toFloat()
+            } else {
+                effPageRatio(pageRatios[idx] ?: 0.707f, pageRotation)
+            }
+            val (pw, ph) = pageSizeDp(ratioEff, availW)
             Box(
-                // Giả lập tờ giấy: lề hẹp 4dp (was 8dp) để ảnh trang tràn ngang
-                // tối đa; viền trang 0.4dp outlineVariant giữ cảm giác tờ giấy.
-                modifier = Modifier.fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                modifier = paneModifier
+                    .background(paneBg)
                     .border(
                         0.4.dp, MaterialTheme.colorScheme.outlineVariant,
                         androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
@@ -260,15 +389,11 @@ fun PdfPageView(
                     Image(
                         bitmap = bmp.asImageBitmap(),
                         contentDescription = stringResource(R.string.chrome_page_of, idx + 1, pageCount),
-                        modifier = Modifier.fillMaxWidth()
-                            .aspectRatio(bmp.width.toFloat() / bmp.height.toFloat())
+                        modifier = Modifier.size(pw, ph),
+                        colorFilter = themeFilter
                     )
                 } else if (failed.containsKey(idx)) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                            .aspectRatio(pageRatios[idx] ?: 0.707f),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.size(pw, ph), contentAlignment = Alignment.Center) {
                         Text(
                             "⚠ ${idx + 1}",
                             style = MaterialTheme.typography.bodyMedium,
@@ -277,14 +402,10 @@ fun PdfPageView(
                         )
                     }
                 } else {
-                    // Ô chờ render PHẢI cao đúng tỉ lệ trang (giống Image bitmap):
+                    // Ô chờ render PHẢI đúng kích thước trang (như Image bitmap):
                     // Text thấp sẵn làm LazyColumn đo item thiếu → scrollToItem
                     // nhảy rơi sai index rồi đứng yên (bug E2.3 canvas không nhảy).
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                            .aspectRatio(pageRatios[idx] ?: 0.707f),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.size(pw, ph), contentAlignment = Alignment.Center) {
                         Text(
                             "${idx + 1} / $pageCount",
                             style = MaterialTheme.typography.bodyMedium,
@@ -292,7 +413,39 @@ fun PdfPageView(
                             modifier = Modifier.padding(32.dp)
                         )
                     }
-                    LaunchedEffect(idx) { renderPage(idx) }
+                    LaunchedEffect(idx, pageRotation) { renderPage(idx) }
+                }
+            }
+        }
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = contentBottomInset()),
+            flingBehavior = if (pagingMode == PAGING_SINGLE) snapFling
+            else ScrollableDefaults.flingBehavior()
+        ) {
+            val pairCount = if (dual) (pageCount + 1) / 2 else pageCount
+            items(pairCount, key = { it }) { pair ->
+                if (dual) {
+                    val left = pair * 2
+                    val right = left + 1
+                    // Hai cột đều nhau: mỗi cột (khung - khe) / 2 — trang tính theo
+                    // pageSizeDp(availW) nên bitmap + placeholder vẫn khớp nhau.
+                    val availW = (boxW - 12.dp) / 2
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp)) {
+                        PagePane(left, availW, Modifier.weight(1f).padding(horizontal = 2.dp))
+                        if (right < pageCount) {
+                            PagePane(right, availW, Modifier.weight(1f).padding(horizontal = 2.dp))
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                } else {
+                    PagePane(
+                        pair, boxW,
+                        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
+                    )
                 }
             }
         }
@@ -315,32 +468,32 @@ fun PdfPageView(
 }
 
 /**
- * Render 1 trang PDF ở bề rộng [targetW]px, GIỮ đúng tỷ lệ khung hình
- * (bản cũ cap chiều cao 2400 làm trang dài bị bẹp). Null khi lỗi/OOM.
+ * Render 1 trang PDF ở bề rộng [targetW]px (đã áp [rotation] — E2.4), GIỮ đúng
+ * tỷ lệ khung hình qua `displaySizeFor` (E1.5 trần 2400) + `sourceSizeForRotation`
+ * (nguồn bitmap trước xoay) rồi quay Matrix. Null khi lỗi/OOM.
  */
-private fun renderPdfBitmap(r: PdfRenderer, idx: Int, targetW: Int): Bitmap? {
+private fun renderPdfBitmap(r: PdfRenderer, idx: Int, targetW: Int, rotation: Int = 0): Bitmap? {
     var page: PdfRenderer.Page? = null
     return try {
         page = r.openPage(idx)
         val w = page.width
         val h = page.height
-        if (w <= 0 || h <= 0) return null
-        var bw = targetW.coerceIn(240, 1600)
-        var bh = (h * (bw.toFloat() / w)).toInt()
-        if (bh > 2400) {
-            // Trang quá dài: thu nhỏ CẢ 2 chiều (giữ aspect), tránh OOM.
-            val s = 2400f / bh
-            bw = (bw * s).toInt().coerceAtLeast(240)
-            bh = 2400
-        }
-        if (bw <= 0 || bh <= 0) return null
+        val (dw, dh) = displaySizeFor(w, h, targetW, rotation)
+        if (dw <= 0 || dh <= 0) return null
+        val (sw, sh) = sourceSizeForRotation(dw, dh, rotation)
+        if (sw <= 0 || sh <= 0) return null
         // PdfRenderer framework bắt buộc ARGB_8888 (xem kdoc E1.5).
-        val b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
-        page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-        b
+        val src = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888)
+        page.render(src, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        val rot = ((rotation % 360) + 360) % 360
+        if (rot == 0) return src
+        val m = android.graphics.Matrix().apply { postRotate(rot.toFloat()) }
+        val out = Bitmap.createBitmap(src, 0, 0, sw, sh, m, true)
+        if (out !== src) { try { src.recycle() } catch (_: Exception) {} }
+        out
     } catch (t: Throwable) {
         // Log nguyên nhân (Type3/OOM/...) để chẩn đoán trang lỗi — UI vẫn placeholder.
-        try { android.util.Log.w("PdfPageView", "render p$idx @${targetW}px fail: ${t::class.java.simpleName}: ${t.message}") } catch (_: Exception) {}
+        try { android.util.Log.w("PdfPageView", "render p$idx @${targetW}px rot=$rotation fail: ${t::class.java.simpleName}: ${t.message}") } catch (_: Exception) {}
         null
     } finally {
         try { page?.close() } catch (_: Exception) {}

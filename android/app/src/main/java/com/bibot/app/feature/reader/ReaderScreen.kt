@@ -222,6 +222,10 @@ fun ReaderScreen(
     // không được kéo canvas về anchor cũ.
     var pdfJumpTarget by remember { mutableStateOf<Int?>(null) }
     var pageJumpTick by remember { mutableIntStateOf(0) }
+    // E2.4: ghim trang khi đổi paging mode — target set trong onPagingChange
+    // (pageIndex cũ còn đúng trước khi visible effect re-key clobber).
+    var pagingAlignTarget by remember { mutableIntStateOf(0) }
+    var pagingAlignTick by remember { mutableIntStateOf(0) }
     var brightness by remember { mutableStateOf<Float?>(null) } // null = hệ thống
     var bookFile by remember { mutableStateOf<File?>(null) }
     var fileHashState by remember { mutableStateOf("") } // SHA-1 (E1.3)
@@ -1565,10 +1569,16 @@ fun ReaderScreen(
                 } else {
                     PdfPageView(
                         file = bf,
-                        initialPage = 0,
+                        initialPage = pageIndex,
                         selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
                         jumpPage = pdfJumpTarget,
                         jumpTick = pageJumpTick,
+                        fitMode = prefsState.readerFitMode,
+                        pagingMode = prefsState.readerPagingMode,
+                        pageTheme = prefsState.readerPageTheme,
+                        pageRotation = prefsState.readerPageRotation.toIntOrNull() ?: 0,
+                        pagingAlignTarget = pagingAlignTarget,
+                        pagingAlignTick = pagingAlignTick,
                         onVisiblePage = { pageIndex = it },
                         onPageCount = { pageCount = it },
                         onPageTap = { menuVisible = !menuVisible },
@@ -1690,6 +1700,30 @@ fun ReaderScreen(
                     stringResource(R.string.chrome_page_of, pageIndex + 1, pageCount)
                 else stringResource(R.string.chrome_chapter_of, currentChapter + 1, chapters.size)) +
                     if (degradedEngine) " • offline" else ""
+                // E2.4: ‹/› khi xem PAGE = TRANG ±1 (trước đây luôn là chương ±1 —
+                // PDF 1 chương → bấm "›" không ăn, header "Page N" không đổi — bug E2.1).
+                // Trang ±1 đổi pageIndex + tick nhảy canvas, KHÔNG set selAnchor
+                // (đây là lật trang tự do, không phải neo điểm đọc như TOC/long-press).
+                val onPrevNav: () -> Unit = {
+                    if (viewMode == ReaderView.PAGE && pageCount > 0) {
+                        if (pageIndex > 0) {
+                            pageIndex -= 1
+                            pdfJumpTarget = pageIndex
+                            pageJumpTick++
+                        } else status = context.getString(strAtStart)
+                    } else if (currentChapter > 0) requestJump(currentChapter - 1)
+                    else status = context.getString(strAtStart)
+                }
+                val onNextNav: () -> Unit = {
+                    if (viewMode == ReaderView.PAGE && pageCount > 0) {
+                        if (pageIndex + 1 < pageCount) {
+                            pageIndex += 1
+                            pdfJumpTarget = pageIndex
+                            pageJumpTick++
+                        } else status = context.getString(R.string.reader_at_end)
+                    } else if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
+                    else status = context.getString(R.string.reader_at_end)
+                }
                 if (menuVisible) {
                     if (isLandscape) {
                         ReaderCompactBar(
@@ -1702,14 +1736,8 @@ fun ReaderScreen(
                             onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
                             onToc = { tocOpen = true },
                             onSettings = { settingsOpen = true },
-                            onPrevChapter = {
-                                if (currentChapter > 0) requestJump(currentChapter - 1)
-                                else status = context.getString(strAtStart)
-                            },
-                            onNextChapter = {
-                                if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
-                                else status = context.getString(R.string.reader_at_end)
-                            },
+                            onPrevChapter = onPrevNav,
+                            onNextChapter = onNextNav,
                             playLabel = playDesc
                         )
                     } else {
@@ -1744,14 +1772,8 @@ fun ReaderScreen(
                     if (!isLandscape) {
                         ReaderBottomBar(
                             chapterText = chapterLine,
-                            onPrevChapter = {
-                                if (currentChapter > 0) requestJump(currentChapter - 1)
-                                else status = context.getString(strAtStart)
-                            },
-                            onNextChapter = {
-                                if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
-                                else status = context.getString(R.string.reader_at_end)
-                            }
+                            onPrevChapter = onPrevNav,
+                            onNextChapter = onNextNav
                         )
                     }
                 }
@@ -1859,10 +1881,16 @@ fun ReaderScreen(
                         } else {
                             PdfPageView(
                                 file = bf,
-                                initialPage = 0,
+                                initialPage = pageIndex,
                                 selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
                                 jumpPage = pdfJumpTarget,
                                 jumpTick = pageJumpTick,
+                                fitMode = prefsState.readerFitMode,
+                                pagingMode = prefsState.readerPagingMode,
+                                pageTheme = prefsState.readerPageTheme,
+                                pageRotation = prefsState.readerPageRotation.toIntOrNull() ?: 0,
+                                pagingAlignTarget = pagingAlignTarget,
+                                pagingAlignTick = pagingAlignTick,
                                 onVisiblePage = { pageIndex = it },
                                 onPageCount = { pageCount = it },
                                 onPageTap = { menuVisible = !menuVisible },
@@ -2122,7 +2150,31 @@ Column(
                 onBackgroundChange = { v ->
                     scope.launch { try { prefs.setReaderBackground(v) } catch (_: Exception) {} }
                 },
-                onExport = onExport
+                onExport = onExport,
+                // E2.4: display modes PDF (chỉ sách PDF, không lock, đang ở view PAGE).
+                pageDisplayEnabled = isPdfBook && !viewLockedPage && viewMode == ReaderView.PAGE,
+                fitMode = prefsState.readerFitMode,
+                onFitChange = { v ->
+                    scope.launch { try { prefs.setReaderFitMode(v) } catch (_: Exception) {} }
+                },
+                pagingMode = prefsState.readerPagingMode,
+                onPagingChange = { v ->
+                    // E2.4: ghim trang hiện tại TRƯỚC khi write (pageIndexChanged
+                    // bởi visible effect re-key → effect align keyed (tick, mode)
+                    // sẽ scroll lại đúng trang khi mode mới tới).
+                    pagingAlignTarget = pageIndex
+                    pagingAlignTick++
+                    scope.launch { try { prefs.setReaderPagingMode(v) } catch (_: Exception) {} }
+                },
+                pageTheme = prefsState.readerPageTheme,
+                onThemeChange = { v ->
+                    scope.launch { try { prefs.setReaderPageTheme(v) } catch (_: Exception) {} }
+                },
+                pageRotation = prefsState.readerPageRotation.toIntOrNull() ?: 0,
+                onRotate = {
+                    val next = nextRotation(prefsState.readerPageRotation.toIntOrNull() ?: 0)
+                    scope.launch { try { prefs.setReaderPageRotation(next) } catch (_: Exception) {} }
+                }
             )
             // A3.1: Observe export state
             val currentExportState = exportVm.exportState.collectAsState().value

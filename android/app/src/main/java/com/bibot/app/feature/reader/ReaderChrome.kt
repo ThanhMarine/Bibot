@@ -169,6 +169,9 @@ fun ReaderBrightnessRow(
  * thay hàng brightness cố định chiếm vùng đọc).
  * B6.19: thêm nền màn đọc Trống đồng / Đơn sắc.
  * A3.1: thêm xuất audiobook.
+ * E2.4: section display modes PDF (fit / paging / color / rotate) — các hàng
+ * KHÔNG tự đóng popup để chỉnh nhiều mục 1 lượt; hiện khi [pageDisplayEnabled]
+ * (sách PDF, view PAGE, không bị lock đọc).
  */
 @Composable
 fun ReaderSettingsPopup(
@@ -181,7 +184,16 @@ fun ReaderSettingsPopup(
     onBrightness: (Float?) -> Unit,
     readerBackground: String = READER_BG_DRUM,
     onBackgroundChange: (String) -> Unit = {},
-    onExport: (() -> Unit)? = null
+    onExport: (() -> Unit)? = null,
+    pageDisplayEnabled: Boolean = false,
+    fitMode: String = FIT_WIDTH,
+    onFitChange: (String) -> Unit = {},
+    pagingMode: String = PAGING_CONTINUOUS,
+    onPagingChange: (String) -> Unit = {},
+    pageTheme: String = THEME_ORIGINAL,
+    onThemeChange: (String) -> Unit = {},
+    pageRotation: Int = 0,
+    onRotate: () -> Unit = {}
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -222,6 +234,78 @@ fun ReaderSettingsPopup(
             },
             onClick = { onBackgroundChange(READER_BG_SOLID); onDismiss() }
         )
+        // E2.4: display modes PDF — mỗi hàng hiển thị nhóm + giá trị đang áp,
+        // click CHUYỂN giá trị tiếp (không đóng popup).
+        if (pageDisplayEnabled) {
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.chrome_fit), modifier = Modifier.weight(1f))
+                        Text(
+                            stringResource(
+                                if (fitMode == FIT_PAGE) R.string.chrome_fit_page
+                                else R.string.chrome_fit_width
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                },
+                onClick = { onFitChange(nextFitMode(fitMode)) }
+            )
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.chrome_paging), modifier = Modifier.weight(1f))
+                        Text(
+                            stringResource(
+                                when (pagingMode) {
+                                    PAGING_SINGLE -> R.string.chrome_paging_single
+                                    PAGING_DUAL -> R.string.chrome_paging_dual
+                                    else -> R.string.chrome_paging_continuous
+                                }
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                },
+                onClick = { onPagingChange(nextPagingMode(pagingMode)) }
+            )
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.chrome_theme), modifier = Modifier.weight(1f))
+                        Text(
+                            stringResource(
+                                when (pageTheme) {
+                                    THEME_SEPIA -> R.string.chrome_theme_sepia
+                                    THEME_NIGHT -> R.string.chrome_theme_night
+                                    else -> R.string.chrome_theme_original
+                                }
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                },
+                onClick = { onThemeChange(nextPageTheme(pageTheme)) }
+            )
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.chrome_rotate_90), modifier = Modifier.weight(1f))
+                        Text(
+                            "$pageRotation°",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                },
+                onClick = onRotate
+            )
+        }
         HorizontalDivider()
         // A3.1: xuất audiobook
         onExport?.let {
