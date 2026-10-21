@@ -1,23 +1,17 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2 + E2.3(TOC + panel)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2 + E2.3(TOC + panel) + E2.4(đầy đủ)
 
 > Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3, **E2.1, E2.2, E2.3(TOC
-> + panel text-layer)** đã đánh dấu XONG — E2.3 chừa reflow/crop margin).
+> + panel text-layer), E2.4(display modes + annotation persist)** đã đánh dấu XONG —
+> E2.3 chừa reflow/crop margin).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd`; H3 `f572830`;
-> E2.1+E2.2 `5c10887`; E2.3 TOC `e8a0493` — ĐÃ COMMIT**; **E2.3 (panel text-layer) CHƯA COMMIT**:
-
-```
- M Checklist_Upgrade_Bibot.md
- M SESSION_HANDOFF_2026-10-21.md
- M android/app/src/main/java/com/bibot/app/feature/reader/PdfPageView.kt
- M android/app/src/main/java/com/bibot/app/feature/reader/ReaderChrome.kt
- M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
- M android/app/src/main/res/values-vi/strings.xml
- M android/app/src/main/res/values/strings.xml
-?? android/app/src/main/java/com/bibot/app/core/text/PdfTextSearch.kt
-?? android/app/src/main/java/com/bibot/app/feature/reader/PdfTextPanel.kt
-?? android/app/src/test/java/com/bibot/app/core/text/PdfTextSearchTest.kt
-```
+> **Tất cả đã COMMIT, working tree SẠCH:**
+> G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd`; H3 `f572830`;
+> E2.1+E2.2 `5c10887`; E2.3 TOC `e8a0493`; E2.3 panel `17d6b77`; **E2.4 display modes
+> `a28673c`; E2.4 annotation persist `c3ee49b`**.
+> JVM 140/140 · rules 102/102 (sha `f824bf137547`) · go vet+test ok · 2 flavor assemble OK.
+> Emulator `emulator-5554` còn chạy (đang ở reader marker10b, app data FRESH —
+> đã `pm clear` trong phiên; marker10.pdf + marker10b.pdf trong inbox, Battle for
+> Khe Sanh.epub lỡ tải nhầm 1 lần — dọn được nếu muốn).
 
 ## 1. Việc đã xong
 
@@ -402,7 +396,7 @@ trước khi bấm tiếp.
   toggle chrome (không phải bug); `uiautomator dump` fail lần 1 sau install → retry.
 
 ## 1.12 E2.4 (annotation persist) - highlight PDF theo fileHash (2026-10-21)
-- **Code (6 file sửa + 2 mới, CHƯA commit):** `BibotDatabase.kt` entity `PdfAnnotation`
+- **Code (đã commit `c3ee49b`; 6 file sửa + 2 mới):** `BibotDatabase.kt` entity `PdfAnnotation`
   (bảng `pdf_annotation`, unique index fileHash+page+startOffset+endOffset) + DAO
   (`getByFileHash`, `insert` IGNORE, `deleteById`, `deleteByBook`) + `MIGRATION_7_8`
   (v8, DDL khớp codegen — bài học 6→7); `BookRepository.kt` CRUD (IO) + `delete(meta)`
@@ -484,7 +478,7 @@ trước khi bấm tiếp.
 ## 4. Nợ sang phiên sau
 - **E2.3 còn lại: reflow-text button + crop margin `IsRectWhite`** (selection/copy/search/TOC
   đã XONG — panel text-layer, xem §1.10);
-  **E2.4 annotation persist đã XONG (§1.12, chưa commit)** — E2.5 EPUB rich,
+  **E2.4 annotation persist đã XONG + commit `c3ee49b` (§1.12)** — E2.5 EPUB rich,
   E2.6 verify 1200 trang (outline parse cap 12MB → PDF lớn không có TOC outline),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
