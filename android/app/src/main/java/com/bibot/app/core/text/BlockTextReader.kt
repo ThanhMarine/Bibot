@@ -27,6 +27,13 @@ object BlockTextReader {
     /** Một chương đã làm sạch. */
     data class ChapterBlock(val title: String, val content: String)
 
+    /**
+     * E2.1 — text của MỘT content stream PDF kèm chỉ số trang (0-based).
+     * `page = -1` khi không dựng được page-tree (stream-only fallback) →
+     * caller (PdfPageMap/anchor) rơi về map tỉ lệ như cũ.
+     */
+    data class PdfPageText(val page: Int, val text: String)
+
     /** Cách nhận diện heading. */
     enum class Heading { NONE, MARKDOWN, MARKDOWN_OR_STORY, PARAGRAPH }
 
@@ -92,6 +99,16 @@ object BlockTextReader {
     private val fontResDict = Regex("""/Font\s*<<(.*?)>>""", RegexOption.DOT_MATCHES_ALL)
     private val fontResRef = Regex("""/([A-Za-z0-9*']+)\s+(\d+)\s+0\s+R""")
     private val fontObjStart = Regex("""(\d+)\s+0\s+obj\b""")
+    // E2.1: nhận diện obj trang/page-tree + content stream để gán text theo TRANG.
+    private val pdfObjHeadRe = Regex("""(\d+)\s+\d+\s+obj\b""")
+    private val pdfPageTypeRe = Regex("""/Type\s*/Page(?![A-Za-z])""")
+    private val pdfPagesTypeRe = Regex("""/Type\s*/Pages\b""")
+    private val pdfCatalogRe = Regex("""/Type\s*/Catalog\b""")
+    private val pdfPagesRefRe = Regex("""/Pages\s+(\d+)\s+0\s+R""")
+    private val pdfKidsRe = Regex("""/Kids\s*\[([^\]]*)\]""")
+    private val pdfContentsRefRe = Regex("""/Contents\s+(\d+)\s+0\s+R""")
+    private val pdfContentsArrRe = Regex("""/Contents\s*\[([^\]]*)\]""")
+    private val pdfRefIn = Regex("""(\d+)\s+0\s+R""")
     private val typeFontRe = Regex("""/Type\s*/Font\b""")
     private val baseFontRe = Regex("""/BaseFont\s*/([^\s/<>\[\]()]+)""")
     private val touRefRe = Regex("""/ToUnicode\s+(\d+)\s+0\s+R""")
@@ -548,17 +565,25 @@ object BlockTextReader {
      * Quy tắc dedup tầng 2: chấp nhận match bắt đầu TRƯỚC vùng carry; match nằm trong carry được
      * nhận lại ở vòng đọc sau (overlap 4 KB) → không trùng, không mất.
      */
-    fun iterPdfText(file: File): Sequence<String> = sequence {
+    fun iterPdfText(file: File): Sequence<String> = iterPdfTextPages(file).map { it.text }
+
+    /**
+     * E2.1 — như [iterPdfText] nhưng gắn chỉ số TRANG (0-based; -1 = không biết).
+     * Trang lấy từ page-tree (Catalog → Pages → Kids); stream không có obj/pages-tree
+     * (file >12MB, inflate fail) → page=-1 để caller fallback tỉ lệ.
+     */
+    fun iterPdfTextPages(file: File): Sequence<PdfPageText> = sequence {
         if (!file.exists() || file.length() == 0L) return@sequence
         if (isScannedPdf(file)) return@sequence
         if (file.length() <= PDF_MAX_INFLATE_BYTES) {
             try {
                 val raw = String(file.readBytes(), Charsets.ISO_8859_1)
                 val fonts = parsePdfFonts(raw)
-                if (iterPdfInflated(raw, fonts)) return@sequence
+                val pageOf = buildContentPageMap(raw)
+                if (iterPdfInflated(raw, fonts, pageOf)) return@sequence
             } catch (_: Exception) { /* rơi xuống raw-scan */ }
         }
-        yieldAll(iterPdfTextRaw(file))
+        for (blk in iterPdfTextRaw(file)) yield(PdfPageText(-1, blk))
     }
 
     /** Loại PDF text: TEXT (trích được) hay SCANNED (font Type3 bitmap, không ToUnicode). */
@@ -603,7 +628,29 @@ object BlockTextReader {
         }
 
     /** Tầng 1: inflate FlateDecode từng stream object. Trả true nếu trích được text. */
-    private suspend fun SequenceScope<String>.iterPdfInflated(raw: String, fonts: Map<String, PdfFont>): Boolean {
+    private suspend fun SequenceScope<PdfPageText>.iterPdfInflated(
+        raw: String,
+        fonts: Map<String, PdfFont>,
+        pageOf: Map<Int, Int>
+    ): Boolean {
+        // E2.1: obj head positions để gán stream → objNum → chỉ số trang (binary search).
+        val objHeads = ArrayList<Int>()
+        val objNumList = ArrayList<Int>()
+        for (m in pdfObjHeadRe.findAll(raw)) {
+            val n = m.groupValues[1].toIntOrNull() ?: continue
+            objNumList.add(n)
+            objHeads.add(m.range.first)
+        }
+        fun objNumAt(pos: Int): Int {
+            var lo = 0
+            var hi = objHeads.size - 1
+            var ans = -1
+            while (lo <= hi) {
+                val mid = (lo + hi) ushr 1
+                if (objHeads[mid] <= pos) { ans = mid; lo = mid + 1 } else hi = mid - 1
+            }
+            return if (ans >= 0) objNumList[ans] else -1
+        }
         var pos = 0
         var found = false
         while (true) {
@@ -626,10 +673,78 @@ object BlockTextReader {
             } else {
                 extractPdfTextOpsTracked(raw.substring(ds, ei), fonts, sb) // stream không nén
             }
-            if (sb.isNotBlank()) { yield(sb.toString()); found = true }
+            if (sb.isNotBlank()) {
+                yield(PdfPageText(pageOf[objNumAt(si)] ?: -1, sb.toString()))
+                found = true
+            }
             pos = ei + 9
         }
         return found
+    }
+
+    /**
+     * E2.1 — map content-obj-number → chỉ số trang (0-based) đọc từ page-tree:
+     * Catalog → /Pages → /Kids (đệ quy, chống cycle); fallback thứ tự obj number
+     * khi không có catalog. Trang không có /Contents vẫn chiếm chỉ số (không
+     * sinh map entry). Không dựng được → map rỗng → mọi stream page=-1.
+     */
+    internal fun buildContentPageMap(raw: String): Map<Int, Int> {
+        val objNums = ArrayList<Int>(256)
+        val objPos = ArrayList<Int>(256)
+        for (m in pdfObjHeadRe.findAll(raw)) {
+            val n = m.groupValues[1].toIntOrNull() ?: continue
+            objNums.add(n)
+            objPos.add(m.range.first)
+        }
+        if (objNums.isEmpty()) return emptyMap()
+        fun dictWindow(i: Int): String {
+            val start = objPos[i]
+            val end = if (i + 1 < objPos.size) objPos[i + 1] else raw.length
+            return raw.substring(start, minOf(end, start + 8192))
+        }
+        fun refsIn(s: String): List<Int> =
+            pdfRefIn.findAll(s).mapNotNull { it.groupValues[1].toIntOrNull() }.toList()
+
+        val pageContents = HashMap<Int, List<Int>>() // page obj → content refs (rỗng = trang ảnh)
+        val pagesKids = HashMap<Int, List<Int>>()    // pages obj → kids refs
+        var catalogPages = -1
+        for (i in objNums.indices) {
+            val w = dictWindow(i)
+            when {
+                catalogPages < 0 && pdfCatalogRe.containsMatchIn(w) -> {
+                    catalogPages = pdfPagesRefRe.find(w)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+                }
+                pdfPageTypeRe.containsMatchIn(w) -> {
+                    val refs = pdfContentsArrRe.find(w)?.groupValues?.get(1)?.let(::refsIn)
+                        ?: pdfContentsRefRe.find(w)?.groupValues?.get(1)?.toIntOrNull()?.let { listOf(it) }
+                        ?: emptyList()
+                    pageContents[objNums[i]] = refs
+                }
+                pdfPagesTypeRe.containsMatchIn(w) -> {
+                    val kids = pdfKidsRe.find(w)?.groupValues?.get(1)?.let(::refsIn) ?: emptyList()
+                    if (kids.isNotEmpty()) pagesKids[objNums[i]] = kids
+                }
+            }
+        }
+        if (pageContents.isEmpty()) return emptyMap()
+        val ordered = ArrayList<Int>(pageContents.size)
+        val visited = HashSet<Int>()
+        fun walk(n: Int, depth: Int) {
+            if (depth > 32 || !visited.add(n)) return
+            if (pageContents.containsKey(n)) { ordered.add(n); return }
+            val kids = pagesKids[n] ?: return
+            for (k in kids) walk(k, depth + 1)
+        }
+        if (catalogPages >= 0) walk(catalogPages, 0)
+        if (ordered.isEmpty()) {
+            // Không có page-tree (hoặc cycle) → obj number thường = thứ tự trang.
+            ordered.addAll(pageContents.keys.sorted())
+        }
+        val map = HashMap<Int, Int>(ordered.size * 2)
+        for ((idx, pageObj) in ordered.withIndex()) {
+            for (c in pageContents[pageObj].orEmpty()) map[c] = idx
+        }
+        return map
     }
 
     // ------------------------------------------------------------------ font PDF

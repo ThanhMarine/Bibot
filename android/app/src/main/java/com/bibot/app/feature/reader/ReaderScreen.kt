@@ -182,6 +182,8 @@ fun ReaderScreen(
     // Scope B: titles spine EPUB (map session-chương → spine rich, KHỚP 1-1 chapters).
     var epubRichTitles by remember { mutableStateOf<List<String>>(emptyList()) }
     var viewLockedPage by remember { mutableStateOf(false) } // scan: chỉ PAGE
+    // E2.1: pageIndex → câu mở đầu (PDF text-readable; null = chưa build → fallback tỉ lệ).
+    var pdfPageStarts by remember { mutableStateOf<IntArray?>(null) }
     var readModeState by remember { mutableStateOf(ReadMode.BROWSE) }
     var selAnchor by remember { mutableStateOf<ReadAnchor?>(null) } // marker điểm neo
     var anchorConfirm by remember { mutableStateOf<ReadAnchor?>(null) } // hộp xác nhận
@@ -359,13 +361,27 @@ fun ReaderScreen(
                 isPdfBook = isPdf
                 isEpubBook = isEpub
                 val scanned = withContext(Dispatchers.IO) {
-                    if (isPdf) BlockTextReader.isScannedPdf(file)
-                    else if (isEpub) com.bibot.app.core.text.EpubReader.isScannedEpub(file)
+                    if (isPdf) {
+                        // E2.2: Type3 scan (heuristic cũ) + PDF không trích được chữ
+                        // (prep fallback đúng 1 chương rỗng) → cùng khóa PAGE/ẩn TTS.
+                        BlockTextReader.isScannedPdf(file) ||
+                            (session.titles.size == 1 && session.sentences(0).isEmpty())
+                    } else if (isEpub) com.bibot.app.core.text.EpubReader.isScannedEpub(file)
                     else false
                 }
                 scanNoTts = scanned
                 viewLockedPage = (isPdf || isEpub) && scanned
                 viewMode = if (isPdf || (isEpub && scanned)) ReaderView.PAGE else ReaderView.TEXT
+                // E2.1: map pageIndex → câu (cache .pagemap cạnh .prep; build nền 1 lần).
+                pdfPageStarts = null
+                if (isPdf && !scanned) {
+                    pdfPageStarts = withContext(Dispatchers.IO) {
+                        com.bibot.app.core.text.PdfPageMap.load(prepDir, cacheKey, file)
+                            ?: session.sentences(0).takeIf { it.isNotEmpty() }?.let { s0 ->
+                                com.bibot.app.core.text.PdfPageMap.build(file, s0, prepDir, cacheKey)
+                            }
+                    }
+                }
                 if (isEpub) {
                     // Titles spine (KHỚP 1-1 chapters) để map session-chương → spine rich.
                     epubRichTitles = withContext(Dispatchers.IO) {
@@ -732,6 +748,19 @@ fun ReaderScreen(
         }
     }
 
+    // E2.1: trang → câu (map text-theo-trang nếu có; fallback tỉ lệ như cũ).
+    fun resolvePageSentence(page: Int): Int {
+        val total = totalSentencesAll
+        val starts = pdfPageStarts
+        if (starts != null && starts.isNotEmpty()) {
+            val s = starts.getOrNull(page.coerceAtLeast(0)) ?: starts.last()
+            return s.coerceIn(0, (total - 1).coerceAtLeast(0))
+        }
+        return if (pageCount > 0 && total > 0) {
+            ((page + 0.5) / pageCount * total).toInt().coerceIn(0, (total - 1).coerceAtLeast(0))
+        } else 0
+    }
+
     fun enterRead(anchor: ReadAnchor) {
         if (selectedBook == null || chapters.isEmpty()) return
         selAnchor = anchor
@@ -746,12 +775,9 @@ fun ReaderScreen(
                 startReading()
             }
         } else {
-            // PAGE: PDF prep Bibot = 1 chương → map tỉ lệ trang → câu (ghi nhận F2).
-            val total = totalSentencesAll
-            val sent = if (pageCount > 0 && total > 0) {
-                ((anchor.page + 0.5) / pageCount * total).toInt()
-                    .coerceIn(0, (total - 1).coerceAtLeast(0))
-            } else 0
+            // PAGE: E2.1 — pageIndex → câu theo map text-theo-trang (chính xác);
+            // fallback tỉ lệ khi PDF không trích được trang (stream-only).
+            val sent = resolvePageSentence(anchor.page)
             currentChapter = 0
             scope.launch {
                 val list = prepSession?.sentences(0) ?: emptyList()
@@ -810,14 +836,20 @@ fun ReaderScreen(
         } else startPlayFlow()
     }
 
-    // Mô tả anchor cho hộp xác nhận (TEXT chính xác / PAGE ước lượng tỉ lệ).
+    // Mô tả anchor cho hộp xác nhận (TEXT/PAGE E2.1 đều chính xác theo map câu).
     fun anchorText(a: ReadAnchor): String {
         return if (a.view == ReaderView.TEXT) {
             val t = chapters.getOrNull(a.page)?.title ?: ""
             "C${a.page + 1} • câu ${a.offset + 1}" + if (t.isBlank()) "" else " — $t"
         } else {
-            val pct = if (pageCount > 0) ((a.page + 0.5) / pageCount * 100).toInt().coerceIn(0, 100) else 0
-            context.getString(R.string.chrome_page_anchor, a.page + 1, pct)
+            val starts = pdfPageStarts
+            if (starts != null && starts.isNotEmpty()) {
+                // E2.1: trang → câu theo map text-theo-trang — bỏ "khoảng %".
+                "P${a.page + 1} • câu ${resolvePageSentence(a.page) + 1}"
+            } else {
+                val pct = if (pageCount > 0) ((a.page + 0.5) / pageCount * 100).toInt().coerceIn(0, 100) else 0
+                context.getString(R.string.chrome_page_anchor, a.page + 1, pct)
+            }
         }
     }
 

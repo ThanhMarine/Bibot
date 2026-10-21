@@ -1,20 +1,19 @@
-# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 (CHỐT PHIÊN)
+# Biên bản phiên làm việc 2026-10-20/21 — G3.2/G3.3 + G2.2 + G1.3 + G1.2 + H3 + E2.1/E2.2
 
-> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3 đã đánh dấu XONG).
+> Đọc kèm `Checklist_Upgrade_Bibot.md` (G3.2/G3.3, G2.2, G1.3, G1.2, H3, **E2.1, E2.2** đã đánh dấu XONG).
 > Phiên trước: `SESSION_HANDOFF_2026-10-20.md` (B5.8 — đã commit `fb9aa5d`).
-> **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd` — TẤT CẢ ĐÃ COMMIT**;
-> **H3 (OTA rulepack) CHƯA COMMIT** (code + test + docs đang chờ commit lần này):
+> **G3.2/G3.3 `51069bb`; G2.2 `3d8c9f1`; G1.3 `47d539a`; G1.2 `eed6cbd`; H3 `f572830` — ĐÃ COMMIT**;
+> **E2.1+E2.2 (PDF text-layer theo trang + toggle TEXT↔PAGE) CHƯA COMMIT** (đang chờ commit lần này):
 
 ```
  M Checklist_Upgrade_Bibot.md
  M SESSION_HANDOFF_2026-10-21.md
- M RULES_AUTHORING.md
- M android/app/src/main/java/com/bibot/app/BibotApp.kt
- M android/app/src/main/java/com/bibot/app/core/text/ReadingRules.kt
-?? .github/workflows/rules.yml
-?? android/app/src/debug/AndroidManifest.xml
-?? android/app/src/main/java/com/bibot/app/core/text/RulesOta.kt
-?? android/app/src/test/java/com/bibot/app/core/text/RulesOtaTest.kt
+ M android/app/src/main/java/com/bibot/app/core/text/BlockTextReader.kt
+ M android/app/src/main/java/com/bibot/app/feature/reader/ReadAnchor.kt
+ M android/app/src/main/java/com/bibot/app/feature/reader/ReaderScreen.kt
+?? android/app/src/main/java/com/bibot/app/core/text/PdfPageMap.kt
+?? android/app/src/test/java/com/bibot/app/core/text/BlockTextReaderPdfPagesTest.kt
+?? android/app/src/test/java/com/bibot/app/core/text/PdfPageMapTest.kt
 ```
 
 ## 1. Việc đã xong
@@ -211,14 +210,64 @@ trên máy, cài lại APK chính thức → 404 fallback + 0 FATAL. **Bài họ
 - Tap câu khi overlay (resume chip / hint banner) đè lên → tap "nuốt" không đổi anchor →
   swipe nội dung xuống vùng trống rồi tap lại (bounds câu sẽ đầy đủ multi-line).
 
-## 2. Gate (chạy lại sau H3)
+## 1.8 E2.1 + E2.2 — PDF text-layer theo trang + toggle TEXT↔PAGE (2026-10-21)
+
+E2.1 (anchor PAGE chính xác, hết map tỉ lệ "khoảng X%"):
+- `BlockTextReader.kt`: data class `PdfPageText(page, text)`; `iterPdfTextPages(file):
+  Sequence<PdfPageText>` — `iterPdfText` = wrapper (`map { it.text }`) nên prep/`PREP_VERSION`
+  GIỮ NGUYÊN; page-tree `buildContentPageMap(raw)` (Catalog→Pages→Kids đệ quy chống cycle,
+  fallback thứ tự obj number; trang không `/Contents` vẫn chiếm index; không dict trang →
+  page=-1); `iterPdfInflated` gán page qua binary-search objNum (obj heads).
+- **Mới** `core/text/PdfPageMap.kt`: MAGIC `PGMP`/VER1/SIG48/`MAX_PAGES` 100k; `normalize`
+  (letterOrDigit+lowercase); `matchPageStarts(pages, sentences)` — sig 48 ký tự đầu trang
+  tìm bằng `indexOf` trên **CONCAT** các câu đã normalize (cursor单调 tăng dần, trang trắng
+  giữ cursor, concat >16MB → IntArray rỗng = fallback tỉ lệ); cache `<key>.pagemap` cạnh
+  `.prep` (`load`/`save` invalidate khi srcSize/mtime đổi, **big-endian** — RandomAccessFile).
+- `ReaderScreen.kt`: state `pdfPageStarts`; load flow (PDF chữ) = `load(...) ?: build(file,
+  session.sentences(0), prepDir, cacheKey)`; `resolvePageSentence(page)` (map nếu có, fallback
+  tỉ lệ cũ); `anchorText` PAGE → `"P4 • câu 10"` (bỏ "khoảng %") khi map có.
+- Test mới 14: `BlockTextReaderPdfPagesTest` 6 (PDF fixture tự chế uncompressed: thứ tự page
+  tree, parity với iterPdfText, page-dict không tree → fallback obj, không dict → -1, contents
+  array, trang không Contents vẫn tính index) + `PdfPageMapTest` 8 (normalize, exact, mid-
+  sentence, blank giữ cursor, monotonic, empty, cache roundtrip+invalidate, build fixture thật).
+
+E2.2 (toggle TEXT cho PDF chữ + khóa PAGE): `viewLockedPage = (isPdf||isEpub) && scanned`
++ popup `⚙` `pageModeEnabled = (isPdfBook||isEpubBook) && !viewLockedPage`; **mở rộng
+`scanned`** = `isScannedPdf` (Type3) **hoặc** PDF không trích được chữ — prep fallback đúng
+1 chương rỗng (`session.titles.size == 1 && session.sentences(0).isEmpty()`) → khóa PAGE +
+`scanNoTts`.
+
+Verify máy ảo (emulator `BibotTest`/`emulator-5554`, 0 FATAL):
+- Fixture `marker10.pdf` 10 trang × 3 câu (sinh bằng `make_marker_pdf.py`, xref hợp lệ) push
+  vào `files/bibot/pdfs/inbox/` → EN Books → PAGE `Page 1 of 10`; `.pagemap` build 10 entry
+  `starts = 0,3,6,9,…,27`; swipe tới Page 4 → Read → dialog **`P4 • câu 10`** → Yes → log
+  `speak … s9 text=MARKERPAGE04 opens this page with confidence.` → s10, s11 (hết trang) →
+  s12 = trang 5 (đúng tuần tự trang; bản tỉ lệ cũ sẽ ra s10 = lệch 1 câu).
+- TEXT↔PAGE 2 chiều trên marker10: ⚙ → `Text view` = karaoke `Chapter 1/1` + TTS đọc tiếp
+  (s23→s26), ⚙ → PAGE ngược lại.
+- Fixture `scan2.pdf` (2 trang, **0 text ops**, xref hợp lệ — sinh tay 5 obj đúng thứ tự):
+  mở → mặc định **PAGE `Page 1 of 2`**, icon top đổi nhãn `Text view` (pageMode=false =
+  locked), popup row `Text view` **disabled** (bấm không đổi view, popup không dismiss) →
+  khóa PAGE hoạt động. Chưa verify lại fixture Type3 thật đợt này (heuristic giữ nguyên).
+
+Bài học E2.1 (đã fix trong code):
+- **sig 48 ký tự vượt ranh giới câu** → `contains` trên từng câu = 0 match (starts toàn 0 →
+  "câu 1" mọi trang) → phải match trên CONCAT chuỗi + mảng offset → sentence index.
+- `RandomAccessFile` ghi **big-endian** — Python decode `struct.unpack('>…')`, không `'<'`
+  (decode `'<'` ra rác, dễ tưởng file hỏng).
+- Fixture PDF tự sinh phải **xref đúng thứ tự obj 1..N** (sai → `PdfRenderer.open` fail →
+  pageCount=0 → header "Chapter 1/1" giả, dễ hiểu nhầm viewMode). E2.1 hỏng đầu tiên do
+  `contains`-từng-câu, KHÔNG phải do fixture marker10 (fixture đó đúng).
+
+## 2. Gate (chạy lại sau E2)
 - `python tools/rules/compile_rules.py` → **102/102 (29 rules)**, sha256 `f824bf137547…`
   (lúc G3.2/G3.3: 64/64 — 17 rules, sha `f1b3414a6abb…`).
 - `go vet ./internal/... ./cmd/...` → exit 0; `go test ./internal/... ./cmd/...` → **ok** (chunker/rules/tts).
   - Lưu ý: `go test ./...` **FAIL** ở `bibot/core/OpenReadEra/libwebp/swig` (missing function body —
     pre-existing, swig/C GO) → gate đúng là `./internal/... ./cmd/...`.
-- JVM `:app:testDemoDebugUnitTest` → **88/88, 0 fail** (13 suite; mới `RulesOtaTest 4/4` ở H3;
-  trước đó 84/84 — `ReaderViewModelTest 4/4` G1.2).
+- JVM `:app:testDemoDebugUnitTest` → **102/102, 0 fail** (15 suite; mới ở E2.1:
+  `BlockTextReaderPdfPagesTest 6/6` + `PdfPageMapTest 8/8`; trước đó 88/88 —
+  `RulesOtaTest 4/4` H3, 84/84 — `ReaderViewModelTest 4/4` G1.2).
 - `:app:assembleDemoDebug` + `:app:assembleCommercialDebug` → BUILD SUCCESSFUL
   (`demo/debug/Bibot.apk`, `commercial/debug/BibotV.apk`); `adb install -r` Success.
 - Build **PHẢI** qua `Start-Process -FilePath android\gradlew.bat -ArgumentList ... -WorkingDirectory
@@ -238,9 +287,18 @@ trên máy, cài lại APK chính thức → 404 fallback + 0 FATAL. **Bài họ
   hoặc sheet chỉ đóng khi bấm ngoài) → luôn dump UI xác nhận trạng thái trước/sau mỗi tap;
   helper: `C:\Users\Thanh Marine\AppData\Local\Temp\opencode\dump.ps1` (retry nếu `null root node`).
 - Emulator `emulator-5554` đang chạy; adb = thêm `H:\androidkit\sdk\platform-tools` vào PATH.
+- **Nút `>` chuyển trang PAGE không cập nhật header** (bấm `>` (1024,300) vẫn "Page 4 of 10",
+  swipe dọc mới lên trang) — quan sát E2.1, thuộc nợ **E2.4**; khi sửa nhớ test `<`/`>` +
+  TOC/chip "x of N" cùng lúc.
+- Shelf EN Books không tự thấy file mới → bấm **Refresh** (180,390) rồi scroll; Storytelling
+  shelf cached 18 story không refresh. Mới mở app cold-start thấy snapshot window cũ nếu dump
+  <25s (đã ghi G1.2).
+- `scanNoTts`/`viewLockedPage` set 1 lần lúc `loadBook` — đổi nội dung file (thay PDF trong
+  inbox) phải xoá prep cache `cache/bibot/prep/<key>.*` rồi mở lại mới nhận lại.
 
 ## 4. Nợ sang phiên sau
-- E2 (view nguyên bản),
+- E2.3–E2.6 (select/copy/search/TOC PDF, display modes + fix nút `>` (E2.4), EPUB rich,
+  verify 1200 trang + TTS neo câu không lệch),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương,
   G2.4 nợ **verify tai nghe** (unit đã cover, chỉ còn nghe VI/EN 3 câu ngoặc).

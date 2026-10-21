@@ -838,16 +838,41 @@ Máy ảo `BibotTest`, ReadEra `26.05.20+2300`, file test tự sinh:
 > → TTS PAGE phải map tỉ lệ ước lượng (`ReadAnchor.kt:10-13`, `ReaderScreen.kt:679-692`).
 > EPUB rich mới subset tags, chưa CSS/table/footnote, chưa phân trang thật.
 
-- [ ] E2.1 PDF — text-layer theo trang (hết map tỉ lệ):
+- [x] E2.1 PDF — text-layer theo trang (hết map tỉ lệ):
   `BlockTextReader.iterPdfText` flow-based → trích text kèm `pageIdx`
   (tự làm per-page hoặc wire `erapdf` qua JNI/FIFO khi cho phép GPL);
   `ReadAnchor PAGE {page,offset từ}` chính xác, bỏ chữ "khoảng X%".
   File chạm: `core/text/BlockTextReader.kt`, `feature/reader/ReadAnchor.kt`,
   `feature/reader/ReaderScreen.kt` (`enterRead/startPlayFlow`).
-- [ ] E2.2 PDF — cho đọc TEXT + karaoke với PDF chữ:
+  XONG 2026-10-21: `iterPdfTextPages(): Sequence<PdfPageText(page,text)>` —
+  page từ page-tree Catalog→Pages→Kids (`buildContentPageMap`, fallback thứ tự
+  obj, không dict trang → -1); `iterPdfText` = wrapper nên prep/`PREP_VERSION`
+  giữ nguyên. Mới `core/text/PdfPageMap.kt`: `matchPageStarts` — sig 48 ký tự
+  normalize tìm trong **CONCAT** các câu (sig vượt ranh giới câu vẫn khớp;
+  contains-từng-câu = 0 match — bài học), cache `<key>.pagemap` (big-endian,
+  invalidate khi srcSize/mtime đổi). `ReaderScreen`: `pdfPageStarts` load/build
+  nền khi mở PDF chữ; `anchorText` PAGE → `"P4 • câu 10"` (bỏ "khoảng %");
+  `resolvePageSentence` map nếu có, fallback tỉ lệ cũ. Test mới 14
+  (`BlockTextReaderPdfPagesTest` 6 + `PdfPageMapTest` 8) → JVM **102/102**.
+  VERIFY máy ảo (marker10.pdf 10 trang × 3 câu, xref hợp lệ): `starts =
+  0,3,6,9,12,15,18,21,24,27`; PAGE 4 → Read → dialog **`P4 • câu 10`** → log
+  `speak … s9 text=MARKERPAGE04 opens…` → s10/s11 (hết trang) → s12 = trang 5,
+  0 FATAL.
+- [x] E2.2 PDF — cho đọc TEXT + karaoke với PDF chữ:
   hiện `ReaderScreen.kt:330` ép `isPdf → PAGE`; ReadEra cho cả 2.
   Thêm toggle thật TEXT (câu/karaoke/search) ↔ PAGE (ảnh) cho PDF text-readable;
   chỉ khóa PAGE khi `isScannedPdf`.
+  XONG 2026-10-21: toggle `⚙` TEXT↔PAGE (F1.1, `pageModeEnabled =
+  (isPdfBook||isEpubBook) && !viewLockedPage`) + mở rộng `scanned` = Type3
+  (`isScannedPdf`) **hoặc** PDF không trích được chữ (prep fallback đúng 1 chương
+  rỗng: `titles.size == 1 && sentences(0).isEmpty()`) → cùng khóa PAGE + ẩn TTS.
+  VERIFY máy ảo: marker10 (có chữ) ⚙→TEXT = karaoke + TTS đọc tiếp tục
+  (`Chapter 1/1`, s23→s26), ⚙→PAGE ngược lại; scan2.pdf (2 trang, 0 text ops,
+  xref hợp lệ) → mở mặc định **PAGE "Page 1 of 2"**, icon top đổi nhãn
+  "Text view", popup row `Text view` **disabled** (tap không đổi view) →
+  0 FATAL. Lưu ý: fixture Type3 chưa cài lại máy ảo đợt này (heuristic giữ
+  nguyên). Quan sát phụ: nút `>` chuyển trang PAGE không cập nhật header
+  (nợ E2.4).
 - [ ] E2.3 PDF — select/copy/search/TOC chuẩn ReadEra:
   text selection + copy/dictionary trên PAGE, search highlight trong PAGE
   (hiện search chỉ trên `sentences TEXT`), TOC từ outline PDF
@@ -1330,7 +1355,14 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   debug cleartext + `RulesOtaTest` 4 test → JVM **88/88**; verify máy ảo 6 kịch bản
   a–f (nhận v5 từ server local, TTS đọc `45 degrees` không cài lại APK, checksum
   hỏng → fallback, chống downgrade, 404 GitHub → nhúng), 0 FATAL (xem H3.1/H3.2/H3.3).
-- CÒN MỞ: E2 (view nguyên bản),
+- ĐÃ XONG 2026-10-21 (phiên E2.1+E2.2 — PDF text-layer theo trang): `PdfPageText` +
+  `buildContentPageMap` trong `BlockTextReader` + `PdfPageMap.kt` (sig 48 trên
+  CONCAT câu, cache `.pagemap`) + `anchorText "P4 • câu 10"` (bỏ "%") +
+  `scanned` mở rộng (Type3 hoặc 1 chương rỗng) → test mới 14 → JVM **102/102**;
+  verify máy ảo marker10 (Page 4 → `P4 • câu 10` → `speak s9 MARKERPAGE04`,
+  starts=0,3,6,…) + scan2 (khóa PAGE, row Text view disabled) + TEXT↔PAGE 2 chiều,
+  0 FATAL (xem E2.1/E2.2).
+- CÒN MỞ: E2.3–E2.6 (view nguyên bản),
   I2.3/I2.4 (Play Integrity + verify relay thật), J1 (release mới),
   B5.8 nợ lặt vặt: server-side duyệt report/ẩn chương, test sách dày 500 chương.
 - VERIFY CUỐI (2026-10-20): JVM 69/69, ruler 64/64, Go PASS, demoDebug 58,8MB +
@@ -1339,4 +1371,4 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   v1+v2+v3 + jarsigner "jar verified" (cùng cert CN=Bibot App SHA-256 706e00a9…);
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
-- NỢ SANG PHIÊN SAU: E2, I2.3/I2.4, J1.
+- NỢ SANG PHIÊN SAU: E2.3–E2.6, I2.3/I2.4, J1.

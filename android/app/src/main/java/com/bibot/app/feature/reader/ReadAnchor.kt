@@ -7,11 +7,10 @@ import java.security.MessageDigest
  * B3+F2 (Touch_point) — điểm đọc CHỦ ĐỘNG của user.
  *
  * - TEXT: neo = {chapterIdx, sentIdx} chính xác (câu user chạm).
- * - PAGE (PDF): neo = {pageIndex} (+textOffset=0); trích text PDF của Bibot là
- *   flow-based (BlockTextReader.iterPdfText, không gắn trang — parser không có
- *   biên trang) nên lúc READ map TỈ LỆ: sentIdx ≈ (page+0.5)/pageCount * total.
- *   Ghi nhận công khai ở UI ("đọc từ khoảng X%"); map chính xác cần engine text
- *   PDF theo trang (MuPDF — GPL, đã loại ở A0).
+ * - PAGE (PDF): neo = {pageIndex}. E2.1: text PDF trích THEO TRANG
+ *   (BlockTextReader.iterPdfTextPages) → PdfPageMap ánh xạ pageIndex → câu
+ *   chính xác (không còn "khoảng X%"); fallback tỉ lệ chỉ khi PDF không
+ *   dựng được page-tree (stream-only / file >12MB).
  *
  * Persist: BookProgress(anchorPage, anchorOffset, readMode, fileHash) — neo sống
  * khi move/re-download nhờ fileHash (E1.3), không phụ thuộc path.
