@@ -172,6 +172,8 @@ fun ReaderBrightnessRow(
  * E2.4: section display modes PDF (fit / paging / color / rotate) — các hàng
  * KHÔNG tự đóng popup để chỉnh nhiều mục 1 lượt; hiện khi [pageDisplayEnabled]
  * (sách PDF, view PAGE, không bị lock đọc).
+ * E2.3: hàng đầu đổi nhãn "Reflow to text" khi PDF PAGE (TEXT mode = reflow,
+ * cần nút chuyển nói rõ) + hàng "Crop margins" trong section display.
  */
 @Composable
 fun ReaderSettingsPopup(
@@ -193,7 +195,13 @@ fun ReaderSettingsPopup(
     pageTheme: String = THEME_ORIGINAL,
     onThemeChange: (String) -> Unit = {},
     pageRotation: Int = 0,
-    onRotate: () -> Unit = {}
+    onRotate: () -> Unit = {},
+    // E2.3: PDF PAGE (không lock) → hàng đầu đổi tên "Reflow to text" cho rõ
+    // (TEXT mode đã là reflow — nút chuyển cần nói thẳng nó làm gì).
+    reflowAvailable: Boolean = false,
+    // E2.3: crop lề trắng — hàng trong section display (toggle, không đóng popup).
+    cropMargins: Boolean = false,
+    onCropToggle: () -> Unit = {}
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -204,8 +212,11 @@ fun ReaderSettingsPopup(
             text = {
                 Text(
                     stringResource(
-                        if (viewMode == ReaderView.TEXT) R.string.chrome_view_page
-                        else R.string.chrome_view_text
+                        when {
+                            reflowAvailable -> R.string.chrome_reflow_text
+                            viewMode == ReaderView.TEXT -> R.string.chrome_view_page
+                            else -> R.string.chrome_view_text
+                        }
                     )
                 )
             },
@@ -304,6 +315,16 @@ fun ReaderSettingsPopup(
                     }
                 },
                 onClick = onRotate
+            )
+            // E2.3: crop lề trắng (SmartCrop IsRectWhite) — toggle có tick, giữ popup.
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.chrome_crop_margins)) },
+                trailingIcon = {
+                    if (cropMargins) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                    }
+                },
+                onClick = onCropToggle
             )
         }
         HorizontalDivider()

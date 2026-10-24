@@ -58,6 +58,8 @@ object PrefKeys {
     val READER_PAGING_MODE = stringPreferencesKey("reader_paging_mode")
     val READER_PAGE_THEME = stringPreferencesKey("reader_page_theme")
     val READER_PAGE_ROTATION = stringPreferencesKey("reader_page_rotation")
+    // E2.3: crop lề trắng PDF PAGE (SmartCrop IsRectWhite)
+    val READER_CROP_MARGINS = booleanPreferencesKey("reader_crop_margins")
 }
 
 // A2.3: Allowed values from ReadEra eraepub
@@ -97,7 +99,9 @@ data class BibotPrefs(
     val readerFitMode: String = "width",
     val readerPagingMode: String = "continuous",
     val readerPageTheme: String = "normal",
-    val readerPageRotation: String = "0"
+    val readerPageRotation: String = "0",
+    // E2.3: crop lề trắng PDF PAGE
+    val readerCropMargins: Boolean = false
 )
 
 class BibotPreferences(private val context: Context) {
@@ -131,7 +135,8 @@ class BibotPreferences(private val context: Context) {
             readerFitMode = p[PrefKeys.READER_FIT_MODE] ?: "width",
             readerPagingMode = p[PrefKeys.READER_PAGING_MODE] ?: "continuous",
             readerPageTheme = p[PrefKeys.READER_PAGE_THEME] ?: "normal",
-            readerPageRotation = p[PrefKeys.READER_PAGE_ROTATION] ?: "0"
+            readerPageRotation = p[PrefKeys.READER_PAGE_ROTATION] ?: "0",
+            readerCropMargins = p[PrefKeys.READER_CROP_MARGINS] ?: false
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }
@@ -164,6 +169,8 @@ class BibotPreferences(private val context: Context) {
     suspend fun setReaderPagingMode(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_PAGING_MODE] = v } }
     suspend fun setReaderPageTheme(v: String) { context.bibotDataStore.edit { it[PrefKeys.READER_PAGE_THEME] = v } }
     suspend fun setReaderPageRotation(v: Int) { context.bibotDataStore.edit { it[PrefKeys.READER_PAGE_ROTATION] = v.toString() } }
+    // E2.3: crop lề trắng PDF PAGE
+    suspend fun setReaderCropMargins(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.READER_CROP_MARGINS] = v } }
 
     // API keys lưu EncryptedSharedPreferences nếu cần; ở đây lưu DataStore + backupRules exclude
     suspend fun setGeminiKey(v: String) { context.bibotDataStore.edit { it[PrefKeys.GEMINI_API_KEY] = v } }

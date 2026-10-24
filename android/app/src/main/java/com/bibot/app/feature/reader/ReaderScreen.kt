@@ -1588,6 +1588,7 @@ fun ReaderScreen(
                         pagingMode = prefsState.readerPagingMode,
                         pageTheme = prefsState.readerPageTheme,
                         pageRotation = prefsState.readerPageRotation.toIntOrNull() ?: 0,
+                        cropMargins = prefsState.readerCropMargins,
                         pagingAlignTarget = pagingAlignTarget,
                         pagingAlignTick = pagingAlignTick,
                         onVisiblePage = { pageIndex = it },
@@ -1900,6 +1901,7 @@ fun ReaderScreen(
                                 pagingMode = prefsState.readerPagingMode,
                                 pageTheme = prefsState.readerPageTheme,
                                 pageRotation = prefsState.readerPageRotation.toIntOrNull() ?: 0,
+                                cropMargins = prefsState.readerCropMargins,
                                 pagingAlignTarget = pagingAlignTarget,
                                 pagingAlignTick = pagingAlignTick,
                                 onVisiblePage = { pageIndex = it },
@@ -2213,6 +2215,13 @@ Column(
                 onRotate = {
                     val next = nextRotation(prefsState.readerPageRotation.toIntOrNull() ?: 0)
                     scope.launch { try { prefs.setReaderPageRotation(next) } catch (_: Exception) {} }
+                },
+                // E2.3: PDF PAGE → hàng đầu đổi nhãn "Reflow to text"; crop lề trắng.
+                reflowAvailable = isPdfBook && !viewLockedPage && viewMode == ReaderView.PAGE,
+                cropMargins = prefsState.readerCropMargins,
+                onCropToggle = {
+                    val next = !prefsState.readerCropMargins
+                    scope.launch { try { prefs.setReaderCropMargins(next) } catch (_: Exception) {} }
                 }
             )
             // A3.1: Observe export state

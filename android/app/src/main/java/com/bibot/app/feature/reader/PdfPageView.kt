@@ -47,6 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bibot.app.R
+import com.bibot.app.core.image.SmartCrop
 import com.bibot.app.ui.player.contentBottomInset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -97,6 +98,9 @@ fun PdfPageView(
     pagingMode: String = PAGING_CONTINUOUS,
     pageTheme: String = THEME_ORIGINAL,
     pageRotation: Int = 0,
+    // E2.3: crop lề trắng (SmartCrop IsRectWhite) — cắt lúc render, khung giữ
+    // tỉ lệ trang gốc (ảnh crop chỉ letterbox) → placeholder KHÔNG đổi chiều cao.
+    cropMargins: Boolean = false,
     // E2.4: ghim vị trí khi đổi paging mode (target + tick set trong onPagingChange).
     pagingAlignTarget: Int = 0,
     pagingAlignTick: Int = 0,
@@ -129,6 +133,9 @@ fun PdfPageView(
     // scroll cộng dồn chiều cao thiếu → nhảy rơi sai index (vd land 3 thay vì 8)
     // rồi bị anchor đứng yên ở đó khi bitmap render.
     val pageRatios = remember(file.absolutePath) { mutableStateMapOf<Int, Float>() }
+    // E2.3: số đo crop — render đang chạy với cờ crop CŨ khi user đổi toggle sẽ
+    // bị bỏ (ép recycle) thay vì chèn bitmap sai trạng thái vào pool.
+    var cropEpoch by remember(file.absolutePath) { mutableIntStateOf(0) }
 
     // Mở renderer 1 lần / file (IO — open nhanh, không inflate).
     LaunchedEffect(file.absolutePath) {
@@ -168,6 +175,18 @@ fun PdfPageView(
     // E2.4: đổi XOAY → render lại mọi bitmap theo tỉ lệ mới (xoay lúc render
     // giữ pixel; placeholder đổi tỉ lệ eff cùng lúc → không lệch chiều cao).
     LaunchedEffect(pageRotation) {
+        if (bitmaps.isNotEmpty()) {
+            for (b in bitmaps.values) { try { b.recycle() } catch (_: Exception) {} }
+            bitmaps.clear()
+        }
+        if (failed.isNotEmpty()) failed.clear()
+    }
+
+    // E2.3: đổi CROP LỀ → render lại pool theo cờ mới. KHÔNG đụng pageRatios
+    // (tỉ lệ khung hình trang gốc giữ nguyên) → placeholder giữ nguyên chiều cao,
+    // ảnh crop letterbox trong khung → anchor/scroll đứng yên (bài học E2.3).
+    LaunchedEffect(cropMargins) {
+        cropEpoch++
         if (bitmaps.isNotEmpty()) {
             for (b in bitmaps.values) { try { b.recycle() } catch (_: Exception) {} }
             bitmaps.clear()
@@ -264,16 +283,29 @@ fun PdfPageView(
         if (idx !in 0 until pageCount) return
         if (bitmaps.containsKey(idx) || failed.containsKey(idx)) return
         val r = renderer ?: return
+        val epoch = cropEpoch
         try {
             val bmp = renderMutex.withLock {
                 withContext(Dispatchers.IO) {
-                    renderPdfBitmap(r, idx, widthPx, pageRotation)
+                    val raw = renderPdfBitmap(r, idx, widthPx, pageRotation)
                         // Trang nặng (Type3/ảnh lớn, vd grimm10) OOM/lỗi ở full-width →
                         // thử lại nửa chiều rộng thay vì bỏ trang (tôn trọng bản gốc).
                         ?: renderPdfBitmap(r, idx, widthPx / 2, pageRotation)
+                    // E2.3: crop lề trắng lúc render — SmartCrop IsRectWhite; null =
+                    // không cắt được → giữ nguyên trang gốc (an toàn).
+                    if (raw != null && cropMargins) cropBitmapMargins(raw) else raw
                 }
             }
-            if (bmp != null) bitmaps[idx] = bmp else failed[idx] = true
+            when {
+                bmp == null -> failed[idx] = true
+                // Toggle crop giữa chừng → kết quả sinh với cờ CŨ bị bỏ (recycle),
+                // tránh hiển thị bitmap không khớp trạng thái hiện tại.
+                epoch != cropEpoch -> try { bmp.recycle() } catch (_: Exception) {}
+                else -> bitmaps[idx] = bmp
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Effect khác (đổi crop/xoay) hủy giữa chừng ≠ trang lỗi — không đánh dấu failed.
+            throw e
         } catch (_: Exception) {
             failed[idx] = true
         }
@@ -295,7 +327,8 @@ fun PdfPageView(
     // E2.4 dual: item = cặp → v = trang trái của cặp, prefetch thêm trang phải.
     // jumpTick trong key: jump trong CÙNG cặp (không đổi firstVisible) vẫn phải
     // báo header lại đúng trang đích (pendingJumpReport).
-    LaunchedEffect(listState.firstVisibleItemIndex, pageCount, pagingMode, jumpTick) {
+    // cropMargins trong key: đổi crop → render lại visible ±1 theo cờ mới.
+    LaunchedEffect(listState.firstVisibleItemIndex, pageCount, pagingMode, jumpTick, cropMargins) {
         val dual = pagingMode == PAGING_DUAL
         val first = listState.firstVisibleItemIndex.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
         val v = if (dual) (first * 2).coerceAtMost(pageCount - 1) else first
@@ -361,7 +394,11 @@ fun PdfPageView(
             }
             val bmp = bitmaps[idx]
             val isSel = selectedPage == idx
-            val ratioEff = if (bmp != null && !bmp.isRecycled) {
+            // E2.3 crop: khung LUÔN theo tỉ lệ trang GỐC (pageRatios) — bitmap đã
+            // cắt letterbox trong khung → placeholder == kích thước khi render
+            // (cùng invariant với E2.3, không xê dịch anchor). Không crop: giữ
+            // nhịp cũ, bmp thắng (trùng tỉ lệ gốc ± làm tròn).
+            val ratioEff = if (!cropMargins && bmp != null && !bmp.isRecycled) {
                 bmp.width.toFloat() / bmp.height.toFloat()
             } else {
                 effPageRatio(pageRatios[idx] ?: 0.707f, pageRotation)
@@ -413,7 +450,7 @@ fun PdfPageView(
                             modifier = Modifier.padding(32.dp)
                         )
                     }
-                    LaunchedEffect(idx, pageRotation) { renderPage(idx) }
+                    LaunchedEffect(idx, pageRotation, cropMargins) { renderPage(idx) }
                 }
             }
         }
@@ -464,6 +501,24 @@ fun PdfPageView(
         } else {
             LaunchedEffect(file.absolutePath, zoomIdx) { renderPage(zoomIdx) }
         }
+    }
+}
+
+/**
+ * E2.3 crop lề (SmartCrop IsRectWhite 1%): cắt viền trắng quanh trang ĐÃ render
+ * (kể cả sau xoay — crop theo hướng hiển thị). Trả về bitmap MỚI (nguồn bị
+ * recycle) hoặc nguồn khi không cắt được — không bao giờ làm mất trang.
+ */
+private fun cropBitmapMargins(src: Bitmap): Bitmap {
+    return try {
+        val rect = SmartCrop.autoCrop(src) ?: return src
+        val out = Bitmap.createBitmap(src, rect.left, rect.top, rect.width(), rect.height())
+        if (out !== src) {
+            try { src.recycle() } catch (_: Exception) {}
+        }
+        out
+    } catch (_: Throwable) {
+        src
     }
 }
 

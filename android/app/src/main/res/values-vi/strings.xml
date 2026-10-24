@@ -371,6 +371,8 @@
     <string name="chrome_search_soon">Tìm kiếm trong sách sẽ có ở nhịp B4.</string>
     <string name="chrome_view_text">Xem chữ</string>
     <string name="chrome_view_page">Xem trang</string>
+    <!-- E2.3: reflow PDF PAGE (TEXT mode da la reflow - nut chuyen noi ro)
+    <string name="chrome_reflow_text">Chuyển sang chữ</string>
     <string name="chrome_brightness">Độ sáng trong app</string>
     <string name="chrome_brightness_auto">Hệ thống</string>
     <string name="chrome_background_drum">Nền: Trống đồng</string>
@@ -393,6 +395,8 @@
     <string name="chrome_theme_sepia">Nâu cổ</string>
     <string name="chrome_theme_night">Đêm</string>
     <string name="chrome_rotate_90">Xoay 90°</string>
+    <!-- E2.3: crop le trong PDF PAGE (SmartCrop IsRectWhite)
+    <string name="chrome_crop_margins">Cắt lề trắng</string>
     <!-- E2.4: highlight PDF persist theo fileHash -->
     <string name="chrome_highlight">Đánh dấu</string>
     <string name="chrome_highlights">Dấu đánh dấu</string>
