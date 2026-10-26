@@ -1,6 +1,6 @@
 Bibot — Chính sách Quyền riêng tư (Privacy Policy)
-Cập nhật lần cuối: 04/10/2026
-Phiên bản ứng dụng: 1.0.0
+Cập nhật lần cuối: 26/10/2026
+Phiên bản ứng dụng: 1.0.3
 Liên hệ: bibotvadmin@gmail.com
 
 1. Tổng quan
