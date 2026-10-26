@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,6 +56,27 @@ private fun evictRichImages(images: SnapshotStateMap<String, Bitmap?>) {
         val oldest = images.keys.firstOrNull() ?: break
         val b = images.remove(oldest)
         try { b?.recycle() } catch (_: Exception) {}
+    }
+}
+
+/** Tính số dòng ước tính cho một block (E2.5 Week 4). */
+internal fun blockLineCount(
+    block: EpubReader.RichBlock,
+    targetW: Int,
+    fontSizeSp: Float
+): Int {
+    val lineH = fontSizeSp * 1.2f
+    return when (block) {
+        is EpubReader.RichBlock.Para -> {
+            val textLen = block.text.length
+            val charsPerLine = (targetW - 20) / (fontSizeSp * 0.6).coerceAtLeast(10)
+            (textLen / charsPerLine).coerceAtLeast(1)
+        }
+        is EpubReader.RichBlock.Figure -> 5
+        is EpubReader.RichBlock.Table -> block.rows.size + 2
+        is EpubReader.RichBlock.Rule -> 1
+        is EpubReader.RichBlock.Footnote -> 1
+        is EpubReader.RichBlock.Dropcap -> 1
     }
 }
 
@@ -131,6 +153,44 @@ fun EpubRichView(
         onDispose { try { zoomDecoded?.recycle() } catch (_: Exception) {} }
     }
 
+    // E2.5 Week 4: Trạng thái phân trang (thay LazyColumn liên tục)
+    val currentPage by remember { mutableStateOf(0) }
+    val totalPages by remember { mutableStateOf(1) }
+    val pageBlocks by remember { mutableStateOf<List<EpubReader.RichBlock>>(emptyList()) }
+
+    // Tính toán phân trang khi blocks thay đổi
+    LaunchedEffect(blocks, fontSizeSp, lineHeightMultiplier) {
+        val density = LocalDensity.current
+        val screenH = (LocalConfiguration.current.screenHeightDp * density.density).toInt()
+        val contentH = screenH - contentBottomInset() - 100 // Trừ khoảng trống top/bottom
+        val lineH = fontSizeSp * lineHeightMultiplier * density.density
+        val maxLinesPerPage = (contentH / lineH).coerceAtLeast(1)
+
+        var currentLines = 0
+        var currentPageBlocks = mutableListOf<EpubReader.RichBlock>()
+        var allPageBlocks = mutableListOf<MutableList<EpubReader.RichBlock>>()
+        allPageBlocks.add(currentPageBlocks)
+
+        for (block in blocks) {
+            val blockLines = blockLineCount(block, targetW, fontSizeSp)
+            if (currentLines + blockLines > maxLinesPerPage && currentPageBlocks.isNotEmpty()) {
+                // Trang mới
+                currentPageBlocks = mutableListOf()
+                allPageBlocks.add(currentPageBlocks)
+                currentLines = blockLines
+            } else {
+                currentLines += blockLines
+            }
+            currentPageBlocks.add(block)
+        }
+
+        pageBlocks.value = allPageBlocks.firstOrNull() ?: emptyList()
+        totalPages.value = allPageBlocks.size
+        if (currentPage.value >= totalPages.value) {
+            currentPage.value = totalPages.value.coerceAtLeast(1) - 1
+        }
+    }
+
     // B6.16: map câu TTS → khối (nhớ vị trí câu trước để đoạn lặp không nhầm).
     val blockTexts = remember(blocks) {
         blocks.map { b -> if (b is EpubReader.RichBlock.Para) b.text else "" }
@@ -145,14 +205,12 @@ fun EpubRichView(
         }
     }
 
-    LazyColumn(
+    // E2.5 Week 4: Phân trang thay vì LazyColumn liên tục
+    Column(
         modifier = modifier.fillMaxSize(),
-        // Giả lập sách giấy kiểu ReadEra: lề hẹp 10dp (was 16dp) để tận dụng
-        // ngang màn hình cho font lớn hơn; viền trang thể hiện qua divider/border khối.
-        contentPadding = PaddingValues(top = 4.dp, start = 10.dp, end = 10.dp, bottom = contentBottomInset())
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // Key theo INDEX (đoạn lặp nguyên văn / nhiều <hr/> có key trùng nhau là crash).
-        itemsIndexed(blocks, key = { idx, _ -> idx }) { blkIdx, b ->
+        pageBlocks.forEachIndexed { blkIdx, b ->
             when (b) {
                 is EpubReader.RichBlock.Figure -> {
                     val bmp = images[b.path]
@@ -272,6 +330,97 @@ fun EpubRichView(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                         color = MaterialTheme.colorScheme.outlineVariant
                     )
+                }
+                is EpubReader.RichBlock.Table -> {
+                    TableBlock(b)
+                }
+                is EpubReader.RichBlock.Footnote -> {
+                    Text(
+                        text = "[${b.id}] ${b.text}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(vertical = 2.dp, horizontal = 10.dp)
+                            .padding(bottom = paragraphMarginDp.dp)
+                    )
+                }
+                is EpubReader.RichBlock.Dropcap -> {
+                    Text(
+                        text = b.text,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(vertical = 2.dp, horizontal = 0.dp)
+                            .padding(bottom = paragraphMarginDp.dp)
+                    )
+                }
+            }
+        }
+        // Nút điều hướng trang
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(
+                onClick = { if (currentPage > 0) currentPage.value-- },
+                enabled = currentPage > 0
+            ) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Trang trước")
+            }
+            Text(
+                text = "${currentPage.value + 1} / $totalPages",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            IconButton(
+                onClick = { if (currentPage < totalPages - 1) currentPage.value++ },
+                enabled = currentPage < totalPages - 1
+            ) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "Trang sau")
+            }
+        }
+    }
+
+    /** Hiển thị bảng (E2.5 Week 2). */
+    @Composable
+    private fun TableBlock(table: EpubReader.RichBlock.Table) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Caption
+            if (table.caption.isNotBlank()) {
+                Text(
+                    text = table.caption,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                )
+            }
+            // Table content
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))
+                    .padding(8.dp)
+            ) {
+                table.rows.forEach { row ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        row.cells.forEach { cell ->
+                            val weight = if (cell.isHeader) 1.2f else 1f
+                            Text(
+                                text = cell.text,
+                                style = if (cell.isHeader) {
+                                    MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                                } else MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(weight).padding(vertical = 4.dp, horizontal = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                maxLines = 2
+                            )
+                        }
+                    }
+                    // Divider between rows (except last)
+                    if (row != table.rows.last()) {
+                        Divider(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
                 }
             }
         }

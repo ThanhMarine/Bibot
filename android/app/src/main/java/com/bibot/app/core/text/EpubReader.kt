@@ -78,12 +78,50 @@ object EpubReader {
 
     /** 1 khối hiển thị: đoạn text / ảnh minh họa / gạch ngang. */
     sealed interface RichBlock {
-        data class Para(val lines: List<RichInline>, val style: RichStyle) : RichBlock {
+        data class Para(
+            val lines: List<RichInline>,
+            val style: RichStyle,
+            val cssStyle: RichStyleCSS = RichStyleCSS()
+        ) : RichBlock {
             val text: String get() = lines.joinToString("") { it.text }
         }
 
         data class Figure(val path: String, val alt: String) : RichBlock
         data object Rule : RichBlock
+
+        /** Style CSS cho đoạn văn (E2.5 Week 1). */
+        data class RichStyleCSS(
+            val color: String? = null,
+            val backgroundColor: String? = null,
+            val fontFamily: String? = null,
+            val textAlign: String? = null,
+            val fontSize: String? = null,
+            val fontWeight: String? = null,
+            val marginTop: String? = null,
+            val marginBottom: String? = null,
+            val padding: String? = null,
+            val lineHeight: String? = null
+        )
+
+        /** Table block (E2.5 Week 2). */
+        data class Table(val rows: List<TableRow>, val caption: String?, val border: Boolean = true) : RichBlock
+
+        /** Table row block. */
+        data class TableRow(val cells: List<TableCell>) : RichBlock
+
+        /** Table cell block. */
+        data class TableCell(
+            val text: String,
+            val colspan: Int = 1,
+            val rowspan: Int = 1,
+            val isHeader: Boolean = false
+        ) : RichBlock
+
+        /** Footnote block (E2.5 Week 3). */
+        data class Footnote(val id: String, val text: String) : RichBlock
+
+        /** Dropcap block (E2.5 Week 3). */
+        data class Dropcap(val text: String) : RichBlock
     }
 
     /** 1 spine item: title + html thô + base resolve ảnh (dùng chung cho text/rich). */
@@ -185,6 +223,128 @@ object EpubReader {
         return v.split(Regex("\\s+")).any { it.equals(cls, ignoreCase = true) }
     }
 
+    /** Parse CSS inline style từ HTML tag (E2.5 Week 1). */
+    internal fun parseInlineStyle(tag: String): Map<String, String> {
+        val styleMap = HashMap<String, String>()
+        if (!tag.contains("style=", ignoreCase = true)) return styleMap
+        val styleMatch = Regex("""style\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
+            .find(tag)?.groupValues?.get(1) ?: return styleMap
+        for (pair in styleMatch.split(";")) {
+            val kv = pair.split(":", limit = 2)
+            if (kv.size == 2) {
+                val key = kv[0].trim().replace("-", "").lowercase()
+                val value = kv[1].trim()
+                styleMap[key] = value
+            }
+        }
+        return styleMap
+    }
+
+    /** Chuyển font-family CSS sang RichStyle (E2.5 Week 1). */
+    internal fun fontFamilyToStyle(fontFamily: String?): RichStyle {
+        val f = fontFamily?.lowercaseCase() ?: ""
+        return when {
+            f.contains("monospace") -> RichStyle.BODY
+            f.contains("serif") || f.contains("sans-serif") -> RichStyle.BODY
+            f.contains("heading") || f.contains("title") -> RichStyle.H1
+            else -> RichStyle.BODY
+        }
+    }
+
+    /** Chuyển margin CSS thành số dòng (E2.5 Week 1). */
+    internal fun marginToLines(marginCss: String?): Int {
+        return try {
+            val px = marginCss?.replace("px", "")?.toIntOrNull() ?: 0
+            if (px > 0) px / 4  // Giả sử 1 line = 4px
+            else 1
+        } catch (_: Exception) { 1 }
+    }
+
+    /** Parse HTML table thành RichBlock.Table (E2.5 Week 2). */
+    internal fun parseTable(html: String, startIndex: Int): Pair<List<RichBlock>, Int> {
+        val tableEnd = html.indexOf("</table>", startIndex)
+        if (tableEnd < 0) return emptyList() to startIndex
+
+        val tableContent = html.substring(startIndex, tableEnd)
+        val rows = parseTableRows(tableContent)
+        val caption = parseTableCaption(tableContent)
+
+        return listOf(Table(rows, caption)) to tableEnd + 8  // 8 = length of "</table>"
+    }
+
+    /** Parse các hàng trong bảng. */
+    private fun parseTableRows(html: String): List<TableRow> {
+        val rows = mutableListOf<TableRow>()
+        var pos = 0
+
+        while (pos < html.length) {
+            val trStart = html.indexOf("<tr", pos)
+            if (trStart < 0) break
+
+            val trEnd = html.indexOf(">", trStart)
+            if (trEnd < 0) break
+
+            val trEndTag = html.indexOf("</tr>", trEnd)
+            val trContent = if (trEndTag < 0) html.substring(trEnd + 1) else html.substring(trEnd + 1, trEndTag)
+            val cells = parseTableCells(trContent)
+            rows.add(TableRow(cells))
+
+            pos = trEnd + 1
+        }
+
+        return rows
+    }
+
+    /** Parse các ô trong hàng. */
+    private fun parseTableCells(html: String): List<TableCell> {
+        val cells = mutableListOf<TableCell>()
+        var pos = 0
+
+        while (pos < html.length) {
+            val tdStart = html.indexOf("<td", pos)
+            val thStart = html.indexOf("<th", pos)
+
+            val tagStart = if (tdStart < 0) thStart else if (thStart < 0) tdStart else minOf(tdStart, thStart)
+            if (tagStart < 0) break
+
+            val isHeader = tagStart == thStart && thStart <= tdStart
+            val tagEnd = html.indexOf(">", tagStart)
+            if (tagEnd < 0) break
+
+            val tagContent = html.substring(tagStart, tagEnd + 1)
+            val cellContentEnd = html.indexOf("</${if (isHeader) "th" else "td"}>", tagEnd)
+            val cellContent = if (cellContentEnd < 0) "" else html.substring(tagEnd + 1, cellContentEnd)
+
+            val colspan = parseAttribute(tagContent, "colspan").toIntOrNull() ?: 1
+            val rowspan = parseAttribute(tagContent, "rowspan").toIntOrNull() ?: 1
+
+            cells.add(TableCell(cellContent.trim(), colspan, rowspan, isHeader))
+            pos = tagEnd + 1
+        }
+
+        return cells
+    }
+
+    /** Parse attribute từ HTML tag. */
+    private fun parseAttribute(tag: String, attrName: String): String {
+        val regex = Regex("""$attrName\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
+        return regex.find(tag)?.groupValues?.get(1) ?: ""
+    }
+
+    /** Parse caption của bảng. */
+    private fun parseTableCaption(html: String): String? {
+        val captionStart = html.indexOf("<caption")
+        if (captionStart < 0) return null
+
+        val captionEnd = html.indexOf(">", captionStart)
+        if (captionEnd < 0) return null
+
+        val captionContentEnd = html.indexOf("</caption>", captionEnd)
+        if (captionContentEnd < 0) return null
+
+        return html.substring(captionEnd + 1, captionContentEnd).trim()
+    }
+
     /**
      * HTML spine item → khối hiển thị (1 pass, không regex cả file):
      * heading/đoạn/caption giữ style, `<img>` → Figure (path đã resolve),
@@ -199,10 +359,15 @@ object EpubReader {
         var curItalic = false
         var curStyle: RichStyle = RichStyle.BODY
         var captionDepth = 0
+        var footnoteDepth = 0
+        var footnoteId = ""
+        var footnoteContent = StringBuilder()
+        var inDropcap = false
         val boldStack = ArrayDeque<Boolean>()
         val italicStack = ArrayDeque<Boolean>()
         var skipDepth = 0
         var skipTag = ""
+        var curCSSStyle: RichBlock.RichStyleCSS = RichBlock.RichStyleCSS()
 
         fun flushSeg() {
             if (cur.isNotEmpty()) {
@@ -211,13 +376,14 @@ object EpubReader {
             }
         }
 
-        fun flushPara(style: RichStyle = curStyle) {
+        fun flushPara(style: RichStyle = curStyle, cssStyle: RichBlock.RichStyleCSS = curCSSStyle) {
             flushSeg()
             if (segs.isNotEmpty()) {
-                blocks.add(RichBlock.Para(segs.toList(), style))
+                blocks.add(RichBlock.Para(segs.toList(), style, cssStyle))
                 segs.clear()
             }
             curStyle = RichStyle.BODY
+            curCSSStyle = RichBlock.RichStyleCSS()
         }
 
         var i = 0
@@ -317,13 +483,89 @@ object EpubReader {
                 if (name in richBlockTags) {
                     if (!closing) {
                         flushPara()
+                        // Parse CSS inline style (E2.5 Week 1)
+                        val css = parseInlineStyle(tag)
+                        curCSSStyle = RichBlock.RichStyleCSS(
+                            color = css["color"],
+                            backgroundColor = css["backgroundcolor"],
+                            fontFamily = css["fontfamily"],
+                            textAlign = css["textalign"],
+                            fontSize = css["fontsize"],
+                            fontWeight = css["fontweight"],
+                            marginTop = css["margin-top"] ?: css["margintop"],
+                            marginBottom = css["margin-bottom"] ?: css["marginbottom"],
+                            padding = css["padding"],
+                            lineHeight = css["lineheight"]
+                        )
                         val tl = tag.lowercase().replace(" ", "")
-                        if (hasClass(tag, "center") || tl.contains("text-align:center")) {
+                        curStyle = fontFamilyToStyle(css["fontfamily"])
+                        if (hasClass(tag, "center") || css["textalign"] == "center" || tl.contains("text-align:center")) {
                             curStyle = RichStyle.CENTER
                         }
                     } else {
                         flushPara()
                     }
+                    i = e + 1
+                    continue
+                }
+                if (!closing && name == "table") {
+                    flushPara()
+                    val (tableBlocks, newIndex) = parseTable(html, i)
+                    blocks.addAll(tableBlocks)
+                    i = newIndex
+                    continue
+                }
+                if (closing && name == "table") {
+                    i = e + 1
+                    continue
+                }
+                // Footnote/Dropcap (E2.5 Week 3)
+                if (!closing && name == "fn") {
+                    flushPara()
+                    footnoteDepth++
+                    footnoteId = ""
+                    footnoteContent = StringBuilder()
+                    i = e + 1
+                    continue
+                }
+                if (closing && name == "fn" && footnoteDepth > 0) {
+                    blocks.add(RichBlock.Footnote(footnoteId, footnoteContent.toString().trim()))
+                    footnoteDepth--
+                    footnoteId = ""
+                    footnoteContent = StringBuilder()
+                    i = e + 1
+                    continue
+                }
+                if (!closing && name == "sup") {
+                    flushSeg()
+                    cur.append("ˢ") // Superscript marker
+                    i = e + 1
+                    continue
+                }
+                if (closing && name == "sup") {
+                    i = e + 1
+                    continue
+                }
+                if (!closing && name == "sub") {
+                    flushSeg()
+                    cur.append("ₛ") // Subscript marker
+                    i = e + 1
+                    continue
+                }
+                if (closing && name == "sub") {
+                    i = e + 1
+                    continue
+                }
+                // Dropcap span
+                if (!closing && name == "span" && hasClass(tag, "dropcap")) {
+                    flushPara()
+                    inDropcap = true
+                    i = e + 1
+                    continue
+                }
+                if (closing && name == "span" && inDropcap) {
+                    inDropcap = false
+                    flushPara()
                     i = e + 1
                     continue
                 }
@@ -368,7 +610,12 @@ object EpubReader {
                 i++
                 continue
             }
-            cur.append(c)
+            // Footnote content accumulation (E2.5 Week 3)
+            if (footnoteDepth > 0) {
+                footnoteContent.append(c)
+            } else {
+                cur.append(c)
+            }
             i++
         }
         flushPara(if (captionDepth > 0) RichStyle.CAPTION else curStyle)
