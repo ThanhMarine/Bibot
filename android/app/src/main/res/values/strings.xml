@@ -1,5 +1,5 @@
 <resources>
-    <!-- Default locale = English (convention). Vietnamese lives in values-vi/. -->
+    
     <string name="app_name">Bibot</string>
     <string name="persona">I\’m Bi</string>
     <string name="language_title">Language / Ngôn ngữ</string>
@@ -7,7 +7,7 @@
     <string name="language_vi">Tiếng Việt</string>
     <string name="language_en">English</string>
 
-    <!-- Nav / modes -->
+    
     <string name="nav_home">Home</string>
     <string name="nav_voice">Chat</string>
     <string name="nav_book">EN Books</string>
@@ -24,12 +24,12 @@
     <string name="nav_view">View</string>
     <string name="dialog_close">Close</string>
 
-    <!-- Home lists -->
+    
     <string name="home_story_count">%1$d stories available</string>
     <string name="home_story_empty">No stories yet. Sync the library in Settings or import a public URL.</string>
     <string name="home_cotich_empty">No fairy tales yet. Add .txt/.md files to the Fairy Tales Drive folder, then Refresh.</string>
 
-    <!-- Reader chrome -->
+    
     <string name="reader_back">Back</string>
     <string name="reader_play_tell">Tell</string>
     <string name="reader_play_read">Read</string>
@@ -56,7 +56,7 @@
     <string name="reader_pdf_scanned">This PDF is a scanned/image file with no readable text (OCR not supported yet). Convert it to .md/.txt on PC to read it here.</string>
     <string name="reader_epub_scanned">This EPUB contains only scanned images with no readable text (OCR not supported yet). Convert it to .md/.txt on PC to read it here.</string>
 
-    <!-- Book list -->
+    
     <string name="home_book_count">There are %1$d books in the Library</string>
     <string name="book_section_en">English (%1$d)</string>
     <string name="book_section_local">Downloaded / links (%1$d)</string>
@@ -314,6 +314,9 @@
     <string name="mus_play">Play</string>
     <string name="mus_find">Find</string>
     <string name="mus_default_app">Default music app</string>
+    <string name="mus_default_search">Default search</string>
+    <string name="mus_placeholder_example">Placeholder example</string>
+    <string name="mus_search_default_app">Search &amp; play on default music app</string>
     <string name="mus_tap_plays">Tapping play opens the device music app</string>
     <string name="mus_inapp_player">Playing with Bibot’s in-app player</string>
     <string name="mus_open_app">Open default music app</string>
@@ -362,6 +365,54 @@
     <string name="doc_add_to_books">Add→Books</string>
     <string name="doc_no_search">No “%1$s” in storage.</string>
     <string name="doc_browse_hint">Pick an (SAF) folder to browse storage.</string>
+    <string name="lib_src_pdrive">Public Drive</string>
+    <string name="lib_src_local">Local</string>
+    <string name="lib_src_url">URL</string>
+    <string name="lib_src_other">Other</string>
+    <string name="lib_col_story">Story</string>
+    <string name="lib_col_cotich">Fairy Tales</string>
+    <string name="lib_col_en">English</string>
+    <string name="lib_col_thamkhao">Reference</string>
+    <string name="lib_col_local">Local</string>
+    <string name="lib_auto_scanned">Auto-scanned</string>
+    <string name="lib_moved_trash">Moved to trash</string>
+    <string name="lib_restored">Restored</string>
+    <string name="lib_deleted_forever">Deleted forever</string>
+    <string name="lib_unknown">Unknown</string>
+    <string name="lib_title">Title</string>
+    <string name="lib_sec_reading">Reading</string>
+    <string name="lib_sec_all">All</string>
+    <string name="lib_sec_fav">Favorites</string>
+    <string name="lib_sec_toread">To read</string>
+    <string name="lib_sec_read">Read</string>
+    <string name="lib_sec_collection">Collection</string>
+    <string name="lib_sec_author">Author</string>
+    <string name="lib_sec_series">Series</string>
+    <string name="lib_sec_format">Format</string>
+    <string name="lib_sec_folder">Folder</string>
+    <string name="lib_sec_downloaded">Downloaded</string>
+    <string name="lib_sec_trash">Trash</string>
+    <string name="lib_add_desc">Add description</string>
+    <string name="lib_menu_desc">Menu description</string>
+    <string name="lib_count">%1$d items</string>
+    <string name="lib_search">Search</string>
+    <string name="lib_search_hint">Search books…</string>
+    <string name="lib_trash_hint">Trash hint</string>
+    <string name="lib_empty">Empty</string>
+    <string name="lib_no_search">No results</string>
+    <string name="lib_act_restore">Restore</string>
+    <string name="lib_act_delforever">Delete forever</string>
+    <string name="lib_act_download">Download</string>
+    <string name="lib_act_unfav">Unfavorite</string>
+    <string name="lib_act_fav">Favorite</string>
+    <string name="lib_act_untoread">Mark unread</string>
+    <string name="lib_act_toread">Mark to read</string>
+    <string name="lib_act_menu">Menu</string>
+    <string name="lib_act_unmarkread">Unmark read</string>
+    <string name="lib_act_markread">Mark read</string>
+    <string name="lib_marked_read">Marked read</string>
+    <string name="lib_marked_unread">Marked unread</string>
+    <string name="lib_act_trash">Trash</string>
     <string name="chrome_yes">Yes</string>
     <string name="chrome_no">No</string>
     <string name="chrome_menu_desc">Reading menu</string>
@@ -371,121 +422,45 @@
     <string name="chrome_search_soon">Book search arrives in phase B4.</string>
     <string name="chrome_view_text">Text view</string>
     <string name="chrome_view_page">Page view</string>
-    <!-- E2.3: reflow PDF PAGE (TEXT mode da la reflow - nut chuyen noi ro)
-    <string name="chrome_reflow_text">Reflow to text</string>
-    <string name="chrome_brightness">In-app brightness</string>
-    <string name="chrome_brightness_auto">System</string>
-    <string name="chrome_background_drum">Background: Drum pattern</string>
-    <string name="chrome_background_solid">Background: Solid color</string>
-    <string name="chrome_page_of">Page %1$d of %2$d</string>
-    <string name="chrome_text_panel">Page text</string>
-    <string name="chrome_text_panel_empty">No extractable text on this page.</string>
-    <string name="chrome_text_panel_none">No pages match.</string>
-    <string name="chrome_text_panel_loading">Extracting text…</string>
-    <!-- E2.4: display modes PDF trong popup ⚙ -->
-    <string name="chrome_fit">Page fit</string>
-    <string name="chrome_fit_width">Fit width</string>
+    <string name="chrome_page_of">Page %1$d/%2$d</string>
+    <string name="chrome_text_panel">Text panel</string>
+    <string name="chrome_text_panel_empty">No text panel found.</string>
+    <string name="chrome_text_panel_loading">Loading text panel…</string>
+    <string name="chrome_text_panel_none">No text panels.</string>
+    <string name="chrome_page_anchor">Page anchor</string>
+    <string name="chrome_chapter_of">Chapter %1$d/%2$d</string>
+    <string name="chrome_resume">Resume</string>
+    <string name="chrome_browse_hint">Browse files</string>
+    <string name="chrome_hint_title">Hint</string>
+    <string name="chrome_hint_text">Hint text</string>
+    <string name="chrome_got_it">Got it</string>
+    <string name="chrome_change_title">Change title</string>
+    <string name="chrome_change_msg">Change message</string>
+    <string name="chrome_anchor_read_from">▶ Read from here</string>
+    <string name="chrome_anchor_title">Anchor title</string>
+    <string name="chrome_anchor_msg">Anchor message</string>
+    <string name="chrome_brightness">Brightness</string>
+    <string name="chrome_brightness_auto">Auto brightness</string>
+    <string name="chrome_reflow_text">Reflow text</string>
+    <string name="chrome_background_drum">Drum background</string>
+    <string name="chrome_background_solid">Solid background</string>
+    <string name="chrome_fit">Fit</string>
     <string name="chrome_fit_page">Fit page</string>
+    <string name="chrome_fit_width">Fit width</string>
     <string name="chrome_paging">Paging</string>
-    <string name="chrome_paging_continuous">Continuous</string>
     <string name="chrome_paging_single">Single page</string>
     <string name="chrome_paging_dual">Dual page</string>
-    <string name="chrome_theme">Page color</string>
-    <string name="chrome_theme_original">Original</string>
+    <string name="chrome_paging_continuous">Continuous</string>
+    <string name="chrome_theme">Theme</string>
     <string name="chrome_theme_sepia">Sepia</string>
     <string name="chrome_theme_night">Night</string>
+    <string name="chrome_theme_original">Original</string>
     <string name="chrome_rotate_90">Rotate 90</string>
-    <!-- E2.4: highlight PDF persist theo fileHash -->
+    <string name="chrome_crop_margins">Crop margins</string>
     <string name="chrome_highlight">Highlight</string>
     <string name="chrome_highlights">Highlights</string>
     <string name="chrome_highlight_delete">Delete highlight</string>
-    <string name="chrome_chapter_of">Chapter %1$d/%2$d</string>
-    <string name="chrome_back_to_page">‹ Back to page %1$d</string>
-    <string name="chrome_history_clear">Clear</string>
-    <string name="chrome_anchor_read_from">▶ Read from here</string>
-    <string name="chrome_anchor_title">Read from here?</string>
-    <string name="chrome_anchor_msg">%1$s</string>
-    <string name="chrome_change_title">Move position?</string>
-    <string name="chrome_change_msg">Continue reading from here?</string>
-    <string name="chrome_resume">▶ Resume sentence %1$d</string>
-    <string name="chrome_browse_hint">Browse freely — tap a sentence to anchor the reading point.</string>
-    <string name="chrome_page_anchor">Page %1$d — reads from about %2$d%%.</string>
-    <string name="chrome_got_it">Got it</string>
-    <string name="chrome_hint_title">Touch reading</string>
-    <string name="chrome_hint_text">Swipe ◀ ▶ to change chapter • Tap center to show/hide the menu • Tap a sentence to anchor the reading point.</string>
-    <string name="lib_title">📚 Library</string>
-    <string name="lib_search">Search library…</string>
-    <string name="lib_search_hint">Title, author…</string>
-    <string name="lib_count">%1$d books</string>
-    <string name="lib_empty">No books here yet. Tap + to add, or Refresh to sync Drive.</string>
-    <string name="lib_no_search">No “%1$s” in library.</string>
-    <string name="lib_menu_desc">Library sections</string>
-    <string name="lib_add_desc">Add file to library</string>
-    <string name="lib_act_download">Download</string>
-    <string name="lib_act_fav">Favorite</string>
-    <string name="lib_act_unfav">Unfavorite</string>
-    <string name="lib_act_toread">Read later</string>
-    <string name="lib_act_untoread">Remove from read later</string>
-    <string name="lib_act_menu">More actions</string>
-    <string name="lib_act_markread">Mark as read</string>
-    <string name="lib_act_unmarkread">Mark as unread</string>
-    <string name="lib_act_trash">Move to trash</string>
-    <string name="lib_act_restore">Restore</string>
-    <string name="lib_act_delforever">Delete forever</string>
-    <string name="lib_sec_reading">Reading</string>
-    <string name="lib_sec_all">Books &amp; docs</string>
-    <string name="lib_sec_fav">Favorites</string>
-    <string name="lib_sec_toread">Read later</string>
-    <string name="lib_sec_read">Finished</string>
-    <string name="lib_sec_downloaded">Downloaded</string>
-    <string name="lib_sec_trash">Trash</string>
-    <string name="lib_sec_collection">Collections</string>
-    <string name="lib_sec_author">Authors</string>
-    <string name="lib_sec_series">Series</string>
-    <string name="lib_sec_format">Formats</string>
-    <string name="lib_sec_folder">Folders</string>
-    <string name="lib_unknown">Unknown</string>
-    <string name="lib_trash_hint">Trashed books stay here until deleted forever.</string>
-    <string name="lib_moved_trash">Moved to trash</string>
-    <string name="lib_restored">Restored</string>
-    <string name="lib_deleted_forever">Deleted</string>
-    <string name="lib_marked_read">Marked as read</string>
-    <string name="lib_marked_unread">Marked as unread</string>
-    <string name="lib_progress_desc">Read %1$d percent</string>
-    <string name="lib_auto_scanned">Auto-scanned %1$d local files</string>
-    <string name="lib_col_story">Sử Việt tales</string>
-    <string name="lib_col_cotich">Fairy tales</string>
-    <string name="lib_col_en">English</string>
-    <string name="lib_col_thamkhao">References</string>
-    <string name="lib_col_local">On this device</string>
-    <string name="lib_src_pdrive">Public Drive</string>
-    <string name="lib_src_local">This device</string>
-    <string name="lib_src_url">Links</string>
-    <string name="lib_src_other">Other</string>
-    <string name="pdf_hint_top">Pick a PDF on this device or use the 3 demo PDFs in EN Books. Demo uses on-device ML Kit (no key needed).</string>
-    <string name="pdf_copying">Copying PDF…</string>
-    <string name="pdf_added">Added %1$s (%2$d KB)</string>
-    <string name="pdf_picker_fail">Picker failed: %1$s</string>
-    <string name="pdf_converting">Converting %1$s…</string>
-    <string name="pdf_converted">Converted %1$s → %2$s (%3$d KB)</string>
-    <string name="pdf_convert_fail">Convert failed: %1$s</string>
-    <string name="pdf_build9">Build 9: on-device ML Kit for demo (no key), Document AI REST for official. Saves files/bibot/pdfs/outbox/*.md + Room PdfJob.</string>
-    <string name="pdf_pick">Pick PDF on device</string>
-    <string name="pdf_refreshed">Refreshed %1$d PDFs</string>
-    <string name="pdf_available">📥 Available PDFs (%1$d)</string>
-    <string name="pdf_source">Source: files/bibot/pdfs/inbox + books/en (3 demos). Tap Convert for Markdown.</string>
-    <string name="pdf_empty">No PDFs. Use the 3 EN demos or Pick PDF on device.</string>
-    <string name="pdf_demo_files">Demo: alice_adventures.pdf, pride_prejudice.pdf, sherlock.pdf (bundled &lt;10KB each)</string>
-    <string name="pdf_convert_btn">Convert</string>
-    <string name="pdf_md_done">📝 Converted Markdown (%1$d)</string>
-    <string name="pdf_md_saved">Saved at files/bibot/pdfs/outbox/*.md (standard Android, no permission needed).</string>
-    <string name="pdf_preview">Markdown preview (4000 chars):</string>
-    <string name="pdf_tip">Tip: after converting, open the .md in 📚 Books or share via exports/ (SAF). Document AI REST comes with a GCP project ID (Build 9 official).</string>
-<string name="mus_default_search">music</string>
-    <string name="mus_placeholder_example">Ex: Diễm Xưa Trịnh Công Sơn</string>
-    <string name="mus_search_default_app">Search &amp; play on default music app</string>
 
-    <!-- Help/Guide section -->
     <string name="sec_help">Help &amp; Guide</string>
     <string name="help_sub">STT/TTS offline setup, Google API keys, FAQ</string>
     <string name="help_title_offline_stt">Offline STT Setup (Sherpa)</string>
@@ -567,7 +542,7 @@
     <string name="help_section_title">Hướng dẫn sử dụng</string>
     <string name="help_section_sub">Cài đặt Offline STT/TTS, API Keys, FAQ</string>
 
-    <!-- A2.3: Reading display settings -->
+    
     <string name="reader_font_size">Cỡ chữ</string>
     <string name="reader_font_size_sub">%1$.0f sp</string>
     <string name="reader_interline">Khoảng dòng</string>
@@ -596,7 +571,7 @@
     <string name="summary_share">Share my summaries to community wiki</string>
     <string name="summary_share_sub">Only short derived summaries, never book text. Needs Firebase. Fair rule: OFF = you neither send nor receive community cache.</string>
 
-    <!-- A3.1: Export audiobook -->
+    
     <string name="export_title">Export Audiobook</string>
     <string name="export_btn">Export to MP3</string>
     <string name="export_cancel">Cancel Export</string>
@@ -607,7 +582,7 @@
     <string name="export_no_file">Book file not found. Download first.</string>
     <string name="chrome_export">Export Audiobook</string>
 
-<!-- B5.8: Wiki book reader -->
+
     <string name="wiki_complete">Wiki complete (%1$d/%2$d chapters)</string>
     <string name="wiki_in_progress">Building wiki: %1$d/%2$d chapters</string>
     <string name="wiki_in_progress_percent">%1$d%% complete</string>

@@ -20,6 +20,9 @@ import java.net.URL
  *
  * Dev fallback: khi chưa cấu hình relay (BIBOT_LLM_PROXY_URL rỗng) mà build có secret
  * (debug) thì verify local như cũ. Release secret rỗng → server là nguồn duy nhất.
+ *
+ * Play Integrity Phase 2: integrityToken gửi kèm verify request (hiện trống, server log-only).
+ * Quota relay theo entitlement tier thay vì deviceId trần (xử lý ở server relay).
  */
 object VipVerifier {
 

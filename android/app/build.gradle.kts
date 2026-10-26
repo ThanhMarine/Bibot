@@ -78,6 +78,8 @@ android {
         buildConfigField("String", "ANNOUNCE_URL", "\"\"")
         buildConfigField("String", "AD_TEST_DEVICES", "\"" + (System.getenv("AD_TEST_DEVICES") ?: "") + "\"")
         buildConfigField("String", "DEFAULT_DRIVE_FOLDER_ID", "\"1UfFOF2FQbA5L9MKJtevEEGja1K0dAhxm\"")
+        // I2.3: Play Integrity project number (để lấy integrity token) — env KHÔNG commit
+        buildConfigField("String", "PLAY_INTEGRITY_PROJECT_NUMBER", "\"" + (System.getenv("PLAY_INTEGRITY_PROJECT_NUMBER") ?: "") + "\"")
 
         resConfigs("vi", "en")
         ndk {

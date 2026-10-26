@@ -242,7 +242,7 @@ object EpubReader {
 
     /** Chuyển font-family CSS sang RichStyle (E2.5 Week 1). */
     internal fun fontFamilyToStyle(fontFamily: String?): RichStyle {
-        val f = fontFamily?.lowercaseCase() ?: ""
+        val f = fontFamily?.lowercase() ?: ""
         return when {
             f.contains("monospace") -> RichStyle.BODY
             f.contains("serif") || f.contains("sans-serif") -> RichStyle.BODY
@@ -263,18 +263,18 @@ object EpubReader {
     /** Parse HTML table thành RichBlock.Table (E2.5 Week 2). */
     internal fun parseTable(html: String, startIndex: Int): Pair<List<RichBlock>, Int> {
         val tableEnd = html.indexOf("</table>", startIndex)
-        if (tableEnd < 0) return emptyList() to startIndex
+        if (tableEnd < 0) return emptyList<RichBlock>() to startIndex
 
         val tableContent = html.substring(startIndex, tableEnd)
         val rows = parseTableRows(tableContent)
         val caption = parseTableCaption(tableContent)
 
-        return listOf(Table(rows, caption)) to tableEnd + 8  // 8 = length of "</table>"
+        return listOf(RichBlock.Table(rows, caption)) to tableEnd + 8  // 8 = length of "</table>"
     }
 
     /** Parse các hàng trong bảng. */
-    private fun parseTableRows(html: String): List<TableRow> {
-        val rows = mutableListOf<TableRow>()
+    private fun parseTableRows(html: String): List<RichBlock.TableRow> {
+        val rows = mutableListOf<RichBlock.TableRow>()
         var pos = 0
 
         while (pos < html.length) {
@@ -287,7 +287,7 @@ object EpubReader {
             val trEndTag = html.indexOf("</tr>", trEnd)
             val trContent = if (trEndTag < 0) html.substring(trEnd + 1) else html.substring(trEnd + 1, trEndTag)
             val cells = parseTableCells(trContent)
-            rows.add(TableRow(cells))
+            rows.add(RichBlock.TableRow(cells))
 
             pos = trEnd + 1
         }
@@ -296,8 +296,8 @@ object EpubReader {
     }
 
     /** Parse các ô trong hàng. */
-    private fun parseTableCells(html: String): List<TableCell> {
-        val cells = mutableListOf<TableCell>()
+    private fun parseTableCells(html: String): List<RichBlock.TableCell> {
+        val cells = mutableListOf<RichBlock.TableCell>()
         var pos = 0
 
         while (pos < html.length) {
@@ -318,7 +318,7 @@ object EpubReader {
             val colspan = parseAttribute(tagContent, "colspan").toIntOrNull() ?: 1
             val rowspan = parseAttribute(tagContent, "rowspan").toIntOrNull() ?: 1
 
-            cells.add(TableCell(cellContent.trim(), colspan, rowspan, isHeader))
+            cells.add(RichBlock.TableCell(cellContent.trim(), colspan, rowspan, isHeader))
             pos = tagEnd + 1
         }
 

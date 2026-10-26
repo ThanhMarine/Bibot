@@ -1,5 +1,5 @@
 <resources>
-    <!-- Tieng Viet: ban dich cua values/strings.xml -->
+    
     <string name="app_name">Bibot</string>
     <string name="persona">Em là Bi</string>
     <string name="language_title">Ngôn ngữ / Language</string>
@@ -7,7 +7,7 @@
     <string name="language_vi">Tiếng Việt</string>
     <string name="language_en">English</string>
 
-    <!-- Nav / che do -->
+    
     <string name="nav_home">Trang chủ</string>
     <string name="nav_voice">Trò chuyện</string>
     <string name="nav_book">EN Books</string>
@@ -24,12 +24,12 @@
     <string name="nav_view">Xem</string>
     <string name="dialog_close">Đóng</string>
 
-    <!-- Danh sach Home -->
+    
     <string name="home_story_count">Hiện có %1$d truyện</string>
     <string name="home_story_empty">Chưa có truyện. Đồng bộ kho sách trong ⚙️ hoặc nhập URL public.</string>
     <string name="home_cotich_empty">Chưa có truyện cổ tích. Thêm file .txt/.md vào folder Cổ tích trên Drive rồi bấm Làm mới.</string>
 
-    <!-- Khung doc -->
+    
     <string name="reader_back">Quay lại</string>
     <string name="reader_play_tell">Kể</string>
     <string name="reader_play_read">Đọc</string>
@@ -56,7 +56,7 @@
     <string name="reader_pdf_scanned">PDF này là bản scan/ảnh, không có text để đọc (app chưa hỗ trợ OCR). Hãy convert sang .md/.txt trên máy tính rồi chép vào app.</string>
     <string name="reader_epub_scanned">EPUB này chỉ chứa ảnh scan, không có text để đọc (app chưa hỗ trợ OCR). Hãy convert sang .md/.txt trên máy tính rồi chép vào app.</string>
 
-    <!-- Danh sach sach -->
+    
     <string name="home_book_count">Có %1$d sách trong Thư viện</string>
     <string name="book_section_en">Tiếng Anh (%1$d)</string>
     <string name="book_section_local">Đã tải / link (%1$d)</string>
@@ -362,132 +362,98 @@
     <string name="doc_add_to_books">Add→Sách</string>
     <string name="doc_no_search">Không tìm kiếm “%1$s” trong storage.</string>
     <string name="doc_browse_hint">Chọn thư mục (SAF) để duyệt bộ nhớ.</string>
-    <string name="chrome_yes">Có</string>
-    <string name="chrome_no">Không</string>
-    <string name="chrome_menu_desc">Menu đọc sách</string>
-    <string name="chrome_toc">Mục lục</string>
-    <string name="chrome_search">Tìm trong sách</string>
-    <string name="chrome_search_hint">Nhập từ cần tìm…</string>
-    <string name="chrome_search_soon">Tìm kiếm trong sách sẽ có ở nhịp B4.</string>
-    <string name="chrome_view_text">Xem chữ</string>
-    <string name="chrome_view_page">Xem trang</string>
-    <!-- E2.3: reflow PDF PAGE (TEXT mode da la reflow - nut chuyen noi ro)
-    <string name="chrome_reflow_text">Chuyển sang chữ</string>
-    <string name="chrome_brightness">Độ sáng trong app</string>
-    <string name="chrome_brightness_auto">Hệ thống</string>
-    <string name="chrome_background_drum">Nền: Trống đồng</string>
-    <string name="chrome_background_solid">Nền: Đơn sắc</string>
     <string name="chrome_page_of">Trang %1$d/%2$d</string>
-    <string name="chrome_text_panel">Chữ trang</string>
-    <string name="chrome_text_panel_empty">Trang này không trích được chữ.</string>
-    <string name="chrome_text_panel_none">Không trang nào khớp.</string>
-    <string name="chrome_text_panel_loading">Đang trích chữ…</string>
-    <!-- E2.4: display modes PDF trong popup ⚙ -->
+    <string name="chrome_text_panel">Bản tin văn bản</string>
+    <string name="chrome_text_panel_empty">Không tìm thấy bản tin văn bản.</string>
+    <string name="chrome_text_panel_loading">Đang tải bản tin văn bản…</string>
+    <string name="chrome_text_panel_none">Không có bản tin văn bản.</string>
+    <string name="chrome_page_anchor">Neo trang</string>
+    <string name="chrome_chapter_of">Chương %1$d/%2$d</string>
+    <string name="chrome_resume">Tiếp tục</string>
+    <string name="chrome_browse_hint">Duyệt file</string>
+    <string name="chrome_hint_title">Gợi ý</string>
+    <string name="chrome_hint_text">Văn bản gợi ý</string>
+    <string name="chrome_got_it">Đã hiểu</string>
+    <string name="chrome_change_title">Thay đổi tiêu đề</string>
+    <string name="chrome_change_msg">Thay đổi tin nhắn</string>
+    <string name="chrome_anchor_read_from">▶ Đọc từ đây</string>
+    <string name="chrome_anchor_title">Tiêu đề neo</string>
+    <string name="chrome_anchor_msg">Tin nhắn neo</string>
+    <string name="chrome_brightness">Độ sáng</string>
+    <string name="chrome_brightness_auto">Độ sáng tự động</string>
+    <string name="chrome_reflow_text">Đọc lại văn bản</string>
+    <string name="chrome_background_drum">Nền trống đồng</string>
+    <string name="chrome_background_solid">Nền đơn sắc</string>
     <string name="chrome_fit">Khổ trang</string>
-    <string name="chrome_fit_width">Vừa bề rộng</string>
-    <string name="chrome_fit_page">Vừa màn hình</string>
-    <string name="chrome_paging">Chế độ trang</string>
-    <string name="chrome_paging_continuous">Liền mạch</string>
+    <string name="chrome_fit_page">Vừa trang</string>
+    <string name="chrome_fit_width">Vừa rộng</string>
+    <string name="chrome_paging">Trang trình</string>
     <string name="chrome_paging_single">Một trang</string>
     <string name="chrome_paging_dual">Hai trang</string>
-    <string name="chrome_theme">Màu trang</string>
-    <string name="chrome_theme_original">Mặc định</string>
+    <string name="chrome_paging_continuous">Liên tục</string>
+    <string name="chrome_theme">Giao diện</string>
     <string name="chrome_theme_sepia">Nâu cổ</string>
     <string name="chrome_theme_night">Đêm</string>
+    <string name="chrome_theme_original">Gốc</string>
     <string name="chrome_rotate_90">Xoay 90°</string>
-    <!-- E2.3: crop le trong PDF PAGE (SmartCrop IsRectWhite)
     <string name="chrome_crop_margins">Cắt lề trắng</string>
-    <!-- E2.4: highlight PDF persist theo fileHash -->
     <string name="chrome_highlight">Đánh dấu</string>
     <string name="chrome_highlights">Dấu đánh dấu</string>
-    <string name="chrome_highlight_delete">Xóa dấu đánh dấu</string>
-    <string name="chrome_chapter_of">Chương %1$d/%2$d</string>
-    <string name="chrome_back_to_page">‹ Về trang %1$d</string>
-    <string name="chrome_history_clear">XÓA</string>
-    <string name="chrome_anchor_read_from">▶ Đọc từ đây</string>
-    <string name="chrome_anchor_title">Đọc từ đây?</string>
-    <string name="chrome_anchor_msg">%1$s</string>
-    <string name="chrome_change_title">Đổi vị trí</string>
-    <string name="chrome_change_msg">Đọc tiếp từ đây?</string>
-    <string name="chrome_resume">▶ Đọc tiếp câu %1$d</string>
-    <string name="chrome_browse_hint">Cứ lướt xem — chạm vào câu để neo điểm đọc.</string>
-    <string name="chrome_page_anchor">Trang %1$d — đọc từ khoảng %2$d%%.</string>
-    <string name="chrome_got_it">Đã hiểu</string>
-    <string name="chrome_hint_title">Đọc bằng chạm</string>
-    <string name="chrome_hint_text">Vuốt ◀ ▶ để đổi chương • Chạm giữa để ẩn/hiện menu • Chạm vào câu để neo điểm đọc.</string>
-    <string name="lib_title">📚 Thư viện</string>
-    <string name="lib_search">Tìm trong thư viện…</string>
-    <string name="lib_search_hint">Tên sách, tác giả…</string>
-    <string name="lib_count">%1$d sách</string>
-    <string name="lib_empty">Chưa có sách. Bấm + để thêm, hoặc Làm mới để đồng bộ Drive.</string>
-    <string name="lib_no_search">Không thấy “%1$s” trong thư viện.</string>
-    <string name="lib_menu_desc">Các mục thư viện</string>
-    <string name="lib_add_desc">Thêm file vào thư viện</string>
-    <string name="lib_act_download">Tải về</string>
-    <string name="lib_act_fav">Yêu thích</string>
-    <string name="lib_act_unfav">Bỏ yêu thích</string>
-    <string name="lib_act_toread">Đọc sau</string>
-    <string name="lib_act_untoread">Bỏ đọc sau</string>
-    <string name="lib_act_menu">Thêm</string>
-    <string name="lib_act_markread">Đánh dấu đã đọc</string>
-    <string name="lib_act_unmarkread">Đánh dấu chưa đọc</string>
-    <string name="lib_act_trash">Vào thùng rác</string>
-    <string name="lib_act_restore">Khôi phục</string>
-    <string name="lib_act_delforever">Xoá hẳn</string>
-    <string name="lib_sec_reading">Đang đọc</string>
-    <string name="lib_sec_all">Sách &amp; tài liệu</string>
-    <string name="lib_sec_fav">Yêu thích</string>
-    <string name="lib_sec_toread">Đọc sau</string>
-    <string name="lib_sec_read">Đã đọc</string>
-    <string name="lib_sec_downloaded">Đã tải</string>
-    <string name="lib_sec_trash">Thùng rác</string>
-    <string name="lib_sec_collection">Tuyển tập</string>
-    <string name="lib_sec_author">Tác giả</string>
-    <string name="lib_sec_series">Series</string>
-    <string name="lib_sec_format">Định dạng</string>
-    <string name="lib_sec_folder">Thư mục</string>
-    <string name="lib_unknown">Chưa rõ</string>
-    <string name="lib_trash_hint">Sách trong thùng rác chờ xoá hẳn.</string>
-    <string name="lib_moved_trash">Đã vào thùng rác</string>
-    <string name="lib_restored">Đã khôi phục</string>
-    <string name="lib_deleted_forever">Đã xoá</string>
-    <string name="lib_marked_read">Đã đánh dấu đã đọc</string>
-    <string name="lib_marked_unread">Đã đánh dấu chưa đọc</string>
-    <string name="lib_progress_desc">Đã đọc %1$d phần trăm</string>
-    <string name="lib_auto_scanned">Đã quét %1$d file local</string>
-    <string name="lib_col_story">Truyện Sử Việt</string>
+    <string name="chrome_highlight_delete">Xóa đánh dấu</string>
+
+    <string name="lib_src_pdrive">Drive công khai</string>
+    <string name="lib_src_local">Cục bộ</string>
+    <string name="lib_src_url">URL</string>
+    <string name="lib_src_other">Khác</string>
+    <string name="lib_col_story">Kể chuyện</string>
     <string name="lib_col_cotich">Cổ tích</string>
     <string name="lib_col_en">Tiếng Anh</string>
     <string name="lib_col_thamkhao">Tham khảo</string>
-    <string name="lib_col_local">Trên máy này</string>
-    <string name="lib_src_pdrive">Drive công khai</string>
-    <string name="lib_src_local">Máy này</string>
-    <string name="lib_src_url">Link</string>
-    <string name="lib_src_other">Khác</string>
-    <string name="pdf_hint_top">Chọn PDF từ máy hoặc dùng 3 PDF demo trong Sách EN. Demo dùng ML Kit on-device (không cần key).</string>
-    <string name="pdf_copying">Đang sao chép PDF...</string>
-    <string name="pdf_added">Đã thêm %1$s (%2$d KB)</string>
-    <string name="pdf_picker_fail">Lỗi picker: %1$s</string>
-    <string name="pdf_converting">Đang chuyển %1$s...</string>
-    <string name="pdf_converted">Đã chuyển %1$s → %2$s (%3$d KB)</string>
-    <string name="pdf_convert_fail">Lỗi chuyển: %1$s</string>
-    <string name="pdf_build9">Build 9: ML Kit on-device cho demo (không cần key), Document AI REST cho official. Lưu files/bibot/pdfs/outbox/*.md + Room PdfJob.</string>
-    <string name="pdf_pick">Chọn PDF từ máy</string>
-    <string name="pdf_refreshed">Đã làm mới %1$d PDF</string>
-    <string name="pdf_available">📥 PDF có sẵn (%1$d)</string>
-    <string name="pdf_source">Nguồn: files/bibot/pdfs/inbox + books/en (3 demo). Chạm Chuyển để sang Markdown.</string>
-    <string name="pdf_empty">Chưa có PDF. Dùng 3 demo EN hoặc Chọn PDF từ máy.</string>
-    <string name="pdf_demo_files">Demo: alice_adventures.pdf, pride_prejudice.pdf, sherlock.pdf (bundle &lt;10KB mỗi)</string>
-    <string name="pdf_convert_btn">Chuyển</string>
-    <string name="pdf_md_done">📝 Markdown đã chuyển (%1$d)</string>
-    <string name="pdf_md_saved">Lưu tại files/bibot/pdfs/outbox/*.md (chuẩn Android, không cần quyền).</string>
-    <string name="pdf_preview">Xem trước Markdown (4000 ký tự):</string>
-    <string name="pdf_tip">Gợi ý: Sau khi chuyển, mở file .md trong 📚 Sách hoặc chia sẻ qua exports/ (SAF). Document AI REST sẽ thêm khi có GCP project ID (Build 9 official).</string>
-<string name="mus_default_search">nhạc</string>
-    <string name="mus_placeholder_example">VD: Diễm Xưa Trịnh Công Sơn</string>
-    <string name="mus_search_default_app">Tìm &amp; phát trên app nhạc mặc định</string>
+    <string name="lib_col_local">Cục bộ</string>
+    <string name="lib_auto_scanned">Tự động quét</string>
+    <string name="lib_moved_trash">Đã chuyển vào thùng rác</string>
+    <string name="lib_restored">Đã khôi phục</string>
+    <string name="lib_deleted_forever">Đã xóa vĩnh viễn</string>
+    <string name="lib_unknown">Không xác định</string>
+    <string name="lib_title">Tiêu đề</string>
+    <string name="lib_sec_reading">Đang đọc</string>
+    <string name="lib_sec_all">Tất cả</string>
+    <string name="lib_sec_fav">Yêu thích</string>
+    <string name="lib_sec_toread">Sắp đọc</string>
+    <string name="lib_sec_read">Đã đọc</string>
+    <string name="lib_sec_collection">Bộ sưu tập</string>
+    <string name="lib_sec_author">Tác giả</string>
+    <string name="lib_sec_series">Loạt sách</string>
+    <string name="lib_sec_format">Định dạng</string>
+    <string name="lib_sec_folder">Thư mục</string>
+    <string name="lib_sec_downloaded">Đã tải</string>
+    <string name="lib_sec_trash">Thùng rác</string>
+    <string name="lib_add_desc">Thêm mô tả</string>
+    <string name="lib_menu_desc">Mô tả menu</string>
+    <string name="lib_count">%1$d mục</string>
+    <string name="lib_search">Tìm kiếm</string>
+    <string name="lib_search_hint">Tìm sách…</string>
+    <string name="lib_trash_hint">Thùng rác</string>
+    <string name="lib_empty">Trống</string>
+    <string name="lib_no_search">Không có kết quả</string>
+    <string name="lib_act_restore">Khôi phục</string>
+    <string name="lib_act_delforever">Xóa vĩnh viễn</string>
+    <string name="lib_act_download">Tải xuống</string>
+    <string name="lib_act_unfav">Bỏ yêu thích</string>
+    <string name="lib_act_fav">Yêu thích</string>
+    <string name="lib_act_untoread">Đánh dấu chưa đọc</string>
+    <string name="lib_act_toread">Đánh dấu sắp đọc</string>
+    <string name="lib_act_menu">Menu</string>
+    <string name="lib_act_unmarkread">Bỏ đánh dấu đã đọc</string>
+    <string name="lib_act_markread">Đánh dấu đã đọc</string>
+    <string name="lib_marked_read">Đã đánh dấu đã đọc</string>
+    <string name="lib_marked_unread">Đã đánh dấu chưa đọc</string>
+    <string name="lib_act_trash">Thùng rác</string>
 
-    <!-- Help/Guide section -->
+    <string name="mus_default_search">Tìm kiếm mặc định</string>
+    <string name="mus_placeholder_example">Ví dụ giữ chỗ</string>
+    <string name="mus_search_default_app">Tìm kiếm &amp; phát trên ứng dụng nhạc mặc định</string>
+
     <string name="sec_help">Trợ giúp &amp; Hướng dẫn</string>
     <string name="help_sub">Cài đặt STT/TTS offline, API Keys, FAQ</string>
     <string name="help_title_offline_stt">Cài đặt Offline STT (Sherpa)</string>
@@ -564,7 +530,7 @@
     <string name="help_section_title">Hướng dẫn sử dụng</string>
     <string name="help_section_sub">Cài đặt Offline STT/TTS, API Keys, FAQ</string>
 
-    <!-- A2.3: Reading display settings -->
+    
     <string name="reader_font_size">Cỡ chữ</string>
     <string name="reader_font_size_sub">%1$.0f sp</string>
     <string name="reader_interline">Khoảng dòng</string>
@@ -593,7 +559,7 @@
     <string name="summary_share">Chia sẻ tóm tắt của tôi lên wiki cộng đồng</string>
     <string name="summary_share_sub">Chỉ tóm tắt phái sinh ngắn, không bao giờ gửi nguyên văn sách. Cần Firebase. Luật công bằng: TẮT = không gửi, cũng không nhận cache cộng đồng.</string>
 
-    <!-- A3.1: Export audiobook -->
+    
     <string name="export_title">Xuất Audiobook</string>
     <string name="export_btn">Xuất MP3</string>
     <string name="export_cancel">Hủy xuất</string>
@@ -604,7 +570,7 @@
     <string name="export_no_file">Không tìm thấy file sách. Tải xuống trước.</string>
     <string name="chrome_export">Xuất Audiobook</string>
 
-    <!-- B5.8: Wiki book reader -->
+    
     <string name="wiki_complete">Wiki hoàn chỉnh (%1$d/%2$d chương)</string>
     <string name="wiki_in_progress">Đang xây dựng wiki: %1$d/%2$d chương</string>
     <string name="wiki_in_progress_percent">%1$d%% hoàn tất</string>
