@@ -37,7 +37,76 @@ const (
 	// I2.3: Quota theo entitlement tier (thay vì deviceId trần)
 	vipQuotaMonth = 10 // verify/ngày cho tier tháng
 	vipQuotaLife  = 5  // verify/ngày cho tier vĩnh viễn
+
+	// I2.3: Play Integrity API endpoint
+	integrityAPIBase = "https://playintegrity.googleapis.com/v1"
 )
+
+// integrityVerifyResp là phản hồi từ Google Play Integrity API.
+type integrityVerifyResp struct {
+	RequestDetails struct {
+		PackageName string `json:"packageName"`
+	} `json:"requestDetails"`
+	DeviceIntegrity struct {
+		DeviceRecognitionVerdict string `json:"deviceRecognitionVerdict"`
+	} `json:"deviceIntegrity"`
+	AccountIntegrity struct {
+		AppLicensingVerdict string `json:"appLicensingVerdict"`
+	} `json:"accountIntegrity"`
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// verifyIntegrityToken gọi Google Play Integrity API để xác thực token.
+// Trả về (valid bool, err error). Nếu không cấu hình PROJECT_NUMBER thì coi là hợp lệ (bỏ qua).
+func verifyIntegrityToken(projectNumber, integrityToken string) (bool, error) {
+	if projectNumber == "" {
+		// Không cấu hình → bỏ qua kiểm tra (dev/staging)
+		return true, nil
+	}
+	if integrityToken == "" {
+		return false, fmt.Errorf("integrity token trống")
+	}
+
+	url := fmt.Sprintf("%s/%s:verifyIntegrityToken", integrityAPIBase, projectNumber)
+	body, _ := json.Marshal(map[string]string{"integrityToken": integrityToken})
+
+	apiKey := os.Getenv("PLAY_INTEGRITY_API_KEY")
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return false, fmt.Errorf("integrity API lỗi HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var ir integrityVerifyResp
+	if err := json.Unmarshal(respBody, &ir); err != nil {
+		return false, err
+	}
+	if ir.Error.Code != 0 {
+		return false, fmt.Errorf("integrity lỗi: %s", ir.Error.Message)
+	}
+
+	// Chấp nhận nếu thiết bị đáp ứng tiêu chí toàn vẹn thiết bị
+	return ir.DeviceIntegrity.DeviceRecognitionVerdict == "MEETS_DEVICE_INTEGRITY" ||
+		ir.DeviceIntegrity.DeviceRecognitionVerdict == "MEETS_STRONG_INTEGRITY", nil
+}
 
 type chatReq struct {
 	Prompt   string `json:"prompt"`
@@ -362,6 +431,18 @@ func vipVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UnixMilli()
 	v := verifyVipCode(secretHex, req.Code, now, revokedBatches())
+
+	// I2.3: Xác thực Play Integrity token (nếu có)
+	integrityProjectNumber := strings.TrimSpace(os.Getenv("PLAY_INTEGRITY_PROJECT_NUMBER"))
+	if req.IntegrityToken != "" {
+		valid, err := verifyIntegrityToken(integrityProjectNumber, req.IntegrityToken)
+		if err != nil || !valid {
+			log.Printf("[vip] integrity token không hợp lệ: device=%s err=%v", req.DeviceID, err)
+			http.Error(w, "thiết bị không vượt qua kiểm tra toàn vẹn", http.StatusForbidden)
+			return
+		}
+		log.Printf("[vip] integrity token OK: device=%s", req.DeviceID)
+	}
 
 	// I2.3: Kiểm tra quota theo entitlement tier (sau khi biết tier)
 	// Nếu mã hợp lệ → quota theo tier; nếu mã lỗi → quota theo deviceId (chống dò)
