@@ -33,6 +33,10 @@ const (
 	thinkingBudget  = 128
 	dailyQuota      = 20
 	maxPromptLen    = 4000
+
+	// I2.3: Quota theo entitlement tier (thay vì deviceId trần)
+	vipQuotaMonth = 10 // verify/ngày cho tier tháng
+	vipQuotaLife  = 5  // verify/ngày cho tier vĩnh viễn
 )
 
 type chatReq struct {
@@ -356,12 +360,26 @@ func vipVerify(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "thiếu code/deviceId", http.StatusBadRequest)
 		return
 	}
-	if !allowQuota("vip:"+req.DeviceID, vipVerifyQuota()) {
+	now := time.Now().UnixMilli()
+	v := verifyVipCode(secretHex, req.Code, now, revokedBatches())
+
+	// I2.3: Kiểm tra quota theo entitlement tier (sau khi biết tier)
+	// Nếu mã hợp lệ → quota theo tier; nếu mã lỗi → quota theo deviceId (chống dò)
+	quotaKey := "vip:" + req.DeviceID
+	quota := vipVerifyQuota()
+	if v.Valid {
+		if v.Tier == vipTierMonth {
+			quota = vipQuotaMonth
+		} else if v.Tier == vipTierLifetime {
+			quota = vipQuotaLife
+		}
+		quotaKey = fmt.Sprintf("vip:%s:%d", req.DeviceID, v.Tier)
+	}
+	if !allowQuota(quotaKey, quota) {
 		http.Error(w, "verify quá nhiều, thử lại mai", http.StatusTooManyRequests)
 		return
 	}
-	now := time.Now().UnixMilli()
-	v := verifyVipCode(secretHex, req.Code, now, revokedBatches())
+
 	resp := vipVerifyResp{vipVerdict: v, ServerTime: now}
 	if v.Valid {
 		secret, _ := hex.DecodeString(secretHex)
@@ -378,8 +396,10 @@ func vipVerify(w http.ResponseWriter, r *http.Request) {
 		}
 		codeDevices.Unlock()
 		if req.IntegrityToken != "" {
-			log.Printf("[vip] integrity token nhận (chưa enforce): device=%s app=%s",
-				req.DeviceID, req.AppVersion)
+			// I2.3: Play Integrity token nhận — verify nếu có cấu hình, hiện log-only
+			log.Printf("[vip] integrity token (tier=%d): device=%s app=%s len=%d",
+				v.Tier, req.DeviceID, req.AppVersion, len(req.IntegrityToken))
+			// TODO Phase 3: verify chữ ký token qua Google Play Integrity API
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
