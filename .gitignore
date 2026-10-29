@@ -52,3 +52,6 @@ __pycache__/
 
 # --- Rac dump UI (uiautomator) ---
 /ui.xml
+
+# --- VIP build riêng tư (không push len GitHub) ---
+/dist/v1.0.3-vip/
