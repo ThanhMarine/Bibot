@@ -1,6 +1,6 @@
 Bibot — Điều Khoản Sử Dụng (Terms of Use)
-Cập nhật lần cuối: 14/10/2026
-Phiên bản ứng dụng: 1.0.2 (versionCode 3)
+Cập nhật lần cuối: 26/10/2026
+Phiên bản ứng dụng: 1.0.3 (versionCode 4)
 Gói ứng dụng: com.bibot.app (Free) · com.bibot.app.vip (VIP)
 Nhà phát triển: Bibot Team
 Liên hệ: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
