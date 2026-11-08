@@ -104,8 +104,8 @@ Email: bibotvadmin@gmail.com
 
 
 Bibot — Privacy Policy (English Version)
-Last updated: October 10, 2026
-App version: 1.0.1
+Last updated: October 26, 2026
+App version: 1.0.3 (versionCode 4)
 Contact: bibotvadmin@gmail.com
 
 Overview

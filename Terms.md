@@ -94,7 +94,7 @@ Liên hệ: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibo
 ## 11. Thay đổi Điều Khoản
 
 11.1. Chúng tôi có thể cập nhật Điều Khoản khi thêm tính năng, đổi mô hình VIP/IAP, hoặc theo yêu cầu của Google Play / pháp luật.
-11.2. Bản mới đăng tại 🔗 https://raw.githubusercontent.com/ThanhMarine/Bibot/main/terms.md và thông báo trong app (Settings → Announcements). Ngày "Cập nhật lần cuối" ở đầu là căn cứ.
+11.2. Bản mới đăng tại 🔗 https://raw.githubusercontent.com/ThanhMarine/Bibot/main/Terms.md và thông báo trong app (Settings → Announcements). Ngày "Cập nhật lần cuối" ở đầu là căn cứ.
 11.3. Tiếp tục sử dụng sau khi cập nhật đồng nghĩa bạn đồng ý. Nếu không đồng ý, hãy ngừng sử dụng và gỡ app.
 
 ## 12. Luật áp dụng & giải quyết tranh chấp
@@ -109,14 +109,14 @@ Liên hệ: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibo
 - Email: bibotvadmin@gmail.com
 - GitHub: https://github.com/ThanhMarine/Bibot
 - Privacy Policy: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/privacy-policy.md
-- Terms URL (bản này): https://raw.githubusercontent.com/ThanhMarine/Bibot/main/terms.md
+- Terms URL (bản này): https://raw.githubusercontent.com/ThanhMarine/Bibot/main/Terms.md
 
 ---
 ---
 
 # Bibot — Terms of Use (English Version)
-Last updated: October 14, 2026
-App version: 1.0.2 (versionCode 3)
+Last updated: October 26, 2026
+App version: 1.0.3 (versionCode 4)
 Packages: com.bibot.app (Free) · com.bibot.app.vip (VIP)
 Developer: Bibot Team
 Contact: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
@@ -208,7 +208,7 @@ Contact: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
 ## 11. Changes to Terms
 
 11.1. We may update these Terms for new features, VIP/IAP changes, or Google Play / legal requirements.
-11.2. New versions are posted at 🔗 https://raw.githubusercontent.com/ThanhMarine/Bibot/main/terms.md and announced in-app (Settings → Announcements). The "Last updated" date governs.
+11.2. New versions are posted at 🔗 https://raw.githubusercontent.com/ThanhMarine/Bibot/main/Terms.md and announced in-app (Settings → Announcements). The "Last updated" date governs.
 11.3. Continued use = acceptance. Otherwise stop using and uninstall.
 
 ## 12. Governing law & disputes
@@ -223,11 +223,11 @@ Contact: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
 - Email: bibotvadmin@gmail.com
 - GitHub: https://github.com/ThanhMarine/Bibot
 - Privacy Policy: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/privacy-policy.md
-- These Terms URL: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/terms.md
+- These Terms URL: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/Terms.md
 
 ---
 
 📋 Ghi chú nộp Play Console (không hiển thị cho user, để dev đối chiếu):
-- Terms URL đề xuất: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/terms.md (song ngữ, cùng nơi với privacy-policy.md)
+- Terms URL đề xuất: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/Terms.md (song ngữ, cùng nơi với privacy-policy.md)
 - Khai Contains Ads = Yes (Free) / No (VIP); RECORD_AUDIO = Voice Chat offline, xử lý cục bộ; Families Policy cho Cổ tích như Mục 2.2
-- IAP (khi phát hành): khai Products/Subscriptions, chính sách hoàn tiền theo Google Play; giữ bản Terms này đồng bộ versionCode 3 / versionName 1.0.2
+- IAP (khi phát hành): khai Products/Subscriptions, chính sách hoàn tiền theo Google Play; giữ bản Terms này đồng bộ versionCode 4 / versionName 1.0.3
