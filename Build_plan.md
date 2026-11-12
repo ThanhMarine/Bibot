@@ -1,7 +1,7 @@
 # Build Plan — Bibot Android
 
-> **Ngày:** 2026-09-22 | **Kho:** `root/android_app` | **APK:** `Bibot.apk` `com.bibot.app` | **Persona:** `Em là Bi`
-> **Trạng thái Go:** `go vet:0` `go build:0` | **Kotlin:** scaffold + logic hybrid, chưa `assembleDebug` trên CI
+> **Ngày:** 2026-09-22 (cập nhật 2026-10-21 — thêm Build 12 Analytics/Crashlytics + §5 nâng cấp version) | **Kho:** `root/android_app` | **APK:** `Bibot.apk` `com.bibot.app` | **Persona:** `Em là Bi`
+> **Trạng thái Go:** `go vet:0` `go build:0` | **Kotlin:** assembleDebug/Release 2 flavor xanh trên máy dev (chưa CI)
 
 ---
 
@@ -14,7 +14,7 @@
 | **Go core** | `go.mod:1` Go 1.22, `internal/config/config.go:30` `internal/tts/tts.go:1` `internal/chunker/chunker.go:8` `internal/llm/llm.go:11` | 90% | `CleanTTSText` full port `streaming_llm.py:143-208`, `Chunker` port `vietnamese_chunker.py:36` 4-12 từ, `BuildSystemPrompt` + `UpdateBotPrompt` + `BotPromptManager` đồng bộ, `streamGemini/streamOpenRouter` REST SSE đã xong. `Synthesize` còn stub. |
 | **Android base** | `android/gradle/libs.versions.toml:1` AGP 8.5.2/Kotlin 2.0/media3 1.3.1/room 2.6.1/datastore 1.1.1 | 100% | KTS + version catalog + `gradlew` đầy đủ, `namespace com.bibot.app`, `Bibot.apk` rename `app/build.gradle.kts:50`. |
 | **Storage chuẩn** | `data/files/FilePaths.kt:22` | 95% | `filesDir/bibot` (pdfs, books, state, datastore), `cache/bibot` (audio/tts, chunks, pdf/cache), `noBackup/bibot/models`, `databases/bibot.db`, `externalFiles/exports`. `ensureAll/cleanupCache(200MB/24h)` `chunkTempDir/ttsChunkFile` đã thêm. |
-| **DataStore + Room** | `data/store/BibotPreferences.kt:14` `data/store/BotPromptManager.kt:11` `data/db/BibotDatabase.kt:13` | 90% | Prefs `persona/bot_prompt/style/tone/maxWords` + `voiceSpeed/sttOfflineFirst`, `BotPromptManager` template `{{persona}} {{datetime}} {{style}} {{tone}} {{maxWords}}` preview. Room 5 entity `MemoryCore/Facts/ChatLog/BookProgress/PdfJob`. Chưa wired `Firestore` sync. |
+| **DataStore + Room** | `data/store/BibotPreferences.kt:14` `data/store/BotPromptManager.kt:11` `data/db/BibotDatabase.kt:13` | 90% | Prefs `persona/bot_prompt/style/tone/maxWords` + `voiceSpeed/sttOfflineFirst`, `BotPromptManager` template `{{persona}} {{datetime}} {{style}} {{tone}} {{maxWords}}` preview. Room 5 entity `MemoryCore/Facts/ChatLog/BookProgress/PdfJob` (đã mở rộng ~10 entity tới 2026-10-21 — xem `BibotDatabase.kt`). Firestore sync đã wire (Build 10 ✅). |
 | **UI hệ thống** | `ui/theme/*`, `ui/adaptive/WindowSize.kt:11`, `ui/components/BigButton.kt:11` | 90% | `BigButton 64/72dp`, `BigIconButton 72/96dp`, `BigModeTile 96dp`, `DevicePosture` Phone/Tablet, `material3-window-size-class 1.2.1`. |
 | **Main menu** | `ui/menu/HomeMenu.kt:11` + `BibotNavSuite.kt:32` | 85% | Home tinh gọn hero gradient `🎙️ Trò chuyện` 140dp + grid `Adaptive 150/180dp` 6 tile BOOK-STORY-MUSIC-WEATHER-NEWS-PDF, bottom bar chỉ `🏠/🎙️/⚙️` + `ArrowBack`. Đẹp, 1 chạm. |
 | **Player** | `ui/player/PlayerViewModel.kt:16` `BibotPlayerBar.kt:36` | 85% | `AndroidViewModel` + `ExoPlayer`, handler 500ms, `seekBack/Forward 10s`, `setSpeed`, `playUrl/playBytes`, nút 56-64dp. Chưa nối TTS bytes thật từ Cloud. |
@@ -30,7 +30,7 @@
 - **Go `internal/tts/tts.go:214` `Synthesize`**, `internal/stt/stt.go`, `internal/pdf/pdf.go`, `internal/memory/memory.go` — chỉ stub, chưa gọi `cloud.google.com/go/texttospeech` / `Document AI`. (Kotlin đã có `MemoryRepository` lite + `PdfTextCleaner` riêng.)
 - **Android `feature/*` screens** — đã nối thật: Book/Story (Channel(2) + resume + ExoPlayer), Music (lệnh thoại + tìm local, bỏ mock), Weather (cache 30p), News (cache 30p + clean), PDF (ML Kit page-window + resume).
 - **Cloud wiring** — `LlmBridge.generateStreamRest` Kotlin đã REST streaming Gemini/OpenRouter, Go `internal/llm` cũng REST, nhưng chưa có `GOOGLE_APPLICATION_CREDENTIALS` flow cho Cloud STT/TTS, chưa test quota.
-- **Firestore sync** — `libs.versions.toml` đã có `firebase-firestore/auth` nhưng chưa code repo sync `MemoryCore/Facts`.
+- **Firestore sync** — `libs.versions.toml` đã có `firebase-firestore/auth` nhưng chưa code repo sync `MemoryCore/Facts`. **→ ĐÃ XONG (Build 10): `FirestoreSync.kt` + `MemorySyncWorker` 12h (2026-10-14).**
 
 ### 1.3 Rủi ro / Thiếu (cập nhật 2026-09-24)
 
@@ -74,14 +74,84 @@
 - **Settings:** `BookLibrarySection()` — Sign-In, Folder ID, incremental sync, link download (mục Drive ẩn ở bản demo).
 - **Verify:** demo PDF `%PDF-1.4/1.7` valid, `assembleDemoDebug + assembleCommercialDebug` BUILD SUCCESSFUL.
 
-### Build 10 — Firestore sync + Memory 3 tầng (ưu tiên 2, 1-2 ngày) — memory lite ✅ 2026-09-24, còn Firestore
+### Build 10 — Firestore sync + Memory 3 tầng (ưu tiên 2, 1-2 ngày) ✅ **XONG (Firestore wire xong 2026-10-14, B5.9 `bibot-wiki`)**
 
 - Đã có: `MemoryRepository` (observe regex + `recallAnswer` trước LLM + logTurn), `memoryContextLine()` để sẵn.
-- Còn lại: wire `MemoryCore/Facts/ChatLog` ↔ `Firestore` (user=`FirebaseAuth`), sync offline-first qua `WorkManager`.
+- Đã xong: `FirestoreSync.kt` (init thủ công 3 BuildConfig, push/pull core+facts+log, wiki
+  `wiki_summaries`/`wiki_books` + `bumpWikiHits`) + `MemorySyncWorker` periodic 12h
+  (no-op khi chưa cấu hình).
 
 ### Build 11 — WorkManager + Polish (ưu tiên 3, 1 ngày) ✅ **XONG 2026-09-24**
 
 - `CleanupWorker` daily, `StrictMode` debug + LeakCanary, tablet `NavigationRail`, release diet (minify/shrink/resConfigs/abiFilters), `RECORD_AUDIO` runtime, flavors demo/commercial. Còn lại: verify `aab` khi có keystore.
+
+### Build 12 — Firebase Analytics + Crashlytics (thống kê user real-time) (ưu tiên 3, 1-2 ngày) — **CHƯA LÀM**
+
+> Kết quả rà soát 2026-10-21: app **đã có** `firebase-firestore` + `firebase-auth`
+> (init thủ công từ BuildConfig, KHÔNG google-services plugin — design "chưa cấu
+> hình → no-op, build không vỡ"), **chưa có** `firebase-analytics`/`firebase-crashlytics`,
+> chưa có màn hình stats. Data local đủ để hành vi user (BookProgress/ChatLog/
+> PdfAnnotation/BookBookmark/TtsSegmentCache) nhưng chưa aggregate.
+
+**12.1 Phụ thuộc (cần duyệt trước — repo đang có ràng buộc "không thêm lib" ở nhóm E2)**
+- `libs.versions.toml`: thêm `firebase-analytics` + `firebase-crashlytics`
+  (chốt version lúc implement — cùng era với `firestore = 25.0.0` giữa 2024, ví dụ
+  analytics `21.5.0` / crashlytics `18.6.0`; verify không conflict bằng
+  `gradlew :app:dependencies`). Đo delta APK sau khi thêm (~1–3MB expected).
+- **Không** thêm google-services plugin/json (giữ design hiện tại).
+
+**12.2 Thiết kế init (bám pattern `FirestoreSync`)**
+- `build.gradle.kts`: key mới `bibot.firebase.measurementId` (local.properties) →
+  env `FIREBASE_MEASUREMENT_ID` → `buildConfigField FIREBASE_MEASUREMENT_ID`
+  (mở rộng nhánh `when` của `fbProp`); Firebase console → Project settings →
+  your apps → **measurement ID `G-XXXXXXX`**.
+- **Gotcha:** `FirebaseAnalytics`/`FirebaseCrashlytics` bind vào FirebaseApp
+  **DEFAULT** (tên `[DEFAULT]`), còn `FirestoreSync` đang init app tên `"bibot"` →
+  init thêm 1 instance DEFAULT cùng options (+ measurementId), hoặc đổi
+  `FirestoreSync` sang default (chọn lúc implement, test sync wiki không vỡ).
+- Wrapper `AnalyticsSink` (object): `log(event, params)` + `setUser(uid)` bọc
+  try/catch + gate `isConfigured()` — **config rỗng = no-op y hệt FirestoreSync**
+  (demo/CI không có key vẫn build + chạy offline bình thường). Rollback = gỡ
+  wrapper + 2 dependency.
+
+**12.3 Schema sự kiện (chuẩn bị sẵn để dùng khi nâng cấp version)**
+- Tự động (SDK): `app_open`, `first_open`, `session_start`, `user_engagement`.
+- Custom (≤25 params/event, tên `snake_case`):
+
+| Event | Params | Nguồn |
+|---|---|---|
+| `book_open` | `format` (pdf/epub/md), `view_mode` (text/page), `source` (local/drive/link) | `BookScreen`/`ReaderScreen.loadBook` |
+| `read_session_end` | `duration_sec`, `format`, `chapters_read` | anchor ENTER_READ → rời reader |
+| `tts_speak` | `engine` (offline/piper/cloud), `lang` | `HybridTtsManager`/`OfflineTtsHelper` |
+| `voice_chat_turn` | `stt` (google/vosk), `ttf_mode` | `VoiceChatViewModel` |
+| `highlight_save` / `bookmark_save` | `format` | E2.4 / `BookBookmark` |
+| `search_use` | `scope` (book/panel/tts) | `PdfTextSearch`/SearchWindow |
+| `wiki_contrib` / `wiki_report` | `kind` (summary/book/chapter) | `FirestoreSync.putWiki*` |
+| `ad_reward_watch` | `placement` | flow thưởng (B5.x) |
+| `vip_redeem` | `source` | VIP verify |
+
+- `setUserId` = uid ẩn danh FirebaseAuth (đã có sẵn — nối chéo với `bibot/{uid}`),
+  `setUserProperty`: `flavor` (demo/commercial), `prep_version`, `library_bucket`.
+- **Crashlytics — spike bắt buộc trước khi cam kết:** thiếu google-services plugin thì
+  (a) event/crash báo được qua init thủ công không; (b) **mapping R8 upload kiểu gì**
+  (không có gradle plugin → stack release bị mồm — nếu không giải quyết được thì
+  ghi `mapping.txt` vào `dist/` để deobfuscate tay, hoặc hoãn Crashlytics, chỉ làm
+  Analytics). Bug NPE `getReaderFontSizeSp` (phiên 2026-10-21, phải bisect cả buổi)
+  là case điển hình cần real-time crash watch.
+- Privacy: thêm mục "Firebase Analytics" vào `Terms.md` + `privacy-policy.md`
+  (J1.5 đã có bước cập nhật policy khi đổi thu thập dữ liệu); cân nhắc nút tắt
+  collection trong Settings (`setAnalyticsCollectionEnabled`).
+
+**12.4 Verify (mục đích: "biến động ngay lập tức")**
+- DebugView (console) xem event real-time: mở sách → `book_open` xuất hiện ≤10s.
+- Logcat tag `FA`/`FirebaseAnalytics` khi `adb logcat`; forced crash debug-only →
+  thấy report trên console (nếu spike 12.3b qua).
+- Gates chung mỗi build: rules 102/102, go vet+test, JVM 140/140, 2 flavor assemble.
+
+**12.5 Phương án dự phòng zero-dependency (nếu không duyệt thêm lib)**
+- Counter kiểu `bumpWikiHits` đã có sẵn: `FieldValue.increment` vào
+  `stats/daily/{yyyy-MM-dd}` (opens/highlights/voice_turns) — nhưng mất
+  DAU/retention/crash + không có DebugView real-time.
 
 ---
 
@@ -103,5 +173,45 @@ Mỗi build xong: `go vet ./... && go build ./...` `0`, `./gradlew :app:assemble
 - [x] Build 9 PDF→MD + Drive complete (2 flavor)
 - [x] `assembleDemoDebug + assembleCommercialDebug` BUILD SUCCESSFUL (JDK 17 + `ANDROID_HOME=H:\androidkit\sdk`)
 - [x] `WorkManager` dependency đã thêm (Build 11 xong)
+
+---
+
+## 5) Checklist nâng cấp version (áp khi bump bản mới)
+
+> Bước chi tiết đầy đủ nằm ở `Checklist_Upgrade_Bibot.md` §J1 (single source cho
+> release) — mục dưới đây là bản rút gọn + các việc riêng của Build_plan.
+
+**Trước khi bump**
+- [ ] Rà `git status` sạch; quyết định scope bản mới (đánh dấu checklist các mục đi kèm).
+- [ ] Nếu pipeline prep đổi (tách câu/cleanForTts/`BlockTextReader`) → **bump
+  `PREP_VERSION`** (hiện = 4) và ghi chú sách cần rebuild; không đổi prep thì GIỮ nguyên.
+- [ ] Nếu thêm Firebase key mới (vd `FIREBASE_MEASUREMENT_ID` của Build 12) →
+  đảm bảo có trong `local.properties` (dev) + env CI, **KHÔNG commit** secrets.
+
+**Build + gate (mọi bản)**
+- [ ] Bump `versionCode` +1, `versionName` semver trong `android/app/build.gradle.kts`
+  (J1.1; commercial tự thêm suffix `-vip`).
+- [ ] Gates đầy đủ: rules `102/102` (sha `f824bf137547…` — nếu rules đổi thì sha mới
+  + copy assets), `go vet ./internal/... ./cmd/...` + `go test` (KHÔNG `./...`),
+  JVM `:app:testDemoDebugUnitTest`, `assembleDemoDebug` + `assembleCommercialDebug`.
+- [ ] Release song song 2 flavor: `assembleDemoRelease` + `assembleCommercialRelease`
+  + `renameReleaseBundles` → đủ 4 file (J1.2), `apksigner verify` + `aapt2 dump
+  badging` (J1.3).
+
+**Riêng bản có Build 12 (Analytics/Crashlytics)**
+- [ ] DebugView sanity: cài bản mới → mở sách → event `book_open` xuất hiện ≤10s.
+- [ ] Không có config (`FIREBASE_*` rỗng) → app vẫn chạy offline, 0 exception
+  (log tag `FA` im lặng); có config nhưng sai measurementId → crash không xảy ra
+  (wrapper try/catch).
+- [ ] Privacy policy (`Terms.md`/`privacy-policy.md`, J1.5) đã nêu Firebase Analytics
+  nếu bật ở bản này.
+
+**Đóng bản + tài liệu**
+- [ ] Đóng `dist\vX.Y.Z-demo\` (APK + AAB + `SHA256.txt` + `GHI-CHU-TEST.md`),
+  `dist\vX.Y.Z-vip\` riêng (không public) — J1.4.
+- [ ] Cập nhật `store-info.txt`, `Readme.md`, `Bibot_build.md` §6 (quy tắc cập
+  nhật file) + lịch sử vào J2 của Checklist.
+- [ ] Test máy thật cài đè giữ data (J1.6) rồi public GitHub Releases tag
+  `vX.Y.Z-demo` (J1.7).
 
 > File này là single source cho kế hoạch build tiếp theo. Cập nhật sau mỗi build.
