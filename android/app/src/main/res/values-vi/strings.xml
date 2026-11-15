@@ -395,6 +395,7 @@
     <string name="chrome_theme_sepia">Nâu cổ</string>
     <string name="chrome_theme_night">Đêm</string>
     <string name="chrome_theme_original">Gốc</string>
+    <string name="chrome_theme_white">Trậng</string>
     <string name="chrome_rotate_90">Xoay 90°</string>
     <string name="chrome_crop_margins">Cắt lề trắng</string>
     <string name="chrome_highlight">Đánh dấu</string>

@@ -16,6 +16,7 @@ const val PAGING_DUAL = "dual" // 2 trang/cặp (Row 2 cột)
 const val THEME_ORIGINAL = "normal" // màu gốc (mặc định)
 const val THEME_SEPIA = "sepia" // nâu cổ
 const val THEME_NIGHT = "night" // đảo màu + nền tối
+const val THEME_WHITE = "white" // nền trắng + chữ đen (mới)
 
 fun nextFitMode(cur: String): String = if (cur == FIT_PAGE) FIT_WIDTH else FIT_PAGE
 
@@ -28,6 +29,7 @@ fun nextPagingMode(cur: String): String = when (cur) {
 fun nextPageTheme(cur: String): String = when (cur) {
     THEME_ORIGINAL -> THEME_SEPIA
     THEME_SEPIA -> THEME_NIGHT
+    THEME_NIGHT -> THEME_WHITE
     else -> THEME_ORIGINAL
 }
 

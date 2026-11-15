@@ -455,6 +455,7 @@
     <string name="chrome_theme_sepia">Sepia</string>
     <string name="chrome_theme_night">Night</string>
     <string name="chrome_theme_original">Original</string>
+    <string name="chrome_theme_white">White</string>
     <string name="chrome_rotate_90">Rotate 90</string>
     <string name="chrome_crop_margins">Crop margins</string>
     <string name="chrome_highlight">Highlight</string>

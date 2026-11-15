@@ -293,6 +293,7 @@ fun ReaderSettingsPopup(
                                 when (pageTheme) {
                                     THEME_SEPIA -> R.string.chrome_theme_sepia
                                     THEME_NIGHT -> R.string.chrome_theme_night
+                                    THEME_WHITE -> R.string.chrome_theme_white
                                     else -> R.string.chrome_theme_original
                                 }
                             ),

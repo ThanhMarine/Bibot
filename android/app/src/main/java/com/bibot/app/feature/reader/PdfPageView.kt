@@ -358,13 +358,15 @@ fun PdfPageView(
         when (pageTheme) {
             THEME_SEPIA -> ColorFilter.colorMatrix(ColorMatrix(SEPIA_COLOR_MATRIX))
             THEME_NIGHT -> ColorFilter.colorMatrix(ColorMatrix(NIGHT_COLOR_MATRIX))
+            THEME_WHITE -> null // nền trắng + chữ đen: giữ màu gốc (bitmap đã render đen/chữ trên nền trắng)
             else -> null
         }
     }
     val paneBg = when (pageTheme) {
         THEME_SEPIA -> Color(0xFFEFE3C8)
         THEME_NIGHT -> Color(0xFF0E0E0E)
-        else -> Color.Transparent
+        // THEME_ORIGINAL (mặc định) & THEME_WHITE: nền TRẮNG + chữ đen (màu gốc).
+        else -> Color.White
     }
     // E2.4 single: snap 1 trang/lần vuốt (chỉ dùng khi mode single — còn lại
     // fling mặc định của LazyColumn).
