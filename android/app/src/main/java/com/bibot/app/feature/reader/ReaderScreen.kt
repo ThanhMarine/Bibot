@@ -141,7 +141,7 @@ fun ReaderScreen(
     val config = LocalConfiguration.current
     val isLandscape = config.screenWidthDp > config.screenHeightDp
 
-    var books by remember { mutableStateOf<List<BookMeta>>(emptyList()) }
+    val books by repo.books.collectAsState(initial = emptyList())
     var isLoading by remember { mutableStateOf(true) }
     var selectedBook by remember { mutableStateOf<BookMeta?>(null) }
     var chapters by remember { mutableStateOf<List<Chapter>>(emptyList()) }
@@ -259,7 +259,6 @@ fun ReaderScreen(
         repo.refreshAll()
         isLoading = false
         repo.lastSyncWarning.value?.let { status = it }
-        repo.books.collect { books = it }
     }
 
     // E2.4: load highlight theo fileHash — hash tính nền khi loadBook (sha1File),
@@ -1550,156 +1549,6 @@ fun ReaderScreen(
             "${currentSentence + 1}/${sentences.size}" else ""
         val isLandscape = config.screenWidthDp > config.screenHeightDp
 
-        // A3.3: Content area with optional floating control bar when reading
-        @Composable
-        fun ContentArea() {
-            val bf = bookFile
-            if (viewMode == ReaderView.PAGE && bf != null) {
-                // Scope B: EPUB → rich (ảnh + format gốc, thay phân trang text);
-                // PDF → ảnh trang. Karaoke câu chỉ ở TEXT.
-                if (isEpubBook) {
-                    val richIdx = epubRichTitles
-                        .indexOfFirst { it == chapters.getOrNull(currentChapter)?.title }
-                        .coerceAtLeast(0)
-                    EpubRichView(
-                        file = bf,
-                        spineIdx = richIdx,
-                        defaultTitle = chapters.getOrNull(currentChapter)?.title
-                            ?: collection.fallbackTitle ?: "",
-                        fontSizeSp = prefsState.readerFontSizeSp,
-                        lineHeightMultiplier = prefsState.readerInterline,
-                        paragraphMarginDp = prefsState.readerParagraphMargin,
-                        sentences = sentences,
-                        currentSentence = currentSentence,
-                        karaokeActive = isReading && audioStarted,
-                        onTap = { menuVisible = !menuVisible }
-                    )
-                } else {
-                    PdfPageView(
-                        file = bf,
-                        initialPage = pageIndex,
-                        selectedPage = selAnchor?.takeIf { it.view == ReaderView.PAGE }?.page,
-                        jumpPage = pdfJumpTarget,
-                        jumpTick = pageJumpTick,
-                        fitMode = prefsState.readerFitMode,
-                        pagingMode = prefsState.readerPagingMode,
-                        pageTheme = prefsState.readerPageTheme,
-                        pageRotation = prefsState.readerPageRotation.toIntOrNull() ?: 0,
-                        cropMargins = prefsState.readerCropMargins,
-                        pagingAlignTarget = pagingAlignTarget,
-                        pagingAlignTick = pagingAlignTick,
-                        onVisiblePage = { pageIndex = it },
-                        onPageCount = { pageCount = it },
-                        onPageTap = { menuVisible = !menuVisible },
-                        onPageLongPress = { idx ->
-                            val a = ReadAnchor(ReaderView.PAGE, idx, 0)
-                            selAnchor = a
-                            anchorConfirm = a
-                        }
-                    )
-                }
-            } else {
-                val listState = rememberLazyListState()
-                val density = LocalDensity.current
-                LaunchedEffect(currentSentence, isReading) {
-                    if (isReading && sentences.isNotEmpty()) {
-                        // Gop nhip 350ms + bu header + can giua 1/3 man hinh (chung):
-                        // cau dau ngan/tieu de khong bi luot qua truoc khi mat kip nhin.
-                        delay(350)
-                        val total = listState.layoutInfo.totalItemsCount
-                        val idx = (currentSentence.coerceIn(0, sentences.lastIndex) + 1)
-                            .coerceIn(0, (total - 1).coerceAtLeast(0))
-                        try {
-                            val center = -(config.screenHeightDp * density.density / 3).toInt()
-                            listState.animateScrollToItem(idx, center)
-                        } catch (_: Exception) {}
-                    }
-                }
-                // Tự cuộn tới hit tìm kiếm trong chương.
-                val hitIdx = if (searchOpen && searchChap == currentChapter) searchHits.getOrNull(searchPos) else null
-                LaunchedEffect(hitIdx, searchOpen) {
-                    if (searchOpen && hitIdx != null && sentences.isNotEmpty()) {
-                        try {
-                            listState.animateScrollToItem(
-                                (hitIdx + 1).coerceIn(0, (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
-                            )
-                        } catch (_: Exception) {}
-                    }
-                }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    // Lề hẹp 10dp kiểu ReadEra (was 16dp): thêm ~12dp ngang
-                    // cho font lớn hơn mà không xuống dòng sớm; BODY căn đều.
-                    contentPadding = PaddingValues(top = 4.dp, start = 10.dp, end = 10.dp, bottom = contentBottomInset()),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    item(key = "head-$currentChapter") {
-                        chap?.let {
-                            Text(
-                                it.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable { menuVisible = !menuVisible }
-                            )
-                            Spacer(Modifier.height(8.dp))
-                        }
-                    }
-                    itemsIndexed(sentences, key = { idx, _ -> "$currentChapter-$idx" }) { idx, s ->
-                        val isCurrent = idx == currentSentence && isReading && audioStarted
-                        val isSel = selAnchor?.let {
-                            it.view == ReaderView.TEXT && it.page == currentChapter && it.offset == idx
-                        } == true
-                        // Hit tìm kiếm trong chương (vàng nổi bật + tự cuộn tới).
-                        val isHit = searchOpen && searchChap == currentChapter &&
-                            searchHits.getOrNull(searchPos) == idx
-                        val (displayText, hasPause) = com.bibot.app.core.text.TextCleaner.splitPause(s)
-                        Column(
-                            modifier = Modifier
-                                .padding(vertical = 3.dp)
-                                .padding(bottom = prefsState.readerParagraphMargin.dp)
-                        ) {
-                            Text(
-                                if (hasPause) "$displayText ⏸2s" else displayText,
-                                fontSize = prefsState.readerFontSizeSp.sp,
-                                lineHeight = (prefsState.readerFontSizeSp * prefsState.readerInterline).sp,
-                                textAlign = TextAlign.Justify,
-                                color = if (isCurrent || isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                fontWeight = if (isCurrent || isSel || isHit) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .background(
-                                        if (isHit) MaterialTheme.colorScheme.tertiaryContainer
-                                        else androidx.compose.ui.graphics.Color.Transparent,
-                                        RoundedCornerShape(2.dp)
-                                    )
-                                    .combinedClickable(
-                                        onClick = {
-                                            if (readModeState == ReadMode.BROWSE) {
-                                                selAnchor = ReadAnchor(ReaderView.TEXT, currentChapter, idx)
-                                            } else menuVisible = !menuVisible
-                                        },
-                                        onLongClick = {
-                                            val a = ReadAnchor(ReaderView.TEXT, currentChapter, idx)
-                                            selAnchor = a
-                                            anchorConfirm = a
-                                        }
-                                    )
-                            )
-                            // Native tinh giua ky (TTS Bypass): label EN cho sach EN
-                            val adIdx = if (collection == ReaderCollection.COTICH) com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_COTICH else com.bibot.app.ui.components.ads.NativeInlineAd.INDEX_DEFAULT
-                            if (idx == adIdx && sentences.size > adIdx) {
-                                Spacer(Modifier.height(4.dp))
-                                com.bibot.app.ui.components.ads.NativeInlineAd(lang = uiLang, isFamily = collection == ReaderCollection.COTICH)
-                            }
-                        }
-                    }
-                    item(key = "status-$currentChapter") {
-                        status?.let { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
-                    }
-                }
-            }
-        }
 
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
