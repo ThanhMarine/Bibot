@@ -1,0 +1,5 @@
+Bản 1.0.4 sửa lỗi nhận dạng giọng nói:
+- Máy không có/không dùng được dịch vụ nhận dạng của Google giờ tự dùng model STT offline đã cài.
+- STT online lỗi mạng/timeout tự chuyển sang model offline (cả push-to-talk và nghe liên tục).
+- Báo lỗi rõ nguyên nhân: chưa cài model / thiếu engine / không nghe được câu nào.
+- Không còn treo khi chưa cài engine mà máy không có mạng; ổn định hơn khi nghe liên tục.

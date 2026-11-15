@@ -55,3 +55,4 @@ __pycache__/
 
 # --- VIP build riêng tư (không push len GitHub) ---
 /dist/v1.0.3-vip/
+/dist/v1.0.4-vip/

@@ -32,6 +32,39 @@ class OfflineSttHelper(private val context: Context) {
     fun isModelAvailable(): Boolean =
         SherpaZipformerEngine.isModelAvailable(context) || pickVoskModelDir() != null
 
+    /**
+     * Model sherpa có mặt nhưng engine native chưa cài/nạp → decode luôn trả null.
+     * UI "đã cài model" vẫn đúng, nhưng STT chỉ chạy khi engine sẵn sàng.
+     */
+    fun isSherpaEngineReady(): Boolean =
+        SherpaZipformerEngine.isModelAvailable(context) &&
+            (SherpaEngine.loaded || SherpaEngine.isInstalled(context))
+
+    /**
+     * Lý do STT offline không chạy được — hiển thị thẳng cho user thay vì
+     * câu chung "chưa có model" khi thực tế model đã cài nhưng thiếu engine.
+     */
+    fun describeFailure(): String = when {
+        !isModelAvailable() ->
+            "Chưa cài model STT offline. Vào Cài đặt → Mô hình offline để tải, hoặc chọn file model từ máy."
+        SherpaZipformerEngine.isModelAvailable(context) && !isSherpaEngineReady() ->
+            "Model sherpa-vi đã cài nhưng thiếu engine sherpa-onnx (~46MB, tải lần đầu cần mạng). " +
+                "Kết nối mạng rồi thử lại ở Cài đặt → Giọng đọc, hoặc cài engine từ file."
+        else ->
+            "Không nhận diện được giọng nói. Nói to/rõ hơn hoặc kiểm tra quyền micro."
+    }
+
+    /** Giải mã 1 utterance: sherpa trước (nếu đủ model + engine), rỗng/lỗi → Vosk. */
+    private suspend fun decodeBest(pcm: ShortArray): String? {
+        if (SherpaZipformerEngine.isModelAvailable(context) && SherpaEngine.ensureInstalled(context)) {
+            // Engine có thể vừa cài xong sau lần fail trước → mở khoá recognizer.
+            SherpaZipformerEngine.resetInitFailure()
+            val text = SherpaZipformerEngine.decode(context, pcm)
+            if (!text.isNullOrBlank()) return text
+        }
+        return decodeVosk(pcm)?.takeIf { it.isNotBlank() }
+    }
+
     /** Ưu tiên VI, thiếu thì EN nếu user chỉ cài EN (giữ nguyên hành vi cũ). */
     private fun pickVoskModelDir(): java.io.File? {
         val vi = FilePaths.voskModelDir(context, "vi")
@@ -45,20 +78,20 @@ class OfflineSttHelper(private val context: Context) {
         maxSeconds: Int = 8,
         onPartial: (String) -> Unit = {}
     ): String? = withContext(Dispatchers.IO) {
-        val sherpaOk = SherpaZipformerEngine.isModelAvailable(context) &&
+        if (!isModelAvailable()) return@withContext null
+
+        // 0) Chuẩn bị engine TRƯỚC khi mở mic: nếu thiếu, tải 1 lần (~46MB) thay vì
+        // bắt user nói xong mới tải. Thất bại thì vẫn thử Vosk bên dưới.
+        if (SherpaZipformerEngine.isModelAvailable(context)) {
             SherpaEngine.ensureInstalled(context)
-        if (!sherpaOk && pickVoskModelDir() == null) return@withContext null
+        }
 
         // 1) Capture: VAD chốt câu (1 lần, dùng chung cho cả 2 engine) — như Pi.
         val pcm = captureVad(maxSeconds)
         if (pcm == null) return@withContext null // timeout không có utterance (đã log)
 
         // 2) Decode: sherpa trước → Vosk cùng audio nếu rỗng/lỗi.
-        if (sherpaOk) {
-            val text = SherpaZipformerEngine.decode(context, pcm)
-            if (!text.isNullOrBlank()) return@withContext text
-        }
-        decodeVosk(pcm)?.takeIf { it.isNotBlank() }
+        decodeBest(pcm)
     }
 
     /** Port `_listen_once_vad`: đọc mic 100ms/chunk, trả PCM16 utterance (tail đã chèn) hoặc null. */
@@ -224,17 +257,22 @@ class OfflineSttHelper(private val context: Context) {
         onError: (String) -> Unit
     ) {
         continuousJob?.cancel()
+        if (!isModelAvailable()) {
+            onError(describeFailure())
+            return
+        }
         continuousRunning = true
-        continuousJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        continuousJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            // Engine 1 lần trước vòng lặp (không chặn Main thread).
+            if (SherpaZipformerEngine.isModelAvailable(context)) SherpaEngine.ensureInstalled(context)
             while (continuousRunning) {
                 if (!continuousRunning) break
                 try {
                     val pcm = captureVad(maxSeconds) ?: continue
-                    val text = if (SherpaZipformerEngine.isModelAvailable(context) && SherpaEngine.ensureInstalled(context))
-                        SherpaZipformerEngine.decode(context, pcm) else null
+                    val text = decodeBest(pcm)
                     if (!continuousRunning) break
-                    if (text != null && text.isNotBlank()) onResult(text)
-                    else onPartial("")
+                    if (!text.isNullOrBlank()) withContext(Dispatchers.Main) { onResult(text) }
+                    else withContext(Dispatchers.Main) { onPartial("") }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     break
                 } catch (e: Throwable) {
@@ -250,10 +288,12 @@ class OfflineSttHelper(private val context: Context) {
         continuousJob?.cancel()
     }
 
-    /** Push-to-talk: capture VAD once then decode with sherpa (offline priority) */
+    /** Push-to-talk: capture VAD once then decode sherpa (ưu tiên) → Vosk fallback. */
     suspend fun captureAndDecodeOnce(maxSeconds: Int = 30): String? = withContext(Dispatchers.IO) {
+        if (!isModelAvailable()) return@withContext null
+        if (SherpaZipformerEngine.isModelAvailable(context)) SherpaEngine.ensureInstalled(context)
         val pcm = captureVad(maxSeconds) ?: return@withContext null
-        SherpaZipformerEngine.decode(context, pcm)
+        decodeBest(pcm)
     }
 }
 
@@ -264,6 +304,9 @@ class OfflineSttHelper(private val context: Context) {
 class HybridSttManager(private val context: Context) {
     private val online = com.bibot.app.core.stt.SttBridge(context)
     private val offline = OfflineSttHelper(context)
+    private val scope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main
+    )
 
     fun listenHybrid(
         preferOffline: Boolean = false,
@@ -271,37 +314,53 @@ class HybridSttManager(private val context: Context) {
         onPartial: (String) -> Unit = {},
         onError: (String) -> Unit
     ) {
-        if (preferOffline && offline.isModelAvailable()) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launchWithOffline(onResult, onPartial, onError)
+        val hasOffline = offline.isModelAvailable()
+        if (preferOffline && hasOffline) {
+            scope.launchWithOffline(onResult, onPartial, onError)
             return
         }
-online.startListening(
-                onResult = { text -> onResult(text, false) },
-                onPartial = onPartial,
-                onError = { code, msg ->
-                    // ERROR_NETWORK(2)/NO_MATCH(7)/SERVER(4)/SPEECH_TIMEOUT(8) → fallback offline nếu có model
-                    if (code in listOf(2, 7, 4, 8) && offline.isModelAvailable()) {
-                        Log.d("HybridStt", "Fallback offline triggered: code=$code, modelAvailable=${offline.isModelAvailable()}")
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launchWithOffline(onResult, onPartial, onError)
-                    } else {
-                        Log.d("HybridStt", "No fallback: code=$code, modelAvailable=${offline.isModelAvailable()}")
-                        onError("Online STT lỗi ($code): $msg")
-                    }
+        // Máy không có RecognitionService của Google (ROM Trung Quốc, emulator AOSP...):
+        // trước đây báo lỗi luôn dù đã cài model → giờ dùng thẳng STT offline.
+        if (!online.isAvailable()) {
+            if (hasOffline) {
+                Log.d("HybridStt", "Online STT unavailable → dùng model offline đã cài")
+                scope.launchWithOffline(onResult, onPartial, onError)
+            } else {
+                onError(
+                    "Máy không có dịch vụ nhận dạng giọng nói của Google và chưa cài model STT offline. " +
+                        "Vào Cài đặt → Mô hình offline để cài model."
+                )
+            }
+            return
+        }
+        online.startListening(
+            onResult = { text -> onResult(text, false) },
+            onPartial = onPartial,
+            onError = { code, msg ->
+                // Fallback offline khi online lỗi mà KHÔNG phải lỗi micro/quyền:
+                // -1 unavailable, 2 network, 4 server, 5 client, 6 busy, 7 no-match, 8 timeout.
+                if (hasOffline && code in setOf(-1, 2, 4, 5, 6, 7, 8)) {
+                    Log.d("HybridStt", "Fallback offline: code=$code modelAvailable=true")
+                    scope.launchWithOffline(onResult, onPartial, onError)
+                } else {
+                    Log.d("HybridStt", "No fallback: code=$code modelAvailable=$hasOffline")
+                    onError("Online STT lỗi ($code): $msg")
                 }
-            )
+            }
+        )
     }
 
     private fun kotlinx.coroutines.CoroutineScope.launchWithOffline(
         onResult: (String, Boolean) -> Unit, onPartial: (String) -> Unit, onError: (String) -> Unit
     ) {
-        launch(kotlinx.coroutines.Dispatchers.Main) {
+        launch {
             val r = offline.recognizeOffline(onPartial = onPartial)
-            if (r != null) onResult(r, true) else onError(
-                "Offline STT chưa có model (sherpa-vi hoặc Vosk) hoặc không nhận diện được. " +
-                    "Chọn 'Cài từ file' ở Settings → Mô hình offline để chọn file model từ thiết bị."
-            )
+            if (!r.isNullOrBlank()) onResult(r, true) else onError(offline.describeFailure())
         }
     }
+
+    /** Lý do STT offline không chạy được (dùng cho push-to-talk khi trả về null). */
+    fun describeFailure(): String = offline.describeFailure()
 
     /** QA debug: decode file PCM16 16k mono qua VAD + sherpa/Vosk (xem OfflineSttHelper.testDecodePcm). */
     fun testDecodePcm(file: java.io.File, onDone: (String) -> Unit) = offline.testDecodePcm(file, onDone)
@@ -321,5 +380,7 @@ online.startListening(
 
     fun release() {
         try { online.stopListening() } catch (_: Exception) {}
+        stopContinuousListening()
+        try { scope.cancel() } catch (_: Exception) {}
     }
 }

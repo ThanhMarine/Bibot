@@ -12,13 +12,24 @@ class SttBridge(private val context: Context) {
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening = false
 
+    /**
+     * Máy có dịch vụ nhận dạng online (Google app / RecognitionService) hay không.
+     * Máy không có Google services (một số ROM Trung Quốc, emulator AOSP) trả false —
+     * caller phải chuyển sang STT offline thay vì báo lỗi.
+     */
+    fun isAvailable(): Boolean = try {
+        SpeechRecognizer.isRecognitionAvailable(context)
+    } catch (_: Throwable) {
+        false
+    }
+
     fun startListening(
         language: String = "vi-VN",
         onResult: (String) -> Unit,
         onPartial: (String) -> Unit = {},
         onError: (Int, String) -> Unit
     ) {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+        if (!isAvailable()) {
             onError(-1, "Thiết bị không hỗ trợ SpeechRecognizer")
             return
         }

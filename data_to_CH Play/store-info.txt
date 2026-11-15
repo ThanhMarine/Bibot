@@ -5,14 +5,14 @@ QUY ƯỚC TÊN FILE (chuẩn, giữ nguyên mọi bản):
 - VIP (com.bibot.app.vip): BibotV.apk / BibotV.aab
 - Gradle tự xuất đúng tên này (renameReleaseBundles + outputFileName trong app/build.gradle.kts).
   Khi đóng gói dist: COPY GIỮ NGUYÊN TÊN vào thư mục version (vd dist\vX.Y.Z-demo\), KHÔNG đổi thành tên có version.
-- Bản phát hành: v1.0.3-demo (Free, có Ads)
-- Package: com.bibot.app | versionCode 4 | versionName 1.0.3
+- Bản phát hành: v1.0.4-demo (Free, có Ads)
+- Package: com.bibot.app | versionCode 5 | versionName 1.0.4
 - TargetSdk 36, minSdk 26
-- File APK trực tiếp: H:\Pi4_Xiaozhi\android_app\dist\v1.0.3-demo\Bibot.apk
+- File APK trực tiếp: H:\Pi4_Xiaozhi\android_app\dist\v1.0.4-demo\Bibot.apk
   → dùng cho: GitHub Releases, Firebase App Distribution, Aptoide, APKPure, Uptodown, APKMirror, web + QR, Zalo/Telegram
-- File AAB nộp store: H:\Pi4_Xiaozhi\android_app\dist\v1.0.3-demo\Bibot.aab
+- File AAB nộp store: H:\Pi4_Xiaozhi\android_app\dist\v1.0.4-demo\Bibot.aab
   → dùng cho: Samsung Galaxy Store, Xiaomi GetApps, Huawei AppGallery, OPPO/Vivo, Amazon Appstore (và CH Play khi sẵn sàng)
-- Test song song VIP (nội bộ): H:\Pi4_Xiaozhi\android_app\dist\v1.0.3-vip\BibotV.apk (com.bibot.app.vip, 1.0.3-vip)
+- Test song song VIP (nội bộ): H:\Pi4_Xiaozhi\android_app\dist\v1.0.4-vip\BibotV.apk (com.bibot.app.vip, 1.0.4-vip)
 - Privacy Policy URL (dùng cho MỌI store): https://raw.githubusercontent.com/ThanhMarine/Bibot/main/privacy-policy.md
 - Nguồn Policy local đã đồng bộ: H:\Pi4_Xiaozhi\android_app\Policy.md (email bibotvadmin@gmail.com)
 - Support email: bibotvadmin@gmail.com

@@ -1430,3 +1430,23 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   máy ảo BibotTest (`ANDROID_AVD_HOME=H:\androidkit\avd`,
   emulator `H:\androidkit\sdk\emulator\emulator.exe`) 0 FATAL.
 - NỢ SANG PHIÊN SAU: E2.3–E2.6, I2.3/I2.4, J1.
+
+## PH?N J1.8 - Fix STT offline không dùng model đã cài (2026-11-15)
+
+- [x] J1.8.1 Nguyên nhân: listenHybrid ưu tiên STT online của Google, chỉ fallback offline với
+  vài mã lỗi; máy không có RecognitionService (ROM không Google) → báo lỗi luôn dù đã cài model;
+  push-to-talk/nghe liên tục bỏ qua Vosk; thiếu engine sherpa → decode null trong im lặng.
+- [x] J1.8.2 Sửa: SttBridge.isAvailable(); HybridSttManager dùng offline ngay khi máy không có
+  RecognitionService + fallback offline cho mã -1,2,4,5,6,7,8 + describeFailure(); OfflineSttHelper
+  decodeBest (sherpa → Vosk) + ensure engine trước khi mở mic + IO cho continuous;
+  SherpaZipformerEngine.resetInitFailure() + serialize decode (chống SIGSEGV khi decode song song);
+  SherpaEngine bỏ qua tải engine khi không có mạng; push-to-talk báo lỗi thay vì im lặng.
+- [x] J1.8.3 Test máy ảo (emulator-5554, Android 14 x86_64, sideload model+engine):
+  QA hook long-press tiêu đề màn Chat → logcat SttTest: VAD 37 chunks, got=true len=62400,
+  sherpa=\ồi cũng hỗ trợ cho lâu lâu cũng cho gạo cho này kia\ (decode thật, không crash).
+  Tắt mạng (máy bay) → logcat \HybridStt: Fallback offline: code=2 modelAvailable=true\;
+  không có utterance → UI hiện \STT: Không nhận diện được giọng nói...\ (không im lặng).
+- [x] J1.8.4 Version 1.0.4 / versionCode 5; rebuild 2 flavor release + renameReleaseBundles;
+  cập nhật dist/v1.0.4-demo (Bibot.apk/.aab, SHA256, GHI-CHU-TEST.md, RELEASE-NOTES-vi.txt)
+  và dist/v1.0.4-vip (riêng tư, .gitignore).
+

@@ -669,7 +669,12 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             val text = hybridStt.captureAndDecodeOnce(maxSeconds = 30)
             if (!_uiState.value.isListening) return@launch
             _uiState.update { it.copy(isListening = false) }
-            if (text != null && text.isNotBlank()) startVoicePipelineWithHybrid(text)
+            if (text != null && text.isNotBlank()) {
+                startVoicePipelineWithHybrid(text)
+            } else {
+                // Trước đây im lặng hoàn toàn → user tưởng "app không nhận model".
+                _uiState.update { it.copy(sttError = hybridStt.describeFailure()) }
+            }
         }
     }
 

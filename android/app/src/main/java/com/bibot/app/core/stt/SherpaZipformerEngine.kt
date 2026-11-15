@@ -31,6 +31,7 @@ object SherpaZipformerEngine {
     private const val NUM_THREADS = 2 // Pi STT_LOCAL_THREADS
 
     private val lock = Any()
+    private val decodeLock = Any()
     @Volatile private var recognizer: OfflineRecognizer? = null
     @Volatile private var initFailed = false
 
@@ -42,31 +43,47 @@ object SherpaZipformerEngine {
     }
 
     /**
+     * Engine sherpa-onnx vừa được cài/nạp xong sau một lần fail trước đó.
+     * Trước đây [initFailed] giữ vĩnh viễn trong process → cài engine xong vẫn
+     * không nhận dạng được cho tới khi kill app. Gọi hàm này sau ensureInstalled().
+     */
+    fun resetInitFailure() {
+        if (initFailed) {
+            initFailed = false
+            Log.d(TAG, "initFailed reset — thử tạo recognizer lại sau khi engine sẵn sàng")
+        }
+    }
+
+    /**
      * Decode PCM16 mono 16kHz → text. Trả về "" (quá ngắn/rỗng) hoặc null
      * (engine không sẵn sàng/lỗi native — caller fallback engine khác).
      * Gọi trên thread IO; recognizer tạo 1 lần, giữ suốt process.
      */
     fun decode(context: Context, pcm: ShortArray): String? {
         if (pcm.size < SAMPLE_RATE / 5) return "" // Pi: <0.2s → ""
-        val rec = ensureRecognizer(context) ?: return null
-        return try {
-            val floats = FloatArray(pcm.size) { pcm[it] / 32768f }
-            val stream = rec.createStream()
-            val text = try {
-                stream.acceptWaveform(floats, SAMPLE_RATE)
-                rec.decode(stream)
-                rec.getResult(stream).text.trim()
-            } finally {
-                stream.release()
+        // Recognizer native là singleton dùng chung: gọi decode song song (push-to-talk
+        // + nghe liên tục + QA) từng làm SIGSEGV trong libsherpa-onnx-jni. Serialize.
+        synchronized(decodeLock) {
+            val rec = ensureRecognizer(context) ?: return null
+            return try {
+                val floats = FloatArray(pcm.size) { pcm[it] / 32768f }
+                val stream = rec.createStream()
+                val text = try {
+                    stream.acceptWaveform(floats, SAMPLE_RATE)
+                    rec.decode(stream)
+                    rec.getResult(stream).text.trim()
+                } finally {
+                    stream.release()
+                }
+                Log.d(TAG, "decoded ${pcm.size} samples -> ${text.length} chars")
+                normalize(text)
+            } catch (e: UnsatisfiedLinkError) {
+                Log.w(TAG, "native missing (SherpaEngine chưa ensureInstalled?): $e")
+                null
+            } catch (e: Throwable) {
+                Log.w(TAG, "decode failed: $e")
+                null
             }
-            Log.d(TAG, "decoded ${pcm.size} samples -> ${text.length} chars")
-            normalize(text)
-        } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "native missing (SherpaEngine chưa ensureInstalled?): $e")
-            null
-        } catch (e: Throwable) {
-            Log.w(TAG, "decode failed: $e")
-            null
         }
     }
 
@@ -90,8 +107,7 @@ object SherpaZipformerEngine {
     }
 
     /** Tạo/cached recognizer (Pi `create_recognizer`). Engine native phải đã ensureInstalled trước. */
-    private fun ensureRecognizer(context: Context): OfflineRecognizer? {
-        recognizer?.let { return it }
+    private fun ensureRecognizer(context: Context): OfflineRecognizer? {        recognizer?.let { return it }
         if (initFailed) return null
         synchronized(lock) {
             recognizer?.let { return it }

@@ -134,6 +134,12 @@ object SherpaEngine {
                 val dir = abiDir(context)
                 val marker = File(engineDir(context), ".ready_${dir.name}")
                 if (!marker.exists() || SO_NAMES.any { !File(dir, it).exists() }) {
+                    // Không có mạng + chưa có pack sideload → trả false NGAY, tránh treo
+                    // 15-120s ở connectTimeout làm user tưởng app "không nhận" model.
+                    if (!hasNetwork(context) && !hasLocalPack(context)) {
+                        android.util.Log.w("SherpaEngine", "Không có mạng và chưa cài engine sherpa — bỏ qua tải")
+                        return@withContext false
+                    }
                     extract(context, dir, onProgress)
                     marker.writeText(VERSION)
                 }
@@ -152,6 +158,15 @@ object SherpaEngine {
                 false
             }
         }
+
+    /** Có kết nối mạng đang hoạt động? Không chắc chắn → trả true để vẫn thử tải. */
+    private fun hasNetwork(context: Context): Boolean = try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        @Suppress("DEPRECATION")
+        cm?.activeNetworkInfo?.isConnected == true
+    } catch (_: Throwable) {
+        true
+    }
 
     /** Model sherpa-vi cài ở no_backup/bibot/models/sherpa-vi/ (dùng chung cho STT). */
     fun sherpaViModelDir(context: Context): File =

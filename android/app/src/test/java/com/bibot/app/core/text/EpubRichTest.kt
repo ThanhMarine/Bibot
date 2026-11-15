@@ -152,7 +152,7 @@ class EpubRichTest {
 
     @Test
     fun parseInlineStyle_basic() {
-        val style = EpubReader.parseInlineStyle('<p style="color:red;background:#fff;font-family:Arial;text-align:center;">')
+        val style = EpubReader.parseInlineStyle("<p style=\"color:red;background:#fff;font-family:Arial;text-align:center;\">")
         assertEquals("red", style["color"])
         assertEquals("#fff", style["backgroundcolor"])
         assertEquals("Arial", style["fontfamily"])
@@ -167,7 +167,7 @@ class EpubRichTest {
 
     @Test
     fun parseInlineStyle_empty() {
-        val style = EpubReader.parseInlineStyle('<p style="">')
+        val style = EpubReader.parseInlineStyle("<p style=\"\">")
         assertTrue(style.isEmpty())
     }
 
@@ -191,7 +191,7 @@ class EpubRichTest {
 
     @Test
     fun richParse_cssStyle_populated() {
-        val html = '<p style="color:red;font-family:Times New Roman;text-align:center;">Hello <b>bold</b> world.</p>'
+        val html = "<p style=\"color:red;font-family:Times New Roman;text-align:center;\">Hello <b>bold</b> world.</p>"
         val blocks = EpubReader.richParse(html, "OEBPS/")
         assertEquals(1, blocks.size)
         val para = blocks[0] as EpubReader.RichBlock.Para
@@ -213,7 +213,7 @@ class EpubRichTest {
 
     @Test
     fun richParse_headingsWithCss() {
-        val html = '<h2 style="color:blue;">TITLE</h2>'
+        val html = "<h2 style=\"color:blue;\">TITLE</h2>"
         val blocks = EpubReader.richParse(html, "OEBPS/")
         assertEquals(1, blocks.size)
         val h = blocks[0] as EpubReader.RichBlock.Para
@@ -324,7 +324,7 @@ class EpubRichTest {
 
     @Test
     fun richParse_dropcap_span() {
-        val html = '<p><span class="dropcap">L</span>orem ipsum dolor</p>'
+        val html = "<p><span class=\"dropcap\">L</span>orem ipsum dolor</p>"
         val blocks = EpubReader.richParse(html, "OEBPS/")
         val dropcaps = blocks.filterIsInstance<EpubReader.RichBlock.Dropcap>()
         
@@ -334,7 +334,7 @@ class EpubRichTest {
 
     @Test
     fun richParse_mixed_footnote_and_dropcap() {
-        val html = '<p><span class="dropcap">L</span>orem ipsum<fn id="fn1">Note text</fn> dolor.</p>'
+        val html = "<p><span class=\"dropcap\">L</span>orem ipsum<fn id=\"fn1\">Note text</fn> dolor.</p>"
         val blocks = EpubReader.richParse(html, "OEBPS/")
         val dropcaps = blocks.filterIsInstance<EpubReader.RichBlock.Dropcap>()
         val footnotes = blocks.filterIsInstance<EpubReader.RichBlock.Footnote>()
