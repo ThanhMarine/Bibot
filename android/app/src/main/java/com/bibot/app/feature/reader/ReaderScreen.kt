@@ -1366,7 +1366,7 @@ fun ReaderScreen(
             item {
                 // Hàng Back về Home (thay nút Home đã bỏ ở bottom bar).
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { stopAll(); onBackHome() }) {
+                    IconButton(onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null; readerVm.clear() } }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
                     }
                     Text(
@@ -1434,7 +1434,7 @@ fun ReaderScreen(
             item {
                 // Hàng Back về Home (thay nút Home đã bỏ ở bottom bar).
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { stopAll(); onBackHome() }) {
+                    IconButton(onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null; readerVm.clear() } }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
                     }
                     Text(
