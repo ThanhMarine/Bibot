@@ -543,14 +543,14 @@
     <string name="help_section_sub">Cài đặt Offline STT/TTS, API Keys, FAQ</string>
 
     
-    <string name="reader_font_size">Cỡ chữ</string>
+    <string name="reader_font_size">Font size</string>
     <string name="reader_font_size_sub">%1$.0f sp</string>
-    <string name="reader_interline">Khoảng dòng</string>
-    <string name="reader_interline_sub">%1$.1f</string>
-    <string name="reader_paragraph_margin">Khoảng đoạn</string>
+    <string name="reader_interline">Line spacing</string>
+    <string name="reader_interline_sub">%1$.1fx</string>
+    <string name="reader_paragraph_margin">Paragraph spacing</string>
     <string name="reader_paragraph_margin_sub">%1$.0f dp</string>
-    <string name="reader_display_title">Hi?n th? khi d?c</string>
-    <string name="reader_display_sub">C? ch?, kho?ng d�ng, kho?ng do?n</string>
+    <string name="reader_display_title">Reading display</string>
+    <string name="reader_display_sub">Font size, line spacing, paragraph spacing</string>
     <string name="summary_title">Chapter summary</string>
     <string name="summary_book_title">Book summary</string>
     <string name="summary_loading">Summarizing… %1$d/%2$d</string>

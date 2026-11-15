@@ -534,11 +534,11 @@
     <string name="reader_font_size">Cỡ chữ</string>
     <string name="reader_font_size_sub">%1$.0f sp</string>
     <string name="reader_interline">Khoảng dòng</string>
-    <string name="reader_interline_sub">%1$.1f</string>
+    <string name="reader_interline_sub">%1$.1fx</string>
     <string name="reader_paragraph_margin">Khoảng đoạn</string>
     <string name="reader_paragraph_margin_sub">%1$.0f dp</string>
-    <string name="reader_display_title">Hi?n th? khi d?c</string>
-    <string name="reader_display_sub">C? ch?, kho?ng d�ng, kho?ng do?n</string>
+    <string name="reader_display_title">Hiển thị khi đọc</string>
+    <string name="reader_display_sub">Cỡ chữ, khoảng dòng, khoảng đoạn</string>
     <string name="summary_title">Tóm tắt chương</string>
     <string name="summary_book_title">Tóm tắt sách</string>
     <string name="summary_loading">Đang tóm tắt… %1$d/%2$d</string>

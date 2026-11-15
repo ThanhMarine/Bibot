@@ -571,44 +571,35 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
         Spacer(Modifier.height(8.dp))
 
         // Font Size
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.reader_font_size, "%.0f".format(prefsState.readerFontSizeSp)), style = MaterialTheme.typography.labelMedium)
-            Slider(
-                value = prefsState.readerFontSizeSp,
-                onValueChange = { v -> scope.launch { prefs.setReaderFontSizeSp(v) } },
-                valueRange = ALLOWED_FONT_SIZES.first().toFloat() .. ALLOWED_FONT_SIZES.last().toFloat(),
-                steps = (ALLOWED_FONT_SIZES.size - 1)
-            )
-            Text(stringResource(R.string.reader_font_size_sub, prefsState.readerFontSizeSp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        ReaderValueSlider(
+            label = stringResource(R.string.reader_font_size),
+            valueText = stringResource(R.string.reader_font_size_sub, prefsState.readerFontSizeSp),
+            options = ALLOWED_FONT_SIZES,
+            value = prefsState.readerFontSizeSp,
+            onChange = { v -> scope.launch { prefs.setReaderFontSizeSp(v) } }
+        )
 
         Spacer(Modifier.height(12.dp))
 
         // Interline (line spacing)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.reader_interline, "%.1f".format(prefsState.readerInterline)), style = MaterialTheme.typography.labelMedium)
-            Slider(
-                value = prefsState.readerInterline,
-                onValueChange = { v -> scope.launch { prefs.setReaderInterline(v) } },
-                valueRange = ALLOWED_INTERLINES.first().toFloat() .. ALLOWED_INTERLINES.last().toFloat(),
-                steps = (ALLOWED_INTERLINES.size - 1)
-            )
-            Text(stringResource(R.string.reader_interline_sub, prefsState.readerInterline), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        ReaderValueSlider(
+            label = stringResource(R.string.reader_interline),
+            valueText = stringResource(R.string.reader_interline_sub, prefsState.readerInterline),
+            options = ALLOWED_INTERLINES,
+            value = prefsState.readerInterline,
+            onChange = { v -> scope.launch { prefs.setReaderInterline(v) } }
+        )
 
         Spacer(Modifier.height(12.dp))
 
         // Paragraph Margin
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.reader_paragraph_margin, "%.0f".format(prefsState.readerParagraphMargin)), style = MaterialTheme.typography.labelMedium)
-            Slider(
-                value = prefsState.readerParagraphMargin,
-                onValueChange = { v -> scope.launch { prefs.setReaderParagraphMargin(v) } },
-                valueRange = ALLOWED_PARAGRAPH_MARGINS.first().toFloat() .. ALLOWED_PARAGRAPH_MARGINS.last().toFloat(),
-                steps = (ALLOWED_PARAGRAPH_MARGINS.size - 1)
-            )
-            Text(stringResource(R.string.reader_paragraph_margin_sub, prefsState.readerParagraphMargin), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        ReaderValueSlider(
+            label = stringResource(R.string.reader_paragraph_margin),
+            valueText = stringResource(R.string.reader_paragraph_margin_sub, prefsState.readerParagraphMargin),
+            options = ALLOWED_PARAGRAPH_MARGINS,
+            value = prefsState.readerParagraphMargin,
+            onChange = { v -> scope.launch { prefs.setReaderParagraphMargin(v) } }
+        )
 
         // B5.7: toggle chia se tom tat len wiki cong dong (mac dinh bat, tat duoc).
         HorizontalDivider()
@@ -620,6 +611,46 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
 }
 
 // ===== Helper Composables =====
+
+/**
+ * Slider cho giá trị rời rạc KHÔNG đều (vd ALLOWED_FONT_SIZES: 20 → 22 → 24 → 26…).
+ * Compose `Slider` nội suy tuyến tính theo `steps`, nên với mảng không đều thì kéo tay
+ * ra giá trị lạ (11.25sp, 1.33…) lệch hẳn giá trị hiển thị, và không bao giờ chạm được
+ * 22/24/26/28/30. Ở đây slider chạy theo CHỈ SỐ mảng → mỗi nấc = đúng một giá trị hợp lệ.
+ */
+@Composable
+private fun ReaderValueSlider(
+    label: String,
+    valueText: String,
+    options: FloatArray,
+    value: Float,
+    onChange: (Float) -> Unit
+) {
+    if (options.size < 2) return
+    val last = options.size - 1
+    val nearest = options.indices.minByOrNull { kotlin.math.abs(options[it] - value) } ?: 0
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, style = MaterialTheme.typography.labelMedium)
+            Text(
+                valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = nearest.toFloat(),
+            onValueChange = { pos -> onChange(options[(pos + 0.5f).toInt().coerceIn(0, last)]) },
+            valueRange = 0f..last.toFloat(),
+            steps = (last - 1).coerceAtLeast(0)
+        )
+    }
+}
 
 @Composable
 fun SectionHeader(title: String, action: (() -> Unit)? = null) {

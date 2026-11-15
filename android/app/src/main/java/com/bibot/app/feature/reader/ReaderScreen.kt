@@ -251,11 +251,8 @@ fun ReaderScreen(
         else -> R.string.nav_story
     }
 
-    // A2.3: RenderIfDirty key — chỉ relayout khi cài đặt hiển thị thay đổi (Snap config)
-    // Tránh jank khi đổi font sách dày: chỉ recompose khi fontSize/interline/paragraphMargin thực sự thay đổi
-    val renderKey = androidx.compose.runtime.derivedStateOf {
-        prefsState.readerFontSizeSp to prefsState.readerInterline to prefsState.readerParagraphMargin
-    }.value
+    // A2.3: RenderIfDirty key — không dùng ở đâu; bỏ để tránh tạo lambda capture trong
+    // composable khổng lồ (gây NPE/verifier quá tải).
 
     LaunchedEffect(Unit) {
         playerVm.ensureOfflineTts {}
@@ -2021,30 +2018,20 @@ Column(
             // 0.55) nhưng ĐỊNH VỊ ĐỘC LẬP: Back ở giữa màn hình (50% cao), Play ở giữa
             // khoảng dưới (tâm ≈75% cao: cách đáy Box 20% trừ nửa nút 28dp) — không gian
             // 1 tay rộng. VERIFY uiautomator 2026-10-15: Back [919,1104][1044,1229].
-            FloatingActionButton(
-                onClick = { if (selectedBook == null) { stopAll(); onBackHome() } else { stopAll(); selectedBook = null; readerVm.clear() } },
-                // Nền trong mờ như pill điều khiển (alpha 0.55) → chữ trôi bên dưới vẫn thấy.
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-            ) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = stringResource(R.string.reader_back)
-                )
-            }
-            FloatingActionButton(
-                onClick = { togglePlay() },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(
-                    end = 16.dp,
-                    bottom = (config.screenHeightDp * 0.20f).dp - 28.dp
-                ),
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-            ) {
-                Icon(
-                    if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = playDesc
-                )
-            }
+            // UX 2026-11-15: fade theo menuVisible (tự ẩn sau 3.5s khi đọc) → không che chữ.
+            // Tách sang ReaderFabs.kt để giữ ReaderScreen dưới ngưỡng DEX verifier.
+            ReaderFabPair(
+                menuVisible = menuVisible,
+                isReading = isReading,
+                backDesc = stringResource(R.string.reader_back),
+                playDesc = playDesc,
+                playBottomPadding = (config.screenHeightDp * 0.20f).dp - 28.dp,
+                onBack = {
+                    if (selectedBook == null) { stopAll(); onBackHome() }
+                    else { stopAll(); selectedBook = null; readerVm.clear() }
+                },
+                onTogglePlay = { togglePlay() }
+            )
             // B3.3/F2.5: dialog đổi vị trí khi đang READ.
             val pj = pendingJump
             if (pj != null) {
