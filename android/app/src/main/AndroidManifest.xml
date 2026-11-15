@@ -12,6 +12,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+    <!-- Android 11+ (package visibility): phai khai bao moi thay duoc
+         RecognitionService cua Google. Thieu dong nay thi
+         SpeechRecognizer.isRecognitionAvailable() tra false va app
+         tuong may khong co STT online -> luon roi ve offline. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".BibotApp"
         android:allowBackup="true"

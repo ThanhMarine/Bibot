@@ -1450,3 +1450,15 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   cập nhật dist/v1.0.4-demo (Bibot.apk/.aab, SHA256, GHI-CHU-TEST.md, RELEASE-NOTES-vi.txt)
   và dist/v1.0.4-vip (riêng tư, .gitignore).
 
+
+## PHAN J1.9 - Package visibility cho SpeechRecognizer (2026-11-15)
+
+- [x] J1.9.1 AndroidManifest thieu `<queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>`.
+  Tu Android 11 (targetSdk 30+), queryIntentServices bi loc package visibility nen
+  `SpeechRecognizer.isRecognitionAvailable()` co the tra false du may co Google app.
+  Hau qua: SttBridge.isAvailable() = false -> app tuong may khong co STT online -> luon offline.
+- [x] J1.9.2 Da them `<queries>` theo https://developer.android.com/training/package-visibility/use-cases
+  (muc "Connect to a speech recognition service"). Khong them quyen moi, khong anh huong Play policy.
+- [x] J1.9.3 App khong dung android.speech.tts.TextToSpeech (chi sherpa offline TTS) nen khong can
+  khai `android.intent.action.TTS_SERVICE`.
+
