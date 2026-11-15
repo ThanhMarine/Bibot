@@ -11,7 +11,7 @@ firestore = "25.0.0"
 firebaseAuth = "23.0.0"
 emoji2 = "1.4.0"
 room = "2.6.1"
-datastore = "1.1.4"
+datastore = "1.1.1"
 vosk = "0.3.47"
 work = "2.9.0"
 leakcanary = "2.14"
@@ -55,4 +55,3 @@ admob = { group = "com.google.android.gms", name = "play-services-ads", version.
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
