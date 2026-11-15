@@ -64,7 +64,11 @@ fun BoxScope.ReaderFabPair(
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
         ) {
-            FloatingActionButton(onClick = onBack, containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) {
+            FloatingActionButton(
+                onClick = onBack,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
                 Icon(Icons.Default.ArrowBack, contentDescription = backDesc)
             }
         }
@@ -75,7 +79,11 @@ fun BoxScope.ReaderFabPair(
             modifier = Modifier.align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = playBottomPadding)
         ) {
-            FloatingActionButton(onClick = onTogglePlay, containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) {
+            FloatingActionButton(
+                onClick = onTogglePlay,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
                 Icon(
                     if (isReading) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = playDesc
