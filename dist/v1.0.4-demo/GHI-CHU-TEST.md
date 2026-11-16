@@ -25,6 +25,7 @@
 - **Nâng cấp trải nghiệm đọc:**
   - PDF: chụm 2 ngón để phóng to (1×–4×) + kéo trang để di chuyển; chạm đúp phóng/thu nhanh; nút "1×" ở góc trang để về cỡ gốc.
   - Cột chữ dàn trang cân bằng: lề trái = lề phải, cột tối đa 640dp (căn giữa trên máy lớn), ngắt dòng + gạch nối từ điển → chữ đều, không còn lệch trái / lề phải rộng.
+  - Nút Back trên thanh tiêu đề: đóng bảng đang mở (Mục lục/cài đặt) → về kệ sách; Back ở kệ sách → Home.
 
 ---
 

@@ -1453,6 +1453,8 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   chip "1x" reset) — `PdfPageZoom.kt` + 8 unit test; cột chữ cân bằng (tối đa 640dp,
   căn giữa, lề 18dp) cho TEXT view và EPUB rich + hyphenation/LineBreak.Paragraph.
   Verify emulator 1080x1920: lề 48/50px, double-tap → 2.25x, pan, 1x vẫn cuộn/chuyển trang.
+  Fix Back: top-bar thiếu readerVm.clear() nên effect resume G1.2 tự mở lại sách;
+  Back hệ thống ở kệ sách trước đây thoát app (callback chỉ đăng ký khi mở sách) → nay về Home.
 
 
 

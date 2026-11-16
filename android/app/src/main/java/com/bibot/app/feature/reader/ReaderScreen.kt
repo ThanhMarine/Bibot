@@ -1355,6 +1355,28 @@ fun ReaderScreen(
         }
     }
 
+    // Back hệ thống: đóng lớp phủ đang mở → về kệ sách → về Home.
+    // Đăng ký NGOÀI nhánh selectedBook để màn kệ sách cũng bắt Back (trước đây
+    // callback chỉ sống khi đang mở sách → Back ở kệ sách thoát thẳng ra launcher).
+    val backDispatcher = (context as? androidx.activity.ComponentActivity)?.onBackPressedDispatcher
+    DisposableEffect(selectedBook) {
+        val cb = object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (selectedBook == null) { stopAll(); onBackHome(); return }
+                when {
+                    tocOpen -> tocOpen = false
+                    anchorConfirm != null -> anchorConfirm = null
+                    pendingJump != null -> pendingJump = null
+                    settingsOpen -> settingsOpen = false
+                    hintOpen -> hintOpen = false
+                    else -> { stopAll(); selectedBook = null; readerVm.clear() }
+                }
+            }
+        }
+        backDispatcher?.addCallback(cb)
+        onDispose { cb.remove() }
+    }
+
     if (selectedBook == null) {
     if (collection == ReaderCollection.EN) {
         // Module "Sách tiếng Anh": hiện EN + local/link. Sách folder VI (source=pdrive, lang=vi)
@@ -1496,27 +1518,6 @@ fun ReaderScreen(
         }
         // B3.1: brightness trong app — trả về hệ thống khi rời màn đọc.
         val activity = context as? android.app.Activity
-        // TEMP (B6 test aid): nút Back hệ thống về list khi đang mở sách
-        // (ưu tiên đóng dialog/sheet trước). B2 sẽ đổi thành về Detail.
-        // Ở kệ sách (chưa mở sách): Back → về Home (không còn nút Home dưới).
-        val backDispatcher = (context as? androidx.activity.ComponentActivity)?.onBackPressedDispatcher
-        DisposableEffect(selectedBook) {
-            val cb = object : androidx.activity.OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (selectedBook == null) { stopAll(); onBackHome(); return }
-                    when {
-                        tocOpen -> tocOpen = false
-                        anchorConfirm != null -> anchorConfirm = null
-                        pendingJump != null -> pendingJump = null
-                        settingsOpen -> settingsOpen = false
-                        hintOpen -> hintOpen = false
-                        else -> { stopAll(); selectedBook = null; readerVm.clear() }
-                    }
-                }
-            }
-            backDispatcher?.addCallback(cb)
-            onDispose { cb.remove() }
-        }
         LaunchedEffect(brightness) {
             try {
                 val win = activity?.window ?: return@LaunchedEffect
@@ -1582,6 +1583,19 @@ fun ReaderScreen(
                     } else if (currentChapter + 1 < chapters.size) requestJump(currentChapter + 1)
                     else status = context.getString(R.string.reader_at_end)
                 }
+                // Nút Back top-bar: đóng lớp phủ đang mở trước (giống Back hệ thống),
+                // rồi mới về kệ sách. PHẢI clear VM — nếu không effect resume G1.2
+                // (bookId còn) tự loadBook lại ngay → Back "không ăn".
+                val onTopBarBack: () -> Unit = {
+                    when {
+                        tocOpen -> tocOpen = false
+                        anchorConfirm != null -> anchorConfirm = null
+                        pendingJump != null -> pendingJump = null
+                        settingsOpen -> settingsOpen = false
+                        hintOpen -> hintOpen = false
+                        else -> { stopAll(); selectedBook = null; readerVm.clear() }
+                    }
+                }
                 if (menuVisible) {
                     if (isLandscape) {
                         ReaderCompactBar(
@@ -1589,7 +1603,7 @@ fun ReaderScreen(
                             chapterText = chapterLine,
                             isReading = isReading,
                             playEnabled = !scanNoTts,
-                            onBack = { stopAll(); selectedBook = null },
+                            onBack = onTopBarBack,
                             onTogglePlay = { togglePlay() },
                             onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
                             onToc = { tocOpen = true },
@@ -1604,7 +1618,7 @@ fun ReaderScreen(
                             isReading = isReading,
                             playEnabled = !scanNoTts,
                             pageMode = (isPdfBook || isEpubBook) && !viewLockedPage,
-                            onBack = { stopAll(); selectedBook = null },
+                            onBack = onTopBarBack,
                             onTogglePlay = { togglePlay() },
                             onSearch = { searchQuery = ""; searchHits = emptyList(); searchOpen = true },
                             onToc = { tocOpen = true },
