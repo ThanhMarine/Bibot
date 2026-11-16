@@ -1790,10 +1790,16 @@ fun ReaderScreen(
                         }
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            // Lề hẹp 10dp kiểu ReadEra (was 16dp): thêm ~12dp ngang
-                            // cho font lớn hơn mà không xuống dòng sớm; BODY căn đều.
-                            contentPadding = PaddingValues(top = 4.dp, start = 10.dp, end = 10.dp, bottom = contentBottomInset()),
+                            // UX 2026-11-16: cột chữ tối đa 640dp, CĂN GIỮA, lề 2 bên
+                            // bằng nhau (ReaderTextGutter) — hết cảnh cột lệch trái /
+                            // lề phải rộng hơn trên máy màn lớn.
+                            modifier = Modifier.balancedTextColumn(),
+                            contentPadding = PaddingValues(
+                                top = 4.dp,
+                                start = ReaderTextGutter,
+                                end = ReaderTextGutter,
+                                bottom = contentBottomInset()
+                            ),
                             verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             item(key = "head-$currentChapter") {
@@ -1824,6 +1830,10 @@ Column(
                                  ) {
                                       Text(
                                           if (hasPause) "$displayText ⏸2s" else displayText,
+                                          style = LocalTextStyle.current.copy(
+                                              lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
+                                              hyphens = androidx.compose.ui.text.style.Hyphens.Auto
+                                          ),
                                           fontSize = prefsState.readerFontSizeSp.sp,
                                           lineHeight = (prefsState.readerFontSizeSp * prefsState.readerInterline).sp,
                                           textAlign = TextAlign.Justify,

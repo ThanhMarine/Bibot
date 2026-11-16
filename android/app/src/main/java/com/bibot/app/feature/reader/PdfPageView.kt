@@ -7,6 +7,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -36,16 +37,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bibot.app.R
 import com.bibot.app.core.image.SmartCrop
 import com.bibot.app.ui.player.contentBottomInset
@@ -117,8 +122,6 @@ fun PdfPageView(
 
     var renderer by remember(file.absolutePath) { mutableStateOf<PdfRenderer?>(null) }
     var pfd by remember(file.absolutePath) { mutableStateOf<ParcelFileDescriptor?>(null) }
-    // B6.16: double-tap trang → zoom fullscreen (bitmap pool, đã render đúng).
-    var zoomIdx by remember(file.absolutePath) { mutableIntStateOf(-1) }
     // PdfRenderer KHÔNG thread-safe (1 Page mở tại 1 thời điểm) — mọi render
     // (effect chính + fallback từng item) phải qua mutex này, nếu không
     // "IllegalStateException: Current page not closed" rải rác (vd grimm10 p18/19).
@@ -406,6 +409,11 @@ fun PdfPageView(
                 effPageRatio(pageRatios[idx] ?: 0.707f, pageRotation)
             }
             val (pw, ph) = pageSizeDp(ratioEff, availW)
+            // UX 2026-11-16: zoom + pan TẠI CHỖ cho từng trang (pinch 1×–4×, chạm
+            // đúp 2.25×, kéo khi đã zoom). State theo idx → dual mode zoom độc lập,
+            // đổi trang không lẫn offset; đổi fit/xoay/crop/paging thì reset.
+            val zoom = remember(idx) { PdfPageZoomState() }
+            LaunchedEffect(fitMode, pagingMode, pageRotation, cropMargins) { zoom.reset() }
             Box(
                 modifier = paneModifier
                     .background(paneBg)
@@ -419,18 +427,57 @@ fun PdfPageView(
                     )
                     .combinedClickable(
                         onClick = onPageTap,
-                        onDoubleClick = { zoomIdx = idx },
+                        // Chạm đúp: 1× → 2.25×, đang zoom → về 1× (thay dialog toàn màn hình).
+                        onDoubleClick = { zoom.toggleDoubleTap() },
                         onLongClick = { onPageLongPress(idx) }
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 if (bmp != null && !bmp.isRecycled) {
-                    Image(
-                        bitmap = bmp.asImageBitmap(),
-                        contentDescription = stringResource(R.string.chrome_page_of, idx + 1, pageCount),
-                        modifier = Modifier.size(pw, ph),
-                        colorFilter = themeFilter
-                    )
+                    // Khung ảnh đúng kích thước trang + clipToBounds: zoom phóng BÊN
+                    // TRONG khung, layout KHÔNG đổi → anchor/scrollToItem của
+                    // LazyColumn giữ nguyên (bất biến E2.3).
+                    Box(
+                        Modifier.size(pw, ph)
+                            .clipToBounds()
+                            .pdfPageZoomGestures(zoom),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = stringResource(R.string.chrome_page_of, idx + 1, pageCount),
+                            modifier = Modifier
+                                .size(pw, ph)
+                                .graphicsLayer {
+                                    scaleX = zoom.scale
+                                    scaleY = zoom.scale
+                                    translationX = zoom.offset.x
+                                    translationY = zoom.offset.y
+                                },
+                            colorFilter = themeFilter
+                        )
+                    }
+                    // Chip "1×" khi đang zoom: bấm để về 1× (ngoài chạm đúp / pinch-out).
+                    if (zoom.isZoomed) {
+                        Box(
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .background(
+                                    Color.Black.copy(alpha = 0.45f),
+                                    androidx.compose.foundation.shape.RoundedCornerShape(50)
+                                )
+                                .clickable { zoom.reset() }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                "1×",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 } else if (failed.containsKey(idx)) {
                     Box(modifier = Modifier.size(pw, ph), contentAlignment = Alignment.Center) {
                         Text(
@@ -487,21 +534,6 @@ fun PdfPageView(
                     )
                 }
             }
-        }
-    }
-
-    // B6.16: dialog zoom trang (pinch) — dùng bitmap pool đã render đúng
-    // (render mới trong dialog cho bitmap đen); thiếu/recycled → render bù.
-    if (zoomIdx in 0 until pageCount) {
-        val zb = bitmaps[zoomIdx]
-        if (zb != null && !zb.isRecycled) {
-            ZoomableImageDialog(
-                bitmap = zb,
-                contentDescription = stringResource(R.string.chrome_page_of, zoomIdx + 1, pageCount),
-                onDismiss = { zoomIdx = -1 }
-            )
-        } else {
-            LaunchedEffect(file.absolutePath, zoomIdx) { renderPage(zoomIdx) }
         }
     }
 }

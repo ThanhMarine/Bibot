@@ -22,6 +22,9 @@
   - Không còn im lặng khi push-to-talk không nhận được chữ.
   - Engine sherpa-onnx: không treo 15–120s khi máy không có mạng và chưa cài engine; cài engine xong không cần khởi động lại app.
   - Ổn định: decode sherpa được tuần tự hoá (trước đây nghe liên tục + push-to-talk cùng lúc có thể gây crash native).
+- **Nâng cấp trải nghiệm đọc:**
+  - PDF: chụm 2 ngón để phóng to (1×–4×) + kéo trang để di chuyển; chạm đúp phóng/thu nhanh; nút "1×" ở góc trang để về cỡ gốc.
+  - Cột chữ dàn trang cân bằng: lề trái = lề phải, cột tối đa 640dp (căn giữa trên máy lớn), ngắt dòng + gạch nối từ điển → chữ đều, không còn lệch trái / lề phải rộng.
 
 ---
 

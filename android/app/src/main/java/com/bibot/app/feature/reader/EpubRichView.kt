@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -211,8 +210,10 @@ fun EpubRichView(
     }
 
     // E2.5 Week 4: Phân trang thay vì LazyColumn liên tục
+    // UX 2026-11-16: cùng khung dàn trang với TEXT view — cột ≤640dp, căn giữa,
+    // lề 2 bên bằng nhau (trước đây chữ dính sát mép màn hình).
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.balancedTextColumn().padding(horizontal = ReaderTextGutter),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         pageBlocks.forEachIndexed { blkIdx, b ->

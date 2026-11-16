@@ -1,3 +1,7 @@
+Nâng cấp trải nghiệm đọc:
+- PDF: chụm 2 ngón để phóng to (1×–4×) và kéo trang để di chuyển; chạm đúp để phóng/thu nhanh; nút "1×" ở góc trang đưa về cỡ gốc.
+- Cột chữ màn đọc dàn trang cân bằng: lề trái = lề phải, bề rộng tối đa 640dp và căn giữa trên máy lớn; ngắt dòng + gạch nối từ điển nên chữ đều hơn, hết cảnh cột lệch trái / lề phải rộng.
+
 Bản 1.0.4 sửa lỗi nhận dạng giọng nói:
 - Máy không có/không dùng được dịch vụ nhận dạng của Google giờ tự dùng model STT offline đã cài.
 - STT online lỗi mạng/timeout tự chuyển sang model offline (cả push-to-talk và nghe liên tục).

@@ -1449,6 +1449,11 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
 - [x] J1.8.4 Version 1.0.4 / versionCode 5; rebuild 2 flavor release + renameReleaseBundles;
   cập nhật dist/v1.0.4-demo (Bibot.apk/.aab, SHA256, GHI-CHU-TEST.md, RELEASE-NOTES-vi.txt)
   và dist/v1.0.4-vip (riêng tư, .gitignore).
+- [x] J1.8.5 UX đọc (2026-11-16): PDF zoom/pan tại chỗ (pinch 1x-4x, chạm đúp 2.25x,
+  chip "1x" reset) — `PdfPageZoom.kt` + 8 unit test; cột chữ cân bằng (tối đa 640dp,
+  căn giữa, lề 18dp) cho TEXT view và EPUB rich + hyphenation/LineBreak.Paragraph.
+  Verify emulator 1080x1920: lề 48/50px, double-tap → 2.25x, pan, 1x vẫn cuộn/chuyển trang.
+
 
 
 ## PHAN J1.9 - Package visibility cho SpeechRecognizer (2026-11-15)
