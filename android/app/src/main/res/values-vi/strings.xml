@@ -589,4 +589,9 @@
     <string name="wiki_report_done">Đã gửi báo cáo. Cảm ơn bạn!</string>
     <string name="book_detail_empty">Chưa chọn sách.</string>
     <string name="book_detail_toc">%1$d chương</string>
+    <string name="announce_got_it">Đã hiểu</string>
+    <string name="announce_open_link">Mở liên kết</string>
+    <string name="announce_refresh">Làm mới</string>
+    <string name="announce_updated">Cập nhật: %1$s</string>
+    <string name="announce_cache_only">Không tải được bản mới — đang hiện bản đã lưu.</string>
 </resources>

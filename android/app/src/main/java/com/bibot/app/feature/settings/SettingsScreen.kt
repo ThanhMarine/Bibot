@@ -43,6 +43,7 @@ import com.bibot.app.data.books.DriveBookSource
 import com.bibot.app.data.files.FilePaths
 import com.bibot.app.data.offline.DownloadState
 import com.bibot.app.data.offline.ModelInfo
+import com.bibot.app.data.offline.OfflineSttHelper
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.data.store.ALLOWED_FONT_SIZES
 import com.bibot.app.data.store.ALLOWED_INTERLINES
@@ -515,6 +516,33 @@ private fun ApiKeysContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
 // ===== 3. Giọng đọc (gộp trùng lặp TTS thành 1 dropdown) =====
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Một dòng trạng thái dưới công tắc "STT offline": model nào có, engine sherpa đã nạp chưa.
+ * Thiếu engine (~46MB, tải 1 lần cần mạng) là nguyên nhân phổ biến nhất khiến bật offline
+ * mà không nhận dạng được — trước đây app im lặng nên user tưởng model hỏng.
+ */
+@Composable
+private fun VoiceSttStatusLine(enabled: Boolean) {
+    if (!enabled) return
+    val context = LocalContext.current
+    // Poll 3s: user có thể vừa tải model ở mục "Mô hình offline" rồi quay lại.
+    val status by produceState<String?>(initialValue = null, enabled) {
+        val helper = OfflineSttHelper(context.applicationContext)
+        while (true) {
+            value = try { helper.statusLine() } catch (_: Exception) { null }
+            delay(3000)
+        }
+    }
+    status?.let {
+        Text(
+            "STT offline: $it",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
     val scope = rememberCoroutineScope()
@@ -553,6 +581,9 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
         SettingSwitchRow(stringResource(R.string.voice_stt), prefsState.sttOfflineFirst) {
             scope.launch { prefs.setSttOfflineFirst(it) }
         }
+        // Trạng thái STT offline (model + engine): trước đây user bật công tắc rồi nói
+        // không nhận được nhưng không biết thiếu gì. Chỉ đọc file nên poll 3s là rẻ.
+        VoiceSttStatusLine(enabled = prefsState.sttOfflineFirst)
         SettingSwitchRow(stringResource(R.string.voice_barge), prefsState.bargeInEnabled) {
             scope.launch { prefs.setBargeInEnabled(it) }
         }
@@ -1582,8 +1613,10 @@ private fun HelpGuideContent() {
 }
 
 /**
- * Lich su thong bao NPT (pull JSON + cache 24h, offline van xem). Mo muc la danh dau
- * tat ca da xem (tat badge Home). Cham tin co link thi mo link.
+ * Lich su thong bao NPT (pull JSON tu raw GitHub, fallback jsDelivr, cache 24h nen
+ * offline van xem duoc). Mo muc la danh dau tat ca da xem (tat badge Home).
+ * Co nut Lam moi (force = bo qua cache) + dong "Cap nhat: <thoi diem cache>": truoc
+ * day muc nay im lang tai lai va khong cho biet dang xem ban cu hay ban moi.
  */
 @Composable
 private fun AnnounceHistoryContent() {
@@ -1592,20 +1625,29 @@ private fun AnnounceHistoryContent() {
     val prefs = remember { BibotPreferences(context) }
     var items by remember { mutableStateOf<List<com.bibot.app.core.announce.AnnounceItem>>(emptyList()) }
     var expandedId by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) {
+    var updatedAt by remember { mutableStateOf<Long?>(null) }
+    var refreshing by remember { mutableStateOf(false) }
+    var stale by remember { mutableStateOf(false) }
+
+    suspend fun load(force: Boolean) {
         val url = try { BuildConfig.ANNOUNCE_URL } catch (_: Exception) { "" }
+        val fallback = try { BuildConfig.ANNOUNCE_URL_FALLBACK } catch (_: Exception) { "" }
         val cur = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "" }
+        val fresh = com.bibot.app.core.announce.AnnounceApi.fetch(
+            context, listOf(url, fallback), force = force
+        )
+        items = fresh.filter { com.bibot.app.core.announce.AnnounceApi.isApplicable(it, cur) }
+        updatedAt = com.bibot.app.core.announce.AnnounceApi.cachedAt(context)
+        // Tải lỗi nhưng còn cache: vẫn hiện bản đã lưu, nói rõ để user không tưởng tin cũ.
+        stale = fresh.isEmpty() && items.isNotEmpty()
+    }
+
+    LaunchedEffect(Unit) {
         try {
-            val fresh = com.bibot.app.core.announce.AnnounceApi.fetch(context, url)
-            items = fresh.filter { com.bibot.app.core.announce.AnnounceApi.isApplicable(it, cur) }
-            for (it in items) {
-                try { prefs.markAnnounceSeen(it.id) } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {
-            try {
-                items = com.bibot.app.core.announce.AnnounceApi.readCached(context)
-            } catch (_: Exception) {}
-        }
+            load(force = false)
+            // Mở mục = đã đọc → tắt badge trên Home.
+            for (it in items) { try { prefs.markAnnounceSeen(it.id) } catch (_: Exception) {} }
+        } catch (_: Exception) {}
     }
     if (items.isEmpty()) {
         Text(
@@ -1614,6 +1656,42 @@ private fun AnnounceHistoryContent() {
             color = MaterialTheme.colorScheme.secondary
         )
         return
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        updatedAt?.let { ms ->
+            Text(
+                stringResource(
+                    R.string.announce_updated,
+                    java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+                        .format(java.util.Date(ms))
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        TextButton(
+            enabled = !refreshing,
+            onClick = {
+                refreshing = true
+                scope.launch {
+                    try { load(force = true) } catch (_: Exception) {}
+                    refreshing = false
+                }
+            }
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.announce_refresh), fontSize = 12.sp)
+        }
+    }
+    if (stale) {
+        Text(
+            stringResource(R.string.announce_cache_only),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error
+        )
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEach { item ->

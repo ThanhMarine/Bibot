@@ -145,7 +145,8 @@ private fun openLink(context: Context, url: String) {
 
 /**
  * Banner thong bao NPT tren Home: tin moi nhat chua xem (loc theo ban app).
- * Cham: danh dau da xem + mo link (neu co) — tin ke tu hien. X: tat banner.
+ * Cham banner: mo hop thoai doc day du (nut "Da hieu" danh dau da xem, tin ke tu hien;
+ * co url thi them nut "Mo lien ket"). X: danh dau da xem, khong mo hop thoai.
  * Khong co URL cau hinh hoac khong co tin: tu render rong.
  */
 @Composable
@@ -154,27 +155,59 @@ private fun AnnounceBanner() {
     val scope = rememberCoroutineScope()
     val prefs = remember { BibotPreferences(context) }
     var items by remember { mutableStateOf<List<AnnounceItem>>(emptyList()) }
+    var open by remember { mutableStateOf<AnnounceItem?>(null) }
     val seen by prefs.seenAnnounceIdsFlow.collectAsState(initial = emptySet())
     LaunchedEffect(Unit) {
         val url = try { BuildConfig.ANNOUNCE_URL } catch (_: Exception) { "" }
+        val fallback = try { BuildConfig.ANNOUNCE_URL_FALLBACK } catch (_: Exception) { "" }
         val cur = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "" }
         try {
-            items = AnnounceApi.fetch(context, url).filter { AnnounceApi.isApplicable(it, cur) }
+            items = AnnounceApi.fetch(context, listOf(url, fallback))
+                .filter { AnnounceApi.isApplicable(it, cur) }
         } catch (_: Exception) {}
     }
     val unseen = items.filter { it.id !in seen }
     val top = unseen.firstOrNull() ?: return
+
+    // Bấm banner: mở hộp đọc đầy đủ nội dung tin (banner chỉ hiện 2 dòng) — đánh dấu
+    // đã xem khi đóng, tin kế tiếp tự hiện. Trước đây bấm là mất nội dung ngay.
+    open?.let { a ->
+        AlertDialog(
+            onDismissRequest = { open = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    open = null
+                    scope.launch { try { prefs.markAnnounceSeen(a.id) } catch (_: Exception) {} }
+                }) { Text(stringResource(R.string.announce_got_it)) }
+            },
+            dismissButton = if (a.url.isNotBlank()) ({
+                TextButton(onClick = { openLink(context, a.url) }) {
+                    Text(stringResource(R.string.announce_open_link))
+                }
+            }) else null,
+            icon = { Text(announceIcon(a.type), fontSize = 26.sp) },
+            title = { Text(a.title) },
+            text = {
+                Column {
+                    if (a.body.isNotBlank()) Text(a.body)
+                    if (a.publishedAt.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            a.publishedAt,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+        )
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable {
-                scope.launch {
-                    try { prefs.markAnnounceSeen(top.id) } catch (_: Exception) {}
-                    openLink(context, top.url)
-                }
-            }.padding(12.dp),
+            modifier = Modifier.fillMaxWidth().clickable { open = top }.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(announceIcon(top.type), fontSize = 22.sp)

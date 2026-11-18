@@ -601,4 +601,9 @@
     <string name="wiki_report_done">Report sent. Thanks!</string>
     <string name="book_detail_empty">No book selected.</string>
     <string name="book_detail_toc">%1$d chapters</string>
+    <string name="announce_got_it">Got it</string>
+    <string name="announce_open_link">Open link</string>
+    <string name="announce_refresh">Refresh</string>
+    <string name="announce_updated">Updated: %1$s</string>
+    <string name="announce_cache_only">Could not refresh - showing the saved copy.</string>
 </resources>

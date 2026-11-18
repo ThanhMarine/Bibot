@@ -682,9 +682,16 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
         if (!_uiState.value.isListening) return
     }
 
-    /** QA debug (DEBUG-only): giả lập 1 lượt thoại không cần mic. */
+    /**
+     * QA hook: giả lập 1 lượt thoại không cần mic (files/qa_stt.pcm hoặc files/qa.txt).
+     *
+     * Bật bằng BuildConfig.QA_HOOKS — KHÔNG dùng BuildConfig.DEBUG, vì có lỗi chỉ xuất
+     * hiện sau R8 (JNI tra tên class/field, vd sherpa-onnx). AGP tắt obfuscate cho build
+     * debuggable, nên muốn kiểm chứng thật phải chạy bản release có hook:
+     *   ./gradlew :app:assembleDemoRelease -Pbibot.qaHooks=true
+     */
     fun runQaTurn() {
-        if (!BuildConfig.DEBUG) return
+        if (!BuildConfig.QA_HOOKS) return
         val sttPcm = java.io.File(context.filesDir, "qa_stt.pcm")
             .takeIf { f -> f.canRead() && f.length() > 1000 }
         if (sttPcm != null) {

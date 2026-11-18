@@ -14,6 +14,15 @@
 -keep class org.vosk.Model { *; }
 -keep class org.vosk.SpkModel { *; }
 
+# Sherpa-onnx JNI tra class/field theo TÊN viết cứng trong libsherpa-onnx-jni.so:
+#   FindClass("com/k2fsa/sherpa/onnx/OfflineModelConfig")
+#   GetFieldID(cls, "transducer" / "encoder" / "decoder" / "joiner" / "featConfig" ...)
+# R8 đổi tên các data class config (OfflineModelConfig -> p6.j, transducer -> a) nên bản
+# release TRƯỚC ĐÂY: sherpa không tạo được recognizer/TTS -> STT offline + Piper chết
+# âm thầm (debug không minify nên vẫn chạy -> lỗi chỉ hiện ở bản phát hành).
+# Giữ nguyên tên + toàn bộ thành viên của bindings (nhỏ, chỉ vài class).
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+
 # Google Ads / Play Services - missing LoudnessCodecController (API 33+)
 -dontwarn android.media.LoudnessCodecController
 -dontwarn android.media.LoudnessCodecController$OnLoudnessCodecUpdateListener

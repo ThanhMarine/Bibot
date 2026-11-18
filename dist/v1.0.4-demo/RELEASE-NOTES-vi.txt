@@ -1,10 +1,27 @@
-Nâng cấp trải nghiệm đọc:
-- PDF: chụm 2 ngón để phóng to (1×–4×) và kéo trang để di chuyển; chạm đúp để phóng/thu nhanh; nút "1×" ở góc trang đưa về cỡ gốc.
-- Cột chữ màn đọc dàn trang cân bằng: lề trái = lề phải, bề rộng tối đa 640dp và căn giữa trên máy lớn; ngắt dòng + gạch nối từ điển nên chữ đều hơn, hết cảnh cột lệch trái / lề phải rộng.
-- Nút Back trên thanh tiêu đề màn đọc về đúng kệ sách (trước đây sách tự mở lại); Back ở kệ sách về Home.
 
-Bản 1.0.4 sửa lỗi nhận dạng giọng nói:
-- Máy không có/không dùng được dịch vụ nhận dạng của Google giờ tự dùng model STT offline đã cài.
-- STT online lỗi mạng/timeout tự chuyển sang model offline (cả push-to-talk và nghe liên tục).
-- Báo lỗi rõ nguyên nhân: chưa cài model / thiếu engine / không nghe được câu nào.
-- Không còn treo khi chưa cài engine mà máy không có mạng; ổn định hơn khi nghe liên tục.
+
+
+THÔNG BÁO MỚI TỪ NHÀ PHÁT TRIỂN (module hoàn thiện lần này):
+- Banner tin mới nhất trên màn hình chính: bấm để mở hộp đọc đầy đủ
+  (nút "Đã hiểu" đánh dấu đã xem; có link thì có nút "Mở liên kết").
+- Cài đặt > Thông báo: danh sách tin, nút "Làm mới" (force), dòng
+  "Cập nhật: dd/MM/yyyy HH:mm", cảnh báo khi phản mạng (cache).
+
+Bản 1.0.4 sửa lỗi STT offline sau R8 (minify):
+- Nguyên nhân: R8 đổi tên class cấu hình của sherpa-onnx (OfflineModelConfig -> ...)
+  trong khi libsherpa-onnx-jni.so tìm class/field theo tên -> recognizer không khởi tạo được.
+- Đã thêm keep rule: -keep class com.k2fsa.sherpa.onnx.** { *; }
+- Đã kiểm chứng trên bản release minify: pipeline VAD + decode sherpa OK.
+
+
+THÔNG BÁO MỚI TỪ NHÀ PHÁT TRIỂN (module hoàn thiện lần này):
+- Banner tin mới nhất trên màn hình chính: bấm để mở hộp đọc đầy đủ
+  (nút "Đã hiểu" đánh dấu đã xem; có link thì có nút "Mở liên kết").
+- Cài đặt > Thông báo: danh sách tin, nút "Làm mới" (force), dòng
+  "Cập nhật: dd/MM/yyyy HH:mm", cảnh báo khi phản mạng (cache).
+
+Bản 1.0.4 sửa lỗi STT offline sau R8 (minify):
+- Nguyên nhân: R8 đổi tên class cấu hình của sherpa-onnx (OfflineModelConfig -> ...)
+  trong khi libsherpa-onnx-jni.so tìm class/field theo tên -> recognizer không khởi tạo được.
+- Đã thêm keep rule: -keep class com.k2fsa.sherpa.onnx.** { *; }
+- Đã kiểm chứng trên bản release minify: pipeline VAD + decode sherpa OK.

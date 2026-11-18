@@ -1,6 +1,7 @@
 package com.bibot.app.core.announce
 
 import android.content.Context
+import android.util.Log
 import com.bibot.app.data.files.FilePaths
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,31 +34,48 @@ data class AnnounceItem(
 
 object AnnounceApi {
     const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L
+    private const val TAG = "Announce"
 
     fun cacheFile(context: Context): File =
         File(FilePaths.cacheRoot(context), "announce.json").also {
             try { it.parentFile?.mkdirs() } catch (_: Exception) {}
         }
 
-    /** Tai + cache; tra danh sach (rong neu chua cau hinh URL hoac loi va khong co cache). */
-    suspend fun fetch(context: Context, url: String, force: Boolean = false): List<AnnounceItem> =
+    /**
+     * Tải + cache từ DANH SÁCH URL (thử lần lượt: raw.githubusercontent → jsDelivr CDN).
+     * Một nguồn chết (chặn mạng, repo đổi nhánh) vẫn còn nguồn kia. Trả rỗng nếu chưa
+     * cấu hình URL hoặc lỗi và không có cache.
+     */
+    suspend fun fetch(context: Context, urls: List<String>, force: Boolean = false): List<AnnounceItem> =
         withContext(Dispatchers.IO) {
-            if (url.isBlank()) return@withContext emptyList()
+            val clean = urls.map { it.trim() }.filter { it.isNotEmpty() }
+            if (clean.isEmpty()) return@withContext emptyList()
             if (!force) {
                 readCache(context)?.let { (at, items) ->
                     val age = System.currentTimeMillis() - at
                     if (age in 0 until CACHE_TTL_MS) return@withContext items
                 }
             }
-            try {
-                val json = download(url)
-                val items = parse(json)
-                writeCache(context, items)
-                items
-            } catch (_: Exception) {
-                readCache(context)?.second ?: emptyList()
+            for (u in clean) {
+                try {
+                    val items = parse(download(u))
+                    writeCache(context, items)
+                    return@withContext items
+                } catch (e: Exception) {
+                    Log.w(TAG, "fetch lỗi $u: ${e.message}")
+                }
             }
+            readCache(context)?.second ?: emptyList()
         }
+
+    /** Tải 1 URL (giữ cho chỗ gọi cũ) — xem bản nhận danh sách ở trên. */
+    suspend fun fetch(context: Context, url: String, force: Boolean = false): List<AnnounceItem> =
+        fetch(context, listOf(url), force)
+
+    /** Mốc thời gian cache (ms) — null nếu chưa từng tải. */
+    suspend fun cachedAt(context: Context): Long? = withContext(Dispatchers.IO) {
+        readCache(context)?.first
+    }
 
     /** Doc cache dia (khong can mang) — dung cho muc lich su khi offline. */
     suspend fun readCached(context: Context): List<AnnounceItem> = withContext(Dispatchers.IO) {
@@ -129,6 +147,9 @@ object AnnounceApi {
             )
         }
         return out.filter { it.id.isNotEmpty() && it.title.isNotEmpty() }
+            // Mới nhất trước (publishedAt dạng ISO YYYY-MM-DD nên so chuỗi là đủ);
+            // tin không ghi ngày xuống cuối.
+            .sortedByDescending { it.publishedAt }
     }
 
     private fun readCache(context: Context): Pair<Long, List<AnnounceItem>>? {

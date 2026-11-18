@@ -29,6 +29,9 @@ import kotlinx.coroutines.withContext
  */
 class OfflineSttHelper(private val context: Context) {
 
+    /** Mốc thời gian sớm nhất được thử nạp engine sherpa lại (chống tải lặp mỗi lượt nói). */
+    @Volatile private var engineRetryAtMs = 0L
+
     fun isModelAvailable(): Boolean =
         SherpaZipformerEngine.isModelAvailable(context) || pickVoskModelDir() != null
 
@@ -54,15 +57,38 @@ class OfflineSttHelper(private val context: Context) {
             "Không nhận diện được giọng nói. Nói to/rõ hơn hoặc kiểm tra quyền micro."
     }
 
+    /** Một dòng trạng thái cho Cài đặt (chỉ đọc file — gọi được trên Main thread). */
+    fun statusLine(): String = statusText(
+        hasVosk = pickVoskModelDir() != null,
+        hasSherpaModel = SherpaZipformerEngine.isModelAvailable(context),
+        sherpaEngineReady = isSherpaEngineReady()
+    )
+
     /** Giải mã 1 utterance: sherpa trước (nếu đủ model + engine), rỗng/lỗi → Vosk. */
     private suspend fun decodeBest(pcm: ShortArray): String? {
-        if (SherpaZipformerEngine.isModelAvailable(context) && SherpaEngine.ensureInstalled(context)) {
+        if (SherpaZipformerEngine.isModelAvailable(context) && ensureEngine()) {
             // Engine có thể vừa cài xong sau lần fail trước → mở khoá recognizer.
             SherpaZipformerEngine.resetInitFailure()
             val text = SherpaZipformerEngine.decode(context, pcm)
             if (!text.isNullOrBlank()) return text
         }
         return decodeVosk(pcm)?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * Nạp engine sherpa-onnx, có "cooldown" sau lần lỗi: trước đây mỗi lượt nói lại thử
+     * tải 43MB → treo 15-120s/lượt khi mạng chập chờn (user thấy như app không nghe).
+     * Engine vừa được cài từ Cài đặt vẫn dùng được ngay (kiểm tra isInstalled trước).
+     */
+    private suspend fun ensureEngine(): Boolean {
+        if (SherpaEngine.loaded) return true
+        val now = System.currentTimeMillis()
+        val installed = SherpaEngine.isInstalled(context)
+        if (!installed && now < engineRetryAtMs) return false
+        val ok = SherpaEngine.ensureInstalled(context)
+        engineRetryAtMs = if (ok || SherpaEngine.loaded) 0L else now + ENGINE_FAIL_COOLDOWN_MS
+        if (!ok) Log.w(TAG, "engine sherpa chưa sẵn sàng — thử lại sau ${ENGINE_FAIL_COOLDOWN_MS / 60000} phút")
+        return ok
     }
 
     /** Ưu tiên VI, thiếu thì EN nếu user chỉ cài EN (giữ nguyên hành vi cũ). */
@@ -83,7 +109,7 @@ class OfflineSttHelper(private val context: Context) {
         // 0) Chuẩn bị engine TRƯỚC khi mở mic: nếu thiếu, tải 1 lần (~46MB) thay vì
         // bắt user nói xong mới tải. Thất bại thì vẫn thử Vosk bên dưới.
         if (SherpaZipformerEngine.isModelAvailable(context)) {
-            SherpaEngine.ensureInstalled(context)
+            ensureEngine()
         }
 
         // 1) Capture: VAD chốt câu (1 lần, dùng chung cho cả 2 engine) — như Pi.
@@ -207,7 +233,7 @@ class OfflineSttHelper(private val context: Context) {
                 if (utt != null) {
                     val pcm = VadUtterance.toPcm16(utt)
                     if (SherpaZipformerEngine.isModelAvailable(context)) {
-                        val t = if (SherpaEngine.ensureInstalled(context))
+                        val t = if (ensureEngine())
                             SherpaZipformerEngine.decode(context, pcm) else null
                         sb.append(" | sherpa=").append(
                             when (t) { null -> "ERR/engine"; "" -> "(blank)"; else -> "\"$t\"" }
@@ -226,6 +252,31 @@ class OfflineSttHelper(private val context: Context) {
 
     companion object {
         private const val TAG = "OfflineStt"
+        /** Sau 1 lần nạp engine thất bại, không thử lại trong 10 phút (tránh tải 43MB mỗi lượt). */
+        private const val ENGINE_FAIL_COOLDOWN_MS = 10 * 60 * 1000L
+
+        /**
+         * Câu trạng thái STT offline (thuần logic, test được): ghép từ việc có model Vosk /
+         * model sherpa / engine sherpa đã nạp. Dùng chung cho Cài đặt + thông báo lỗi.
+         */
+        fun statusText(
+            hasVosk: Boolean,
+            hasSherpaModel: Boolean,
+            sherpaEngineReady: Boolean
+        ): String = when {
+            hasSherpaModel && sherpaEngineReady && hasVosk ->
+                "Sẵn sàng: Sherpa Zipformer VI (chính) + Vosk (dự phòng)"
+            hasSherpaModel && sherpaEngineReady ->
+                "Sẵn sàng: Sherpa Zipformer VI (chưa có Vosk dự phòng)"
+            hasSherpaModel && hasVosk ->
+                "Sẵn sàng: Vosk (model Sherpa đã cài nhưng thiếu engine ~46MB — cần mạng 1 lần)"
+            hasSherpaModel ->
+                "Thiếu engine sherpa-onnx (~46MB): kết nối mạng rồi thử lại, hoặc cài từ file"
+            hasVosk ->
+                "Sẵn sàng: Vosk (chưa cài Sherpa — độ chính xác thấp hơn)"
+            else ->
+                "Chưa có model: vào \"Mô hình offline\" để tải (cần mạng 1 lần)"
+        }
 
         /** PCM16 LE bytes (offset 0) → float32 [-1,1]. */
         private fun bytesToFloats(src: ByteArray, offset: Int, out: FloatArray) {
@@ -264,7 +315,7 @@ class OfflineSttHelper(private val context: Context) {
         continuousRunning = true
         continuousJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             // Engine 1 lần trước vòng lặp (không chặn Main thread).
-            if (SherpaZipformerEngine.isModelAvailable(context)) SherpaEngine.ensureInstalled(context)
+            if (SherpaZipformerEngine.isModelAvailable(context)) ensureEngine()
             while (continuousRunning) {
                 if (!continuousRunning) break
                 try {
@@ -291,7 +342,7 @@ class OfflineSttHelper(private val context: Context) {
     /** Push-to-talk: capture VAD once then decode sherpa (ưu tiên) → Vosk fallback. */
     suspend fun captureAndDecodeOnce(maxSeconds: Int = 30): String? = withContext(Dispatchers.IO) {
         if (!isModelAvailable()) return@withContext null
-        if (SherpaZipformerEngine.isModelAvailable(context)) SherpaEngine.ensureInstalled(context)
+        if (SherpaZipformerEngine.isModelAvailable(context)) ensureEngine()
         val pcm = captureVad(maxSeconds) ?: return@withContext null
         decodeBest(pcm)
     }

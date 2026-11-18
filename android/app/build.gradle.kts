@@ -93,7 +93,18 @@ android {
         buildConfigField("String", "ADMOB_APP_ID", "\"ca-app-pub-2478233272401556~3883137708\"")
         // I2: KHÔNG nướng VIP_HMAC_SECRET vào release (R8 không giấu được string) —
         // secret chỉ có ở debug (dev test offline), release để rỗng, server verify.
-        buildConfigField("String", "ANNOUNCE_URL", "\"\"")
+        // Thong bao NPT: JSON tinh tren GitHub (public, chi noi dung tin - khong dinh gi toi
+        // APK VIP). Sua announcements.json -> push main -> app tu cap nhat (cache 24h,
+        // offline van xem duoc). Fallback jsDelivr CDN neu raw.githubusercontent bi chan.
+        // CHU Y EU: repo dat nhien branch `master` (duong dan raw tren) -- main la branch cu.
+        buildConfigField(
+            "String", "ANNOUNCE_URL",
+            "\"https://raw.githubusercontent.com/ThanhMarine/Bibot/master/announcements.json\""
+        )
+        buildConfigField(
+            "String", "ANNOUNCE_URL_FALLBACK",
+            "\"https://cdn.jsdelivr.net/gh/ThanhMarine/Bibot@master/announcements.json\""
+        )
         buildConfigField("String", "AD_TEST_DEVICES", "\"" + (System.getenv("AD_TEST_DEVICES") ?: "") + "\"")
         buildConfigField("String", "DEFAULT_DRIVE_FOLDER_ID", "\"1UfFOF2FQbA5L9MKJtevEEGja1K0dAhxm\"")
         // I2.3: Play Integrity project number (để lấy integrity token) — env KHÔNG commit
@@ -146,10 +157,21 @@ android {
         debug {
             // Dev test offline mã VIP local (VipCode.verify). Release luôn rỗng.
             buildConfigField("String", "VIP_HMAC_SECRET", "\"" + vipHmacSecret + "\"")
+            // Hook QA (long-press tiêu đề Voice Chat) chỉ bật ở debug; bản release tắt.
+            buildConfigField("boolean", "QA_HOOKS", "true")
         }
         release {
             // I2: release KHÔNG nướng secret — server verify duy nhất.
             buildConfigField("String", "VIP_HMAC_SECRET", "\"\"")
+            // Hook QA tắt mặc định ở release. Riêng khi cần kiểm chứng lỗi CHỈ xuất hiện
+            // sau R8 (JNI/reflection tra tên class, vd sherpa-onnx), build release có hook:
+            //   ./gradlew :app:assembleDemoRelease -Pbibot.qaHooks=true
+            // Rồi cài APK đã ký release + sideload model, long-press tiêu đề Voice Chat để
+            // chạy QA decode thật trên bản đã obfuscate. KHÔNG phát hành bản bật hook.
+            buildConfigField(
+                "boolean", "QA_HOOKS",
+                ((project.findProperty("bibot.qaHooks") as String?)?.toBoolean() == true).toString()
+            )
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")

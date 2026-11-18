@@ -1467,6 +1467,28 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
   Verify VIP release tren emulator: Muc luc -> Tom tat chuong (Firestore getWikiSummary) OK,
   wiki sach mo OK, khong FATAL.
 
+
+## PHAN J1.10 - Sua STT offline ban release (R8) + module Thong bao NPT (2026-11-18)
+
+- [x] J1.10.1 Nguoi chep goc: R8 doi ten data class cau hinh com.k2fsa.sherpa.onnx
+  (OfflineModelConfig -> p6.j, OfflineTransducerModelConfig -> p6.q ...) trong khi
+  libsherpa-onnx-jni.so goi FindClass/GetFieldID theo TEN -> cac class nay khong tim
+  duoc -> STT offline + Piper TTS bi ngung o ban release.
+- [x] J1.10.2 Da sua proguard-rules.pro: -keep class com.k2fsa.sherpa.onnx.** { *; }
+  (giu ten class + thuong nho cua cac binding; khong can knob minify-debug vi AGP tu
+  tat obfuscate cho build debuggable).
+- [x] J1.10.3 Da sua OfflineSttHelper: statusLine()/statusText() (thu nhap/output phu
+  logic) cho Cai dat + Treo cooldown 10 phut sau lan fail cua engine sherpa.
+- [x] J1.10.4 QA hook dieu chinh gate: runQaTurn() -> BuildConfig.QA_HOOKS (thay Debug) de
+  smoke-test ban release da minify: ./gradlew :app:assembleDemoRelease -Pbibot.qaHooks=true.
+- [x] J1.10.5 Verify ban release minify: long-press "BiBot Voice Chat" -> logcat SttTest:
+  vad: chunks=37 got=true len=62400 | sherpa="<text>" | vosk=n/a -> Pipeline OK
+  (model sherpa-vi + engine 1.13.8 + qa_stt.pcm tren emulator).
+- [x] J1.10.6 Module Thong bao - Tin moi tu NPT: AnnounceApi.fetch(list urls) (raw Github +
+  fallback jsDelivr), cache 24h, sort publishedAt giam dan; Home banner mo AlertDialog doc
+  day du (Got it / Open link); Settings > Thong bao co nut Lam moi + dong "Cach nhat: ...".
+- [x] J1.10.7 announcements.json (repo root) -> raw master + jsDelivr master 200; moi tin
+  "v1.0.4-stt-offline-fix" + "v1.0.4-announce-channel".
 ## PHAN J1.9 - Package visibility cho SpeechRecognizer (2026-11-15)
 
 - [x] J1.9.1 AndroidManifest thieu `<queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>`.
