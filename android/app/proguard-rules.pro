@@ -18,8 +18,10 @@
 -dontwarn android.media.LoudnessCodecController
 -dontwarn android.media.LoudnessCodecController$OnLoudnessCodecUpdateListener
 
-# gRPC (Google Drive/API client) - missing InternalGlobalInterceptors
--dontwarn io.grpc.InternalGlobalInterceptors
+# KHONG them -dontwarn io.grpc.InternalGlobalInterceptors: class nay co trong
+# grpc-api 1.57.2 nhung bi xoa o 1.68.2. Xung dot version da duoc ghim trong
+# app/build.gradle.kts (configurations.all ... io.grpc -> 1.57.2); de R8 bao loi
+# neu sau nay version troi lai, thay vi crash runtime "Internal error in Cloud Firestore".
 
 # Cho phép R8 optimize aggressive hơn
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*

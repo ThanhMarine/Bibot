@@ -1458,6 +1458,15 @@ Fix đúng: secret ở server, app chỉ gửi code (chi tiết `relay/VIP_VERIF
 
 
 
+- [x] J1.8.6 Fix crash ban VIP "Internal error in Cloud Firestore (25.0.0)" (2026-11-18):
+  google-api-client (Google Drive, flavor commercial) keo grpc-api/grpc-context 1.68.2 - ban da xoa
+  io.grpc.InternalGlobalInterceptors, trong khi grpc-core 1.57.2 (firestore 25.0.0) van goi
+  -> runtime NoClassDefFoundError. Truoc day chi co -dontwarn trong proguard-rules.pro nen R8
+  van build duoc va crash luc chay. Da ghim io.grpc -> 1.57.2 va guava -> 33.2.1-android trong
+  app/build.gradle.kts, bo dong -dontwarn che loi (de R8 bao ngay neu version troi lai).
+  Verify VIP release tren emulator: Muc luc -> Tom tat chuong (Firestore getWikiSummary) OK,
+  wiki sach mo OK, khong FATAL.
+
 ## PHAN J1.9 - Package visibility cho SpeechRecognizer (2026-11-15)
 
 - [x] J1.9.1 AndroidManifest thieu `<queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>`.

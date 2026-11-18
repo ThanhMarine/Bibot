@@ -48,6 +48,24 @@ val fbProjectId = fbProp("bibot.firebase.projectId")
 val fbAppId = fbProp("bibot.firebase.appId")
 val fbApiKey = fbProp("bibot.firebase.apiKey")
 
+// gRPC phai cung phien ban voi firebase-firestore (grpc-core/grpc-android 1.57.2).
+// google-api-client (Google Drive, flavor commercial) keo grpc-api/grpc-context 1.68.2,
+// ma grpc-api 1.68 da XOA io.grpc.InternalGlobalInterceptors (grpc-core 1.57 van goi)
+// => runtime: NoClassDefFoundError: io.grpc.InternalGlobalInterceptors
+//    => "Internal error in Cloud Firestore". Ghim ca nhom io.grpc ve 1.57.2.
+configurations.all {
+    resolutionStrategy.eachDependency {
+        // Ghim ca nhom io.grpc ve 1.57.2 (ban firestore 25.0.0 dung).
+        if (requested.group == "io.grpc") useVersion("1.57.2")
+        // Ghim guava KIEU ANDROID cho nhat quan: pin grpc xuong 1.57.2 lam mat rang buoc
+        // guava 33.x-android, keo theo google-api-client 2.7.0 doi guava 33.1.0-jre
+        // (ban -jre khong hop voi Android: dung java.lang.invoke/Stream API).
+        if (requested.group == "com.google.guava" && requested.name == "guava") {
+            useVersion("33.2.1-android")
+        }
+    }
+}
+
 android {
     namespace = "com.bibot.app"
     compileSdk = 36
