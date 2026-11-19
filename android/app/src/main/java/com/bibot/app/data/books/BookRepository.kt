@@ -162,7 +162,7 @@ class BookRepository(private val context: Context) {
                     else -> "VI"
                 }
             }
-            "⚠ Kho sách Drive $names đang riêng tư (HTTP 401) — vào Drive: Chia sẻ → \"Bất kỳ ai có liên kết\""
+            "Kho sách Drive $names đang riêng tư (HTTP 401) — vào Drive: Chia sẻ → \"Bất kỳ ai có liên kết\""
         }
         // 3) Drive OAuth nếu đã login và có folderId — tắt hẳn ở flavor demo (BuildConfig.ENABLE_DRIVE)
         if (driveFolderId != null && com.bibot.app.BuildConfig.ENABLE_DRIVE && driveSource.isAvailable(context)) {

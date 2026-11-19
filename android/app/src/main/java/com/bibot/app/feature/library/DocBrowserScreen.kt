@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
@@ -28,7 +29,10 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Note
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Search
@@ -65,7 +69,7 @@ import kotlinx.coroutines.launch
  * - Drawer 12 mục: Đang đọc / Sách & tài liệu / Yêu thích / Đọc sau / Đã đọc /
  *   Tuyển tập / Tác giả / Series / Định dạng / Thư mục / Tải về / Thùng rác.
  * - Row: bìa (PDF render / EPUB cover / ô chữ) + tựa/tác giả/format-size +
- *   progress bar + 4 action (Tải/Yêu thích/Đọc sau/⋮) — quản lý không cần mở sách.
+ * progress bar + 4 action (Tải/Yêu thích/Đọc sau/menu) — quản lý không cần mở sách.
  * - FAB + (SAF picker giữ nguyên) + search debounce + empty state hướng dẫn +
  *   full list (bỏ take(30) cắt ngầm) + auto-scan khi đã có quyền.
  * - PDF nằm chung grid (lọc Định dạng > PDF), hết mồ côi.
@@ -674,7 +678,19 @@ fun DocBrowserScreen(
                         Spacer(Modifier.weight(1f))
                         if (isLoadingStorage) LinearProgressIndicator(modifier = Modifier.weight(0.3f))
                     }
-                    Text("📁 " + (if (selectedTreeUri != null) "SAF: ${selectedTreeUri?.lastPathSegment}" else stringResource(R.string.doc_no_folder)), style = MaterialTheme.typography.labelSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            if (selectedTreeUri != null) "SAF: ${selectedTreeUri?.lastPathSegment}" else stringResource(R.string.doc_no_folder),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
 
                 if (storageFiles.isEmpty() && !isLoadingStorage && selectedTreeUri == null) {
@@ -726,7 +742,12 @@ fun DocBrowserScreen(
                                     if (!inBookstore) {
                                         TextButton(onClick = { scope.launch { status = addToBookstore(Uri.parse(doc.path)) } }) { Text(stringResource(R.string.doc_add_to_books), fontSize = 11.sp) }
                                     } else {
-                                        Text("✅", fontSize = 14.sp)
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                 }
                             }
@@ -748,7 +769,14 @@ fun DocBrowserScreen(
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("📖 Thêm file → kệ Sách & tài liệu tự cập nhật khi refresh.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Thêm file → kệ Sách & tài liệu tự cập nhật khi refresh.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                     }
                 }
             }
@@ -756,7 +784,7 @@ fun DocBrowserScreen(
     }
 }
 
-/** Ô bìa 56×80: bitmap thật (PDF/EPUB đã tải) hoặc placeholder chữ + emoji format. */
+/** Ô bìa 56×80: bitmap thật (PDF/EPUB đã tải) hoặc placeholder chữ + icon định dạng. */
 @Composable
 private fun LibraryCover(book: BookMeta) {
     var bmp by remember(book.id) { mutableStateOf<Bitmap?>(null) }
@@ -775,11 +803,11 @@ private fun LibraryCover(book: BookMeta) {
             modifier = Modifier.size(56.dp, 80.dp)
         )
     } else {
-        val emoji = when (LibraryQuery.libFormatOf(book)) {
-            "PDF" -> "📕"
-            "EPUB" -> "📗"
-            "MD", "TXT" -> "📝"
-            else -> "📄"
+        val formatIcon = when (LibraryQuery.libFormatOf(book)) {
+            "PDF" -> Icons.Filled.PictureAsPdf
+            "EPUB" -> Icons.Filled.MenuBook
+            "MD", "TXT" -> Icons.Filled.Note
+            else -> Icons.Filled.Description
         }
         Box(
             modifier = Modifier.size(56.dp, 80.dp)
@@ -787,7 +815,12 @@ private fun LibraryCover(book: BookMeta) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(emoji, fontSize = 20.sp)
+                Icon(
+                    imageVector = formatIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
                 Text(
                     book.title.trim().firstOrNull()?.uppercase() ?: "?",
                     style = MaterialTheme.typography.titleMedium,

@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -20,13 +21,12 @@ import androidx.compose.ui.unit.sp
  * Nút bấm to — chuẩn phone/tablet, tối ưu cho người lớn tuổi / thao tác một tay / trên ô tô.
  * - Hit-target tối thiểu 56dp (phone) / 64dp (tablet), khuyến nghị 72dp cho nút chính.
  * - Haptic feedback, semantics Role.Button, contentDescription đầy đủ.
- * - Hỗ trợ emoji + label 2 dòng, không cắt chữ.
+ * - Hỗ trợ icon Material + label 2 dòng, không cắt chữ.
  */
 @Composable
 fun BigButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    emoji: String? = null,
     label: String,
     subLabel: String? = null,
     enabled: Boolean = true,
@@ -47,23 +47,21 @@ fun BigButton(
             modifier = btnModifier,
             colors = colors,
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
-        ) { BigButtonContent(emoji, label, subLabel, icon) }
+        ) { BigButtonContent(label, subLabel, icon) }
     } else {
         FilledTonalButton(
             onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() },
             enabled = enabled,
             modifier = btnModifier,
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
-        ) { BigButtonContent(emoji, label, subLabel, icon) }
+        ) { BigButtonContent(label, subLabel, icon) }
     }
 }
 
 @Composable
-private fun BigButtonContent(emoji: String?, label: String, subLabel: String?, icon: @Composable (() -> Unit)?) {
+private fun BigButtonContent(label: String, subLabel: String?, icon: @Composable (() -> Unit)?) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        if (emoji != null) {
-            Text(emoji, fontSize = 24.sp, modifier = Modifier.padding(end = 8.dp))
-        } else if (icon != null) {
+        if (icon != null) {
             Box(Modifier.padding(end = 8.dp)) { icon() }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -97,7 +95,7 @@ fun BigIconButton(
 
 @Composable
 fun BigModeTile(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -118,7 +116,12 @@ fun BigModeTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(emoji, fontSize = 32.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
             Spacer(Modifier.height(6.dp))
             Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
         }

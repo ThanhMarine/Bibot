@@ -4,13 +4,21 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.ChildCare
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,16 +48,16 @@ import com.bibot.app.data.ads.AdManager
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.data.store.BibotPrefs
 
-enum class BibotMode(val emoji: String, val titleRes: Int) {
-    VOICE("🎙️", R.string.nav_voice),
-    BOOK("📚", R.string.nav_book),
-    STORY("📖", R.string.nav_story),
-    COTICH("🧚", R.string.nav_cotich),
-    ABOUT("ℹ️", R.string.nav_about),
-    MUSIC("🎵", R.string.nav_music),
-    WEATHER("⛅", R.string.nav_weather),
-    NEWS("📰", R.string.nav_news),
-    SETTINGS("⚙️", R.string.nav_settings)
+enum class BibotMode(val icon: ImageVector, val titleRes: Int) {
+    VOICE(Icons.Filled.Mic, R.string.nav_voice),
+    BOOK(Icons.Filled.MenuBook, R.string.nav_book),
+    STORY(Icons.Filled.AutoStories, R.string.nav_story),
+    COTICH(Icons.Filled.ChildCare, R.string.nav_cotich),
+    ABOUT(Icons.Filled.Info, R.string.nav_about),
+    MUSIC(Icons.Filled.MusicNote, R.string.nav_music),
+    WEATHER(Icons.Filled.WbSunny, R.string.nav_weather),
+    NEWS(Icons.Filled.Newspaper, R.string.nav_news),
+    SETTINGS(Icons.Filled.Settings, R.string.nav_settings)
 }
 
 /** Ten mode theo ngon ngu UI (P2 i18n) — noi dung sach/truyen giu nguyen. */
@@ -155,7 +163,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                     }
                     Text(
                         if (currentMode == null) stringResource(R.string.app_name)
-                        else "${currentMode!!.emoji} ${currentMode!!.label()}",
+                        else currentMode!!.label(),
                         Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.titleMedium,

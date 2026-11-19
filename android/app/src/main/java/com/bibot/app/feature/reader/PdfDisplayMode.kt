@@ -4,7 +4,7 @@ package com.bibot.app.feature.reader
  * E2.4 — Logic THUẦN cho display modes PDF (tách khỏi Compose để test JVM):
  * fit-width/fit-page, lật trang continuous/single/dual, xoay trang 0/90/180/270,
  * theme màu (màu gốc/sepia/night). PdfPageView chỉ render theo kết quả này;
- * popup ⚙ dùng các hàm next* để chuỗi Setting.
+ * popup cài đặt dùng các hàm next* để chuỗi Setting.
  */
 
 // Giá trị lưu trong BibotPreferences (readerFitMode/readerPagingMode/...).

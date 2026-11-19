@@ -5,7 +5,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Bot Prompt chính thức — cá nhân hoá trong ⚙️ Cài đặt.
+ * Bot Prompt chính thức — cá nhân hoá trong Cài đặt.
  * Template hỗ trợ placeholder: {{persona}}, {{datetime}}, {{style}}, {{tone}}, {{maxWords}}
  * Mặc định: "Em là Bi", friendly/warm, 30 từ — port từ internal/config/config.go:51
  */

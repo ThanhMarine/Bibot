@@ -17,10 +17,10 @@ import androidx.compose.ui.unit.dp
  * bằng nhau, chữ không bị "bè" hết chiều ngang (nguyên nhân cột trông lệch trái
  * khi lề phải bị kéo rộng bởi Justify trên màn lớn).
  */
-val ReaderTextMaxWidth: Dp = 640.dp
+val ReaderTextMaxWidth: Dp = 720.dp
 
 /** Lề trái = lề phải của cột chữ (dp) — luôn dùng cùng một hằng cho cả 2 phía. */
-val ReaderTextGutter: Dp = 18.dp
+val ReaderTextGutter: Dp = 8.dp
 
 /**
  * Modifier "cột chữ cân bằng": giới hạn bề rộng tối đa rồi căn giữa trong khung

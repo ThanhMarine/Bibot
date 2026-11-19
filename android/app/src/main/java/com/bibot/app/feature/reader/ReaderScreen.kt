@@ -20,9 +20,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -214,7 +217,7 @@ fun ReaderScreen(
     var searchHits by remember { mutableStateOf(listOf<Int>()) }
     var searchPos by remember { mutableIntStateOf(0) }
     var searchChap by remember { mutableIntStateOf(-1) }
-    // B6.2/B6.3: popup ⚙ + hint điều hướng chạm (1 lần mỗi máy).
+    // B6.2/B6.3: popup cài đặt + hint điều hướng chạm (1 lần mỗi máy).
     var settingsOpen by remember { mutableStateOf(false) }
     var hintOpen by remember { mutableStateOf(false) }
     var pageCount by remember { mutableIntStateOf(0) }
@@ -1450,7 +1453,7 @@ fun ReaderScreen(
     } else {
         // R0: kho Ke chuyen / Co tich / Tham khao - list don (khong nut quan ly)
         val visibleBooks = books.filter { collection.filter(it) }
-        val listEmoji = if (collection == ReaderCollection.COTICH) "\uD83E\uDDDA" else "\uD83D\uDCD6"
+        val listIcon = if (collection == ReaderCollection.COTICH) Icons.Filled.ChildCare else Icons.Filled.AutoStories
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
                 // Hàng Back về Home (thay nút Home đã bỏ ở bottom bar).
@@ -1483,7 +1486,12 @@ fun ReaderScreen(
             items(visibleBooks, key = { it.id }) { story ->
                 Card(modifier = Modifier.fillMaxWidth().clickable { loadBook(story) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(listEmoji, fontSize = 22.sp)
+                        Icon(
+                            imageVector = listIcon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(story.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -1599,7 +1607,7 @@ fun ReaderScreen(
                 if (menuVisible) {
                     if (isLandscape) {
                         ReaderCompactBar(
-                            title = "${collection.headerEmoji} ${book.title}",
+                            title = book.title,
                             chapterText = chapterLine,
                             isReading = isReading,
                             playEnabled = !scanNoTts,
@@ -1614,7 +1622,7 @@ fun ReaderScreen(
                         )
                     } else {
                         ReaderTopBar(
-                            title = "${collection.headerEmoji} ${book.title}",
+                            title = book.title,
                             isReading = isReading,
                             playEnabled = !scanNoTts,
                             pageMode = (isPdfBook || isEpubBook) && !viewLockedPage,
@@ -1843,7 +1851,7 @@ Column(
                                          .padding(bottom = prefsState.readerParagraphMargin.dp)
                                  ) {
                                       Text(
-                                          if (hasPause) "$displayText ⏸2s" else displayText,
+                                          if (hasPause) "$displayText (dừng 2s)" else displayText,
                                           style = LocalTextStyle.current.copy(
                                               lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
                                               hyphens = androidx.compose.ui.text.style.Hyphens.Auto
@@ -2029,7 +2037,7 @@ Column(
                     onBookLevel = if (!summaryIsBook) ({ startBookSummary() }) else null
                 )
             }
-            // B6.2: popup ⚙ (toggle view + brightness + nền B6.19).
+            // B6.2: popup cài đặt (toggle view + brightness + nền B6.19).
             // A3.1: add export handler
             val currentBook = selectedBook
             val onExport = if (currentBook?.isDownloaded == true) {
@@ -2149,7 +2157,12 @@ private fun ReaderCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth().clickable { onLoad() }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (book.lang == "en") "📘" else "📗", fontSize = 22.sp)
+            Icon(
+                imageVector = Icons.Filled.MenuBook,
+                contentDescription = null,
+                tint = if (book.lang == "en") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(22.dp)
+            )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(book.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)

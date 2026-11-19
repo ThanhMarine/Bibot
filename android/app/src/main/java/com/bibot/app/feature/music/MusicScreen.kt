@@ -10,8 +10,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -307,7 +309,7 @@ fun MusicScreen(
     }
 }
 
-/** Một dòng bài hát: bấm ▶ = luồng chính (app nhạc mặc định), 🎧 = phát trong app Bibot. */
+/** Một dòng bài hát: bấm play = luồng chính (app nhạc mặc định), tai nghe = phát trong app Bibot. */
 @Composable
 private fun TrackRow(
     track: Track,
@@ -325,7 +327,14 @@ private fun TrackRow(
             Box(
                 Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
-            ) { Text(if (score == null) "🎶" else "🔎", fontSize = 20.sp) }
+            ) {
+                Icon(
+                    imageVector = if (score == null) Icons.Default.MusicNote else Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(

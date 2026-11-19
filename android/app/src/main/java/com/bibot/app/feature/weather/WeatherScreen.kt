@@ -7,13 +7,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FilterDrama
+import androidx.compose.material.icons.filled.Grain
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.Thunderstorm
+import androidx.compose.material.icons.filled.Umbrella
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbCloudy
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -110,15 +126,28 @@ object WeatherApi {
     )
 
     private fun iconFor(code: Int): String = when (code) {
-        0 -> "☀️"
-        1, 2 -> "⛅"
-        3 -> "☁️"
-        45, 48 -> "🌫️"
-        51, 53, 55, 56, 57 -> "🌦️"
-        61, 63, 65, 66, 67, 80, 81, 82 -> "🌧️"
-        71, 73, 75, 77, 85, 86 -> "🌨️"
-        95, 96, 99 -> "⛈️"
-        else -> "🌡️"
+        0 -> "sunny"
+        1, 2 -> "partly"
+        3 -> "cloudy"
+        45, 48 -> "fog"
+        51, 53, 55, 56, 57 -> "drizzle"
+        61, 63, 65, 66, 67, 80, 81, 82 -> "rain"
+        71, 73, 75, 77, 85, 86 -> "snow"
+        95, 96, 99 -> "storm"
+        else -> "temp"
+    }
+
+    /** Map key điều kiện thời tiết → Material Icon (đồng bộ UI, không dùng emoji). */
+    fun weatherIcon(key: String): ImageVector = when (key) {
+        "sunny" -> Icons.Filled.WbSunny
+        "partly" -> Icons.Filled.WbCloudy
+        "cloudy" -> Icons.Filled.Cloud
+        "fog" -> Icons.Filled.FilterDrama
+        "drizzle" -> Icons.Filled.Grain
+        "rain" -> Icons.Filled.Umbrella
+        "snow" -> Icons.Filled.AcUnit
+        "storm" -> Icons.Filled.Thunderstorm
+        else -> Icons.Filled.Thermostat
     }
 
     private fun windDirectionText(deg: Double?): String {
@@ -352,7 +381,14 @@ fun WeatherScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Text("📍 ${city.label}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = Icons.Filled.Place,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(city.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     TextButton(onClick = { scope.launch { loadWeather(city, forceRefresh = true) } }) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
@@ -382,7 +418,16 @@ fun WeatherScreen(
                 item {
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                         Column(Modifier.padding(12.dp)) {
-                            Text("❌ $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
                             Text(stringResource(R.string.wx_check_net), style = MaterialTheme.typography.labelSmall)
                         }
                     }
@@ -397,7 +442,12 @@ fun WeatherScreen(
                     ) {
                         Column(Modifier.padding(20.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(w.icon, fontSize = 64.sp)
+                                Icon(
+                                    imageVector = WeatherApi.weatherIcon(w.icon),
+                                    contentDescription = w.condition,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(64.dp)
+                                )
                                 Spacer(Modifier.width(16.dp))
                                 Column {
                                     Text("${w.temperature.toInt()}°C", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -412,19 +462,26 @@ fun WeatherScreen(
                 item { Text(stringResource(R.string.wx_details), style = MaterialTheme.typography.titleMedium) }
 
                 val details = listOf(
-                    "💧 Độ ẩm: ${w.humidity}%",
-                    "💨 Gió: ${w.windSpeed.toInt()} km/h ${w.windDirText}".trimEnd(),
-                    "🌡️ Cao nhất hôm nay: ${w.tempMax.toInt()}°C",
-                    "🌙 Thấp nhất hôm nay: ${w.tempMin.toInt()}°C",
-                    "☁️ Mây che phủ: ${w.cloudCover}%",
-                    "🌞 Chỉ số UV: ${w.uvIndex}",
-                    "🧭 Áp suất: ${w.pressure.toInt()} hPa"
+                    Icons.Filled.WaterDrop to "Độ ẩm: ${w.humidity}%",
+                    Icons.Filled.Air to "Gió: ${w.windSpeed.toInt()} km/h ${w.windDirText}".trimEnd(),
+                    Icons.Filled.Thermostat to "Cao nhất hôm nay: ${w.tempMax.toInt()}°C",
+                    Icons.Filled.NightsStay to "Thấp nhất hôm nay: ${w.tempMin.toInt()}°C",
+                    Icons.Filled.Cloud to "Mây che phủ: ${w.cloudCover}%",
+                    Icons.Filled.WbSunny to "Chỉ số UV: ${w.uvIndex}",
+                    Icons.Filled.Compress to "Áp suất: ${w.pressure.toInt()} hPa"
                 )
 
-                items(details) { text ->
+                items(details) { detail ->
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(text, style = MaterialTheme.typography.bodyMedium)
+                            Icon(
+                                imageVector = detail.first,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(detail.second, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -434,7 +491,12 @@ fun WeatherScreen(
                     items(w.forecast) { f ->
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(f.icon, fontSize = 28.sp)
+                                Icon(
+                                    imageVector = WeatherApi.weatherIcon(f.icon),
+                                    contentDescription = f.condition,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text("${WeatherApi.localizedDayName(f.dayName)} (${f.date})", style = MaterialTheme.typography.titleSmall)

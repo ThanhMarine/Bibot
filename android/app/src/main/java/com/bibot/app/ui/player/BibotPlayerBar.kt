@@ -33,7 +33,7 @@ fun BibotPlayerBar(
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
-            // Row 1: [⏮] [⏯/⏸] [⏭]  ──●──────  01:23 / 04:10 — nút to 56dp tablet 64dp
+            // Row 1: lùi / phát-tạm dừng / tới, seek bar, thời gian — nút to 56dp tablet 64dp
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 IconButton(onClick = { viewModel.seekBack() }, modifier = Modifier.size(56.dp)) {
                     Icon(Icons.Default.FastRewind, contentDescription = "Tua lại 10s", modifier = Modifier.size(28.dp))
@@ -60,7 +60,7 @@ fun BibotPlayerBar(
                     style = MaterialTheme.typography.bodySmall, fontSize = 12.sp
                 )
             }
-            // Row 2: Tốc độ: 0.85x [0.75x | 0.85x | 1.0x | 1.25x]  🔊
+            // Row 2: Tốc độ: 0.85x [0.75x | 0.85x | 1.0x | 1.25x] + âm lượng
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "Tốc độ: ", style = MaterialTheme.typography.labelSmall)

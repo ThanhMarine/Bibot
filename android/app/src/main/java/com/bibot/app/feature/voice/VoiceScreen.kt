@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -190,7 +191,7 @@ fun VoiceScreen(
                 if (stats.turns > 0 && stats.lastTtfaMs >= 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "⏱ Lượt ${stats.turns} • TTFA ${stats.lastTtfaMs}ms" +
+                        "Lượt ${stats.turns} • TTFA ${stats.lastTtfaMs}ms" +
                             (if (stats.lastTurnMs >= 0) " • ${stats.lastTurnMs}ms" else "") +
                             (if (stats.avgTtfaMs >= 0) " • TB ${stats.avgTtfaMs}ms" else "") +
                             (if (stats.bargeInCount > 0) " • ngắt lời ×${stats.bargeInCount}" else ""),
@@ -206,8 +207,8 @@ fun VoiceScreen(
             if (ui.handsFreeMode != HandsFreeMode.NONE) {
                 Text(
                     text = when (ui.handsFreeMode) {
-                        HandsFreeMode.CONTINUOUS -> "🔁 Hands-free: Bấm để bật/tắt nghe liên tục"
-                        HandsFreeMode.PUSH_TO_TALK -> "🎙️ Push-to-talk: Giữ để nói, thả để gửi"
+                        HandsFreeMode.CONTINUOUS -> "Hands-free: Bấm để bật/tắt nghe liên tục"
+                        HandsFreeMode.PUSH_TO_TALK -> "Push-to-talk: Giữ để nói, thả để gửi"
                         else -> ""
                     },
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary,
@@ -270,7 +271,17 @@ fun VoiceScreen(
                         tablet -> "Nút lớn 72dp — dễ bấm khi cầm tablet"
                         else -> null
                     },
-                    emoji = when { ui.isListening || ui.continuousListening -> "⏹️"; ui.isSpeaking -> "🔊"; else -> "🎙️" },
+                    icon = {
+                        Icon(
+                            imageVector = when {
+                                ui.isListening || ui.continuousListening -> Icons.Default.StopCircle
+                                ui.isSpeaking -> Icons.Default.VolumeUp
+                                else -> Icons.Default.Mic
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
                     height = if (tablet) 72.dp else 64.dp
                 )
                 if (ui.isStreaming || ui.isSpeaking) { Spacer(Modifier.height(8.dp)); LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }

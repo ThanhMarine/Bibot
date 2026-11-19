@@ -50,8 +50,11 @@ class EpubRichTest {
         val blocks = EpubReader.richParse(html, "OEBPS/")
         assertTrue(blocks.any { it is EpubReader.RichBlock.Rule })
         val txt = blocks.filterIsInstance<EpubReader.RichBlock.Para>().joinToString("\n") { it.text }
-        assertTrue(txt.contains("A"))
         assertTrue(txt.contains("Next."))
+        // Cell text "A" lives in a Table block (not Para) under the Table-block design.
+        assertTrue(blocks.filterIsInstance<EpubReader.RichBlock.Table>().any { t ->
+            t.rows.any { r -> r.cells.any { it.text.contains("A") } }
+        })
     }
 
     private fun buildEpub(): File {

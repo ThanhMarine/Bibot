@@ -17,7 +17,7 @@ import java.io.File
  *  - PDF đã tải: render trang 0 thu nhỏ (~160px) qua PdfRenderer
  *    (framework bắt buộc ARGB_8888 — thumb nhỏ nên RAM không đáng kể).
  *  - EPUB đã tải: `EpubReader.readCover` → decode sampled (tránh OOM).
- *  - Còn lại (chưa tải / md/txt): null → UI vẽ ô chữ cái + emoji format.
+ * - Còn lại (chưa tải / md/txt): null → UI vẽ ô chữ cái + icon định dạng.
  * Cache RAM LRU 24 bitmap (~160px ≈ 50KB/ảnh). Mọi render/decode trên IO.
  */
 object LibraryCovers {

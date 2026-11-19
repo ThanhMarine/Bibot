@@ -13,7 +13,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.bibot.app.ui.adaptive.isTablet
 
 /**
@@ -114,7 +119,14 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
             Box(
                 Modifier.size(50.dp).clip(CircleShape).background(item.accent),
                 contentAlignment = Alignment.Center
-            ) { Text(item.mode.emoji, fontSize = 27.sp) }
+            ) {
+                Icon(
+                    imageVector = item.mode.icon,
+                    contentDescription = null,
+                    tint = contentColorFor(item.accent),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
             Spacer(Modifier.height(10.dp))
             Text(
                 item.mode.label(),
@@ -127,11 +139,11 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
     }
 }
 
-private fun announceIcon(type: String): String = when (type) {
-    "upgrade" -> "⬆️"
-    "bookstore" -> "📚"
-    "promo" -> "🎁"
-    else -> "📢"
+private fun announceIcon(type: String): ImageVector = when (type) {
+    "upgrade" -> Icons.Filled.SystemUpdate
+    "bookstore" -> Icons.Filled.Storefront
+    "promo" -> Icons.Filled.CardGiftcard
+    else -> Icons.Filled.Campaign
 }
 
 private fun openLink(context: Context, url: String) {
@@ -185,7 +197,14 @@ private fun AnnounceBanner() {
                     Text(stringResource(R.string.announce_open_link))
                 }
             }) else null,
-            icon = { Text(announceIcon(a.type), fontSize = 26.sp) },
+            icon = {
+                Icon(
+                    imageVector = announceIcon(a.type),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(26.dp)
+                )
+            },
             title = { Text(a.title) },
             text = {
                 Column {
@@ -210,7 +229,12 @@ private fun AnnounceBanner() {
             modifier = Modifier.fillMaxWidth().clickable { open = top }.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(announceIcon(top.type), fontSize = 22.sp)
+            Icon(
+                imageVector = announceIcon(top.type),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -11,11 +11,29 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +61,7 @@ import com.bibot.app.data.books.DriveBookSource
 import com.bibot.app.data.files.FilePaths
 import com.bibot.app.data.offline.DownloadState
 import com.bibot.app.data.offline.ModelInfo
+import com.bibot.app.data.offline.ModelType
 import com.bibot.app.data.offline.OfflineSttHelper
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.data.store.ALLOWED_FONT_SIZES
@@ -117,11 +136,15 @@ fun SettingsScreen(
             )
         }
 
-        // ===== 🌐 Ngôn ngữ / Language (P1 i18n — dogfooding stringResource) =====
+        // ===== Ngôn ngữ / Language (P1 i18n — dogfooding stringResource) =====
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.language_title), style = MaterialTheme.typography.titleMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+    Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+    Spacer(Modifier.width(10.dp))
+    Text(stringResource(R.string.language_title), style = MaterialTheme.typography.titleMedium)
+}
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         val activity = context as? android.app.Activity
                         val opts = listOf(
@@ -146,12 +169,13 @@ fun SettingsScreen(
             }
         }
 
-        // ===== 🤖 AI Trò chuyện (chỉ flavor có chat AI) =====
+        // ===== AI Trò chuyện (chỉ flavor có chat AI) =====
         if (BuildConfig.ENABLE_VOICE) {
             item {
                 ExpandableSection(
                     title = stringResource(R.string.sec_ai),
                     subtitle = stringResource(R.string.ai_sub, prefsState.persona, BotPromptManager.styleLabel(prefsState.botStyle), prefsState.botMaxWords),
+                    icon = Icons.Filled.SmartToy,
                     defaultExpanded = false
                 ) {
                     AiPromptContent(prefsState = prefsState, prefs = prefs)
@@ -159,35 +183,38 @@ fun SettingsScreen(
             }
         }
 
-        // ===== 🔑 API & Model =====
+        // ===== API & Model =====
         item {
             val hasKey = prefsState.geminiApiKey.isNotBlank() || prefsState.openRouterKey.isNotBlank()
             ExpandableSection(
                 title = stringResource(R.string.sec_api),
                 subtitle = if (hasKey) stringResource(R.string.api_sub_key, prefsState.geminiModel) else stringResource(R.string.api_sub_free, prefsState.geminiModel),
+                icon = Icons.Filled.Key,
                 defaultExpanded = false
             ) {
                 ApiKeysContent(prefsState = prefsState, prefs = prefs)
             }
         }
 
-        // ===== 🔊 Giọng đọc =====
+        // ===== Giọng đọc =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.sec_voice),
                 subtitle = ttsLabel(prefsState.ttsPriority) + " • " + "%.1f".format(prefsState.voiceSpeed) + "x",
+                icon = Icons.Filled.RecordVoiceOver,
                 defaultExpanded = true
             ) {
                 VoiceContent(prefsState = prefsState, prefs = prefs)
             }
         }
 
-        // ===== 🏷️ Quảng cáo & Premium (chỉ bản demo chính thức) =====
+        // ===== Quảng cáo & Premium (chỉ bản demo chính thức) =====
         if (BuildConfig.ENABLE_ADS) {
             item {
                 ExpandableSection(
                     title = stringResource(R.string.sec_ads),
                     subtitle = stringResource(R.string.ads_sub),
+                    icon = Icons.Filled.Campaign,
                     defaultExpanded = false
                 ) {
                     AdsRewardContent()
@@ -195,12 +222,13 @@ fun SettingsScreen(
             }
         }
 
-        // ===== ⭐ Mã VIP (chỉ bản demo chính thức) =====
+        // ===== Mã VIP (chỉ bản demo chính thức) =====
         if (BuildConfig.ENABLE_ADS) {
             item {
                 ExpandableSection(
                     title = stringResource(R.string.sec_vip),
                     subtitle = stringResource(R.string.vip_sub),
+                    icon = Icons.Filled.Star,
                     defaultExpanded = false
                 ) {
                     VipContent()
@@ -208,11 +236,12 @@ fun SettingsScreen(
             }
         }
 
-        // ===== 📦 Mô hình offline =====
+        // ===== Mô hình offline =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.sec_models),
                 subtitle = stringResource(R.string.models_sub, installedCount, uiState.models.size, uiState.freeSpaceMb),
+                icon = Icons.Filled.CloudDownload,
                 defaultExpanded = false,
                 onRefresh = { modelsVm.refresh() }
             ) {
@@ -237,55 +266,60 @@ fun SettingsScreen(
             }
         }
 
-        // ===== 📚 Kho sách =====
+        // ===== Kho sách =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.sec_books),
                 subtitle = if (booksCount >= 0) stringResource(R.string.books_sub_count, booksCount) else stringResource(R.string.books_sub_default),
+                icon = Icons.Filled.LibraryBooks,
                 defaultExpanded = false
             ) {
                 BookLibrarySection(onCount = { booksCount = it })
             }
         }
 
-        // ===== 📢 Thông báo (cả 2 bản) =====
+        // ===== Thông báo (cả 2 bản) =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.sec_announce),
                 subtitle = stringResource(R.string.announce_sub),
+                icon = Icons.Filled.Notifications,
                 defaultExpanded = false
             ) {
                 AnnounceHistoryContent()
             }
         }
 
-        // ===== 🧹 Dữ liệu =====
+        // ===== Dữ liệu =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.sec_data),
                 subtitle = stringResource(R.string.data_reset_sub),
+                icon = Icons.Filled.Storage,
                 defaultExpanded = false
             ) {
                 DataResetSection()
             }
         }
 
-        // ===== 📖 Hướng dẫn & Trợ giúp =====
+        // ===== Hướng dẫn & Trợ giúp =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.help_section_title),
                 subtitle = stringResource(R.string.help_section_sub),
+                icon = Icons.Filled.HelpOutline,
                 defaultExpanded = false
             ) {
                 HelpGuideContent()
             }
         }
 
-        // ===== 💌 Lời tác giả (B6: chuyển từ nút Info ở Home) =====
+        // ===== Lời tác giả (B6: chuyển từ nút Info ở Home) =====
         item {
             ExpandableSection(
                 title = stringResource(R.string.nav_author_note),
                 subtitle = stringResource(R.string.nav_author_sign),
+                icon = Icons.Filled.Info,
                 defaultExpanded = false
             ) {
                 AuthorNoteContent()
@@ -302,6 +336,7 @@ fun SettingsScreen(
 private fun ExpandableSection(
     title: String,
     subtitle: String = "",
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     defaultExpanded: Boolean = false,
     onRefresh: (() -> Unit)? = null,
     content: @Composable () -> Unit
@@ -313,6 +348,15 @@ private fun ExpandableSection(
                 modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium)
                     if (subtitle.isNotEmpty()) {
@@ -1052,7 +1096,12 @@ private fun BookLibraryItem(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(if (book.lang == "vi") "📖" else "📚", fontSize = 18.sp)
+        Icon(
+            imageVector = if (book.lang == "vi") Icons.Filled.Book else Icons.Filled.Book,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = if (book.lang == "vi") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+        )
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(book.title, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -1097,7 +1146,12 @@ private fun ModelCard(
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (installed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(model.emoji, fontSize = 22.sp)
+                Icon(
+                    imageVector = if (model.type == ModelType.STT) Icons.Filled.Mic else Icons.Filled.VolumeUp,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(model.displayName, style = MaterialTheme.typography.titleSmall)
@@ -1247,9 +1301,9 @@ private fun PiperCompactRow(showAdvanced: Boolean, onToggleAdvanced: () -> Unit)
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            "Piper: " + (if (SherpaEngine.loaded) "engine ✓" else "engine ✗") +
-                " • VI " + (if (readyVi) "✓" else "✗") +
-                " • EN " + (if (readyEn) "✓" else "✗"),
+            "Piper: " + (if (SherpaEngine.loaded) "engine ready" else "engine missing") +
+                " • VI " + (if (readyVi) "ready" else "missing") +
+                " • EN " + (if (readyEn) "ready" else "missing"),
             style = MaterialTheme.typography.labelMedium
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1523,7 +1577,7 @@ private fun VipContent() {
  * Huong dan & Tro giup: render cac chuoi help_* (CDATA, HTML-lite <b> + <a href>).
  */
 /**
- * 💌 Lời tác giả (B6: chuyển từ nút Info ở Home thành About trong Settings).
+ * Lời tác giả (B6: chuyển từ nút Info ở Home thành About trong Settings).
  * Nội dung thư giữ nguyên tiếng Việt.
  */
 private val AUTHOR_NOTE = listOf(
@@ -1696,10 +1750,10 @@ private fun AnnounceHistoryContent() {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEach { item ->
             val icon = when (item.type) {
-                "upgrade" -> "⬆️"
-                "bookstore" -> "📚"
-                "promo" -> "🎁"
-                else -> "📢"
+                "upgrade" -> Icons.Filled.SystemUpdate
+                "bookstore" -> Icons.Filled.Storefront
+                "promo" -> Icons.Filled.CardGiftcard
+                else -> Icons.Filled.Campaign
             }
             Card(
                 modifier = Modifier.fillMaxWidth().clickable {
@@ -1724,7 +1778,13 @@ private fun AnnounceHistoryContent() {
             ) {
                 Column(Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$icon ", fontSize = 14.sp)
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(
                             item.title,
                             style = MaterialTheme.typography.titleSmall,

@@ -1,5 +1,12 @@
 package com.bibot.app.feature.reader
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.ChildCare
+import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.bibot.app.data.books.BookMeta
 
 /**
@@ -10,8 +17,8 @@ import com.bibot.app.data.books.BookMeta
 enum class ReaderCollection(
     /** key ổn định để lưu pref/progress (en/story/cotich/thamkhao/local_pdf). */
     val key: String,
-    /** Emoji header màn đọc. */
-    val headerEmoji: String,
+    /** Icon header màn đọc. */
+    val headerIcon: ImageVector,
     /** null = theo từng sách (EN đa ngữ); ngược lại ép ngôn ngữ cố định (vi). */
     val fixedLang: String?,
     /** Cổ tích tắt ads hẳn (giữ hành vi StoryScreen cũ). */
@@ -27,7 +34,7 @@ enum class ReaderCollection(
 ) {
     EN(
         key = "en",
-        headerEmoji = "\uD83D\uDCCA",
+        headerIcon = Icons.Filled.MenuBook,
         fixedLang = null,
         adsEnabled = true,
         allowManage = true,
@@ -37,7 +44,7 @@ enum class ReaderCollection(
     ),
     STORY_VI(
         key = "story",
-        headerEmoji = "\uD83D\uDCD6",
+        headerIcon = Icons.Filled.AutoStories,
         fixedLang = "vi",
         adsEnabled = true,
         allowManage = false,
@@ -47,7 +54,7 @@ enum class ReaderCollection(
     ),
     COTICH(
         key = "cotich",
-        headerEmoji = "\uD83E\uDDDA",
+        headerIcon = Icons.Filled.ChildCare,
         fixedLang = "vi",
         adsEnabled = false,
         allowManage = false,
@@ -57,7 +64,7 @@ enum class ReaderCollection(
     ),
     THAMKHAO(
         key = "thamkhao",
-        headerEmoji = "\uD83D\uDCDA",
+        headerIcon = Icons.Filled.LibraryBooks,
         fixedLang = "vi",
         adsEnabled = true,
         allowManage = true,
@@ -67,7 +74,7 @@ enum class ReaderCollection(
     ),
     LOCAL_PDF(
         key = "local_pdf",
-        headerEmoji = "\uD83D\uDCC4",
+        headerIcon = Icons.Filled.PictureAsPdf,
         fixedLang = null,
         adsEnabled = true,
         allowManage = true,

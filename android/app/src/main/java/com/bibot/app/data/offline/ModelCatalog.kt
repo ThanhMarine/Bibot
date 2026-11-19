@@ -7,7 +7,7 @@ import java.io.File
 
 /**
  * Catalog mô hình offline — user tự tải khi cần (không bundle trong APK).
- * Đặt trong Settings → Mô hình offline (§ menu thích hợp: ⚙️ Cài đặt > Mô hình).
+ * Đặt trong Settings → Mô hình offline (§ menu thích hợp: Cài đặt > Mô hình).
  * Nguồn tương đồng Pi: scripts/install_tts_models.sh --with-phatjkk/--with-k2svi
  */
 enum class ModelType { STT, TTS }
@@ -15,7 +15,6 @@ enum class ModelType { STT, TTS }
 data class ModelInfo(
     val id: String, // vosk-vi-small, piper-vi-phatjkk, piper-en-lessac
     val displayName: String, // "Vosk STT tiếng Việt (nhỏ, ~40MB)"
-    val emoji: String,
     val type: ModelType,
     val lang: String, // vi/en
     val url: String,
@@ -83,7 +82,6 @@ object ModelCatalog {
         ModelInfo(
             id = "vosk-vi-small",
             displayName = "Vosk STT tiếng Việt (nhỏ)",
-            emoji = "🎙️",
             type = ModelType.STT,
             lang = "vi",
             url = "https://alphacephei.com/vosk/models/vosk-model-small-vn-0.4.zip",
@@ -95,7 +93,6 @@ object ModelCatalog {
         ModelInfo(
             id = "vosk-en-small",
             displayName = "Vosk STT English (small)",
-            emoji = "🎙️",
             type = ModelType.STT,
             lang = "en",
             url = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",
@@ -107,7 +104,6 @@ object ModelCatalog {
         ModelInfo(
             id = "piper-vi-phatjkk",
             displayName = "Piper TTS tiếng Việt (PhatJKK)",
-            emoji = "🔊",
             type = ModelType.TTS,
             lang = "vi",
             url = "https://raw.githubusercontent.com/phatjkk/vits-tts-vietnamese/main/pretrained_vi.onnx",
@@ -119,7 +115,6 @@ object ModelCatalog {
         ModelInfo(
             id = "piper-en-lessac",
             displayName = "Piper TTS English (Lessac)",
-            emoji = "🔊",
             type = ModelType.TTS,
             lang = "en",
             url = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
@@ -131,7 +126,6 @@ object ModelCatalog {
         ModelInfo(
             id = "sherpa-vi-zipformer",
             displayName = "Sherpa STT tiếng Việt (Zipformer 30M)",
-            emoji = "🎙️",
             type = ModelType.STT,
             lang = "vi",
             url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-vi-30M-int8-2026-02-09.tar.bz2",

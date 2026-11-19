@@ -57,7 +57,7 @@ import com.bibot.app.R
 
 /**
  * B3+E1.1 — Chrome màn đọc dùng chung cho 2 chế độ TEXT/PAGE (F1.1):
- * top bar (back/TTS/search/mục lục/⚙) + brightness + đáy (x of N + ‹ › +
+ * top bar (back/TTS/search/mục lục/cài đặt) + brightness + đáy (x of N + ‹ › +
  * scrubber vạch chương + lịch sử) + dialogs + TOC sheet. Không chứa logic TTS.
  */
 
@@ -120,7 +120,7 @@ fun ReaderTopBar(
                     )
                 }
             }
-            // ⚙: chuyển TEXT ↔ PAGE (F1.1) + brightness + nền (B6.19) — bật mọi sách
+            // Nút cài đặt: chuyển TEXT ↔ PAGE (F1.1) + brightness + nền (B6.19) — bật mọi sách
             // (sách text-only vẫn cần đổi brightness/nền; chuyển view tự khóa trong popup).
             IconButton(onClick = onToggleView, modifier = Modifier.size(44.dp)) {
                 Icon(
@@ -165,7 +165,7 @@ fun ReaderBrightnessRow(
 }
 
 /**
- * B6.2 — Popup nút ⚙: toggle Xem chữ/Xem trang + brightness (gọn 1 chỗ,
+ * B6.2 — Popup cài đặt: toggle Xem chữ/Xem trang + brightness (gọn 1 chỗ,
  * thay hàng brightness cố định chiếm vùng đọc).
  * B6.19: thêm nền màn đọc Trống đồng / Đơn sắc.
  * A3.1: thêm xuất audiobook.

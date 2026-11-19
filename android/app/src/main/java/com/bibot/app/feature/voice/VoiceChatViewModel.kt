@@ -56,7 +56,7 @@ enum class HandsFreeMode {
 
 /** State machine của voice chat: idle / listening / thinking(streaming) / speaking. */
 data class VoiceChatUiState(
-    val responseText: String = "Em là Bi! Em có thể giúp gì cho bạn hôm nay? \uD83D\uDE0A",
+    val responseText: String = "Em là Bi! Em có thể giúp gì cho bạn hôm nay?",
     val partialText: String = "",
     val isListening: Boolean = false,
     val isStreaming: Boolean = false,
@@ -376,13 +376,13 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             val ps = latestPrefs
             if (DefaultMusicPlayer.searchAndPlay(context, q)) {
                 val msg = "Em không thấy bài này trên máy, để em mở app nhạc mặc định cho bạn tìm \"${q.title}\"."
-                _uiState.update { it.copy(responseText = "🎵 $msg") }
+                _uiState.update { it.copy(responseText = "$msg") }
                 speakChunks(listOf(msg), ps)
             } else {
                 val hint = if (!MusicIndex.hasAudioPermission(context))
                     ". Bạn chưa cấp quyền đọc thư viện nhạc — vào màn \"Nhạc\" để cấp" else ""
                 val msg = "Em không tìm thấy \"${q.title}\" trên máy và không có app nhạc nào nhận lệnh$hint."
-                _uiState.update { it.copy(responseText = "🎵 $msg") }
+                _uiState.update { it.copy(responseText = "$msg") }
                 speakChunks(listOf(msg), ps)
             }
         }
@@ -390,7 +390,7 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun handleMusicCommand(q: MusicQuery) {
         val asked = "\"${q.title}\"" + (q.artist?.let { a -> " của $a" } ?: "")
-        _uiState.update { it.copy(responseText = "🎵 Đang tìm $asked...", partialText = "", isStreaming = false, sttError = null) }
+        _uiState.update { it.copy(responseText = "Đang tìm $asked...", partialText = "", isStreaming = false, sttError = null) }
         stopAudio()
         viewModelScope.launch {
             val ps = latestPrefs
@@ -401,23 +401,23 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
                 confident -> {
                     val track = hits[0].first
                     if (DefaultMusicPlayer.playTrack(context, track)) {
-                        _uiState.update { it.copy(responseText = "🎵 Đang mở ${track.title} của ${track.artist} bằng app nhạc mặc định.") }
+                        _uiState.update { it.copy(responseText = "Đang mở ${track.title} của ${track.artist} bằng app nhạc mặc định.") }
                     } else {
                         val msg = "Đang mở ${track.title} của ${track.artist}."
-                        _uiState.update { it.copy(responseText = "🎵 $msg") }
+                        _uiState.update { it.copy(responseText = "$msg") }
                         speakChunks(listOf(msg), ps)
                         try {
                             playerVm?.playUrl(
                                 Uri.fromFile(java.io.File(track.path)).toString(),
                                 track.title, track.artist
                             )
-                        } catch (e: Exception) { _uiState.update { it.copy(responseText = "🎵 Không mở được file nhạc: ${e.message}") } }
+                        } catch (e: Exception) { _uiState.update { it.copy(responseText = "Không mở được file nhạc: ${e.message}") } }
                     }
                 }
                 hits.size > 1 -> {
                     val names = hits.take(3).joinToString("; ") { h -> h.first.title + " (" + h.first.artist + ")" }
                     val msg = "Có ${hits.size} bản trùng tên. Bạn muốn nghe bản nào: $names?"
-                    _uiState.update { it.copy(responseText = "🎵 $msg") }
+                    _uiState.update { it.copy(responseText = "$msg") }
                     speakChunks(listOf(msg), ps)
                 }
                 else -> openExternalMusicApp(q)
