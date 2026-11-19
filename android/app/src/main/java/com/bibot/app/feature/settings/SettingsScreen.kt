@@ -4,7 +4,9 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.layout.*
@@ -14,17 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LibraryBooks
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ExpandLess
@@ -38,8 +29,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -141,10 +134,15 @@ fun SettingsScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-    Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-    Spacer(Modifier.width(10.dp))
-    Text(stringResource(R.string.language_title), style = MaterialTheme.typography.titleMedium)
-}
+                        Image(
+                            painter = painterResource(R.drawable.fluent_globe),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.language_title), style = MaterialTheme.typography.titleMedium)
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         val activity = context as? android.app.Activity
                         val opts = listOf(
@@ -175,7 +173,7 @@ fun SettingsScreen(
                 ExpandableSection(
                     title = stringResource(R.string.sec_ai),
                     subtitle = stringResource(R.string.ai_sub, prefsState.persona, BotPromptManager.styleLabel(prefsState.botStyle), prefsState.botMaxWords),
-                    icon = Icons.Filled.SmartToy,
+                    iconRes = R.drawable.fluent_robot,
                     defaultExpanded = false
                 ) {
                     AiPromptContent(prefsState = prefsState, prefs = prefs)
@@ -189,7 +187,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_api),
                 subtitle = if (hasKey) stringResource(R.string.api_sub_key, prefsState.geminiModel) else stringResource(R.string.api_sub_free, prefsState.geminiModel),
-                icon = Icons.Filled.Key,
+                iconRes = R.drawable.fluent_key,
                 defaultExpanded = false
             ) {
                 ApiKeysContent(prefsState = prefsState, prefs = prefs)
@@ -201,7 +199,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_voice),
                 subtitle = ttsLabel(prefsState.ttsPriority) + " • " + "%.1f".format(prefsState.voiceSpeed) + "x",
-                icon = Icons.Filled.RecordVoiceOver,
+                iconRes = R.drawable.fluent_speaker,
                 defaultExpanded = true
             ) {
                 VoiceContent(prefsState = prefsState, prefs = prefs)
@@ -214,7 +212,7 @@ fun SettingsScreen(
                 ExpandableSection(
                     title = stringResource(R.string.sec_ads),
                     subtitle = stringResource(R.string.ads_sub),
-                    icon = Icons.Filled.Campaign,
+                    iconRes = R.drawable.fluent_ticket,
                     defaultExpanded = false
                 ) {
                     AdsRewardContent()
@@ -228,7 +226,7 @@ fun SettingsScreen(
                 ExpandableSection(
                     title = stringResource(R.string.sec_vip),
                     subtitle = stringResource(R.string.vip_sub),
-                    icon = Icons.Filled.Star,
+                    iconRes = R.drawable.fluent_crown,
                     defaultExpanded = false
                 ) {
                     VipContent()
@@ -241,7 +239,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_models),
                 subtitle = stringResource(R.string.models_sub, installedCount, uiState.models.size, uiState.freeSpaceMb),
-                icon = Icons.Filled.CloudDownload,
+                iconRes = R.drawable.fluent_package,
                 defaultExpanded = false,
                 onRefresh = { modelsVm.refresh() }
             ) {
@@ -271,7 +269,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_books),
                 subtitle = if (booksCount >= 0) stringResource(R.string.books_sub_count, booksCount) else stringResource(R.string.books_sub_default),
-                icon = Icons.Filled.LibraryBooks,
+                iconRes = R.drawable.fluent_books,
                 defaultExpanded = false
             ) {
                 BookLibrarySection(onCount = { booksCount = it })
@@ -283,7 +281,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_announce),
                 subtitle = stringResource(R.string.announce_sub),
-                icon = Icons.Filled.Notifications,
+                iconRes = R.drawable.fluent_bell,
                 defaultExpanded = false
             ) {
                 AnnounceHistoryContent()
@@ -295,7 +293,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_data),
                 subtitle = stringResource(R.string.data_reset_sub),
-                icon = Icons.Filled.Storage,
+                iconRes = R.drawable.fluent_broom,
                 defaultExpanded = false
             ) {
                 DataResetSection()
@@ -307,7 +305,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.help_section_title),
                 subtitle = stringResource(R.string.help_section_sub),
-                icon = Icons.Filled.HelpOutline,
+                iconRes = R.drawable.fluent_question,
                 defaultExpanded = false
             ) {
                 HelpGuideContent()
@@ -319,10 +317,22 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.nav_author_note),
                 subtitle = stringResource(R.string.nav_author_sign),
-                icon = Icons.Filled.Info,
+                iconRes = R.drawable.fluent_love_letter,
                 defaultExpanded = false
             ) {
                 AuthorNoteContent()
+            }
+        }
+
+        // ===== Giấy phép & ghi công (Fluent Emoji MIT, Material Icons Apache 2.0) =====
+        item {
+            ExpandableSection(
+                title = stringResource(R.string.sec_licenses),
+                subtitle = stringResource(R.string.licenses_sub),
+                iconRes = R.drawable.fluent_information,
+                defaultExpanded = false
+            ) {
+                CreditsContent()
             }
         }
 
@@ -336,7 +346,7 @@ fun SettingsScreen(
 private fun ExpandableSection(
     title: String,
     subtitle: String = "",
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    @DrawableRes iconRes: Int? = null,
     defaultExpanded: Boolean = false,
     onRefresh: (() -> Unit)? = null,
     content: @Composable () -> Unit
@@ -348,12 +358,13 @@ private fun ExpandableSection(
                 modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
+                if (iconRes != null) {
+                    // Fluent Emoji 3D (MIT) — ảnh màu, không tint như Icon().
+                    Image(
+                        painter = painterResource(iconRes),
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(24.dp),
+                        contentScale = ContentScale.Fit
                     )
                     Spacer(Modifier.width(10.dp))
                 }
@@ -1590,6 +1601,32 @@ private val AUTHOR_NOTE = listOf(
     "Dù bạn đang mở rộng tầm nhìn ra thế giới hay tìm về những giá trị cội nguồn, Bibot hy vọng sẽ trở thành người bạn tri kỷ, cùng bạn lưu giữ nét đẹp văn hóa và tiếp lửa cho niềm ham học hỏi mỗi ngày.",
     "Cảm ơn bạn đã tin tưởng và chọn Bibot. Sự đồng hành cùng những phản hồi từ bạn chính là nguồn động lực lớn nhất để ứng dụng ngày một hoàn thiện hơn!"
 )
+
+@Composable
+private fun CreditsContent() {
+    val uriHandler = LocalUriHandler.current
+    val entries = listOf(
+        stringResource(R.string.licenses_fluent) to "https://github.com/microsoft/fluentui-emoji",
+        stringResource(R.string.licenses_material) to "https://fonts.google.com/icons"
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            stringResource(R.string.licenses_intro),
+            style = MaterialTheme.typography.bodyMedium,
+            lineHeight = 22.sp
+        )
+        entries.forEach { (label, url) ->
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth().clickable {
+                    try { uriHandler.openUri(url) } catch (_: Exception) {}
+                }
+            )
+        }
+    }
+}
 
 @Composable
 private fun AuthorNoteContent() {

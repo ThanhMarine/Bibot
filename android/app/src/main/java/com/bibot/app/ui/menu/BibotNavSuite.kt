@@ -2,23 +2,16 @@ package com.bibot.app.ui.menu
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
+import androidx.annotation.DrawableRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.ChildCare
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,16 +41,18 @@ import com.bibot.app.data.ads.AdManager
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.data.store.BibotPrefs
 
-enum class BibotMode(val icon: ImageVector, val titleRes: Int) {
-    VOICE(Icons.Filled.Mic, R.string.nav_voice),
-    BOOK(Icons.Filled.MenuBook, R.string.nav_book),
-    STORY(Icons.Filled.AutoStories, R.string.nav_story),
-    COTICH(Icons.Filled.ChildCare, R.string.nav_cotich),
-    ABOUT(Icons.Filled.Info, R.string.nav_about),
-    MUSIC(Icons.Filled.MusicNote, R.string.nav_music),
-    WEATHER(Icons.Filled.WbSunny, R.string.nav_weather),
-    NEWS(Icons.Filled.Newspaper, R.string.nav_news),
-    SETTINGS(Icons.Filled.Settings, R.string.nav_settings)
+// Icon Home/menu dùng bộ Fluent Emoji 3D (MIT — Microsoft) trong res/drawable-nodpi.
+// iconRes thay ImageVector để giữ nguyên màu 3D (Icon() sẽ tint mất màu).
+enum class BibotMode(@DrawableRes val iconRes: Int, val titleRes: Int) {
+    VOICE(R.drawable.fluent_microphone, R.string.nav_voice),
+    BOOK(R.drawable.fluent_books, R.string.nav_book),
+    STORY(R.drawable.fluent_open_book, R.string.nav_story),
+    COTICH(R.drawable.fluent_magic_wand, R.string.nav_cotich),
+    ABOUT(R.drawable.fluent_information, R.string.nav_about),
+    MUSIC(R.drawable.fluent_musical_notes, R.string.nav_music),
+    WEATHER(R.drawable.fluent_sun_behind_cloud, R.string.nav_weather),
+    NEWS(R.drawable.fluent_newspaper, R.string.nav_news),
+    SETTINGS(R.drawable.fluent_gear, R.string.nav_settings)
 }
 
 /** Ten mode theo ngon ngu UI (P2 i18n) — noi dung sach/truyen giu nguyen. */

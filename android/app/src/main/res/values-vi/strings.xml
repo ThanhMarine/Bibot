@@ -86,6 +86,11 @@
     <string name="sec_ads">Quảng cáo &amp; Premium</string>
     <string name="sec_vip">Mã VIP</string>
     <string name="sec_announce">Thông báo</string>
+    <string name="sec_licenses">Giấy phép &amp; ghi công</string>
+    <string name="licenses_sub">Fluent Emoji 3D • Material Icons</string>
+    <string name="licenses_intro">Bibot sử dụng các bộ tài nguyên mã nguồn mở sau. Toàn văn giấy phép được đóng gói trong ứng dụng và trong tệp THIRD_PARTY_NOTICES.md.</string>
+    <string name="licenses_fluent">Fluent Emoji 3D — Microsoft Corporation — Giấy phép MIT</string>
+    <string name="licenses_material">Material Icons — Google — Giấy phép Apache 2.0</string>
     <string name="data_reset_sub">Đặt lại cài đặt về mặc định</string>
     <string name="books_sub_default">Sách nói &amp; truyện</string>
     <string name="books_sub_count">%1$d sách</string>

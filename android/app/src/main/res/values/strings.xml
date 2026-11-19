@@ -86,6 +86,11 @@
     <string name="sec_ads">Ads &amp; Premium</string>
     <string name="sec_vip">VIP Code</string>
     <string name="sec_announce">Announcements</string>
+    <string name="sec_licenses">Licenses &amp; credits</string>
+    <string name="licenses_sub">Fluent Emoji 3D • Material Icons</string>
+    <string name="licenses_intro">Bibot uses the following open-source assets. Full license texts are bundled inside the app and in THIRD_PARTY_NOTICES.md.</string>
+    <string name="licenses_fluent">Fluent Emoji 3D — Microsoft Corporation — MIT License</string>
+    <string name="licenses_material">Material Icons — Google — Apache License 2.0</string>
     <string name="data_reset_sub">Reset settings to defaults</string>
     <string name="books_sub_default">Audiobooks &amp; stories</string>
     <string name="books_sub_count">%1$d books</string>

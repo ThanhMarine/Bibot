@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -117,14 +120,15 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
             verticalArrangement = Arrangement.Center
         ) {
             Box(
-                Modifier.size(50.dp).clip(CircleShape).background(item.accent),
+                Modifier.size(50.dp).clip(CircleShape).background(item.accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = item.mode.icon,
+                // Fluent Emoji 3D (MIT) — Image() giữ nguyên màu, Icon() sẽ tint thành 1 màu.
+                Image(
+                    painter = painterResource(item.mode.iconRes),
                     contentDescription = null,
-                    tint = contentColorFor(item.accent),
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(34.dp),
+                    contentScale = ContentScale.Fit
                 )
             }
             Spacer(Modifier.height(10.dp))
