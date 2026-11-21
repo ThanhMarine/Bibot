@@ -39,22 +39,15 @@ Bibot là bản di động hoá của Pi4 XiaoZhi (`Tóm_tắt_hiện_tại.md:9
 
 ---
 
-## 3) Giao diện — Google Emoji + Touch + Player chuẩn đồng bộ
+## 3) Giao diện — Fluent Emoji 3D + Touch + Player chuẩn đồng bộ
 
-### 3.1 Google Emoji
-- **Font:** `Noto Color Emoji` via `androidx.emoji2:emoji2` + Play EmojiCompat. Không dùng OEM.
-- **Quy ước:** Menu label có emoji tiền tố (đồng bộ `services/app_menus/*`):
-  | Mode | Emoji | Label |
-  |---|---|---|
-  | 1 Sách EN | 📚 | Sách tiếng Anh |
-  | 2 Kể chuyện VI | 📖 | Kể chuyện |
-  | 3/4 Nhạc | 🎵 | Nhạc / Ngẫu nhiên |
-  | 5 Voice Chat | 🎙️ | Trò chuyện |
-  | 6 Thời tiết | ⛅ | Thời tiết |
-  | 7 Tin tức | 📰 | Tin tức |
-  | 14 PDF→MD | 📄→📝 | PDF sang Markdown |
-  | Cài đặt | ⚙️ | Cài đặt + 📦 Mô hình offline |
-  TTS `CleanTTSText` bỏ emoji nên không ảnh hưởng audio.
+### 3.1 Fluent Emoji 3D (MIT)
+- **Source:** `https://github.com/microsoft/fluent-emoji` (style `Fluent 3D`, license **MIT**).
+- **Asset:** `android/app/src/main/res/drawable-nodpi/fluent_*.png` (192px RGBA PNG, ~578KB/20 file).
+- **Dùng:** `BibotMode.icon` → `@DrawableRes iconRes: Int` (`ImageVector` không giữ màu 3D → render `Image(painterResource(...))`).
+- **Menu:** Home grid + Settings `ExpandableSection` dùng icon 3D; emoji text trong label giữ nguyên, không dùng hệ emoji font cho icon mode.
+- **Credit:** `THIRD_PARTY_NOTICES.md` + section Cài đặt → Giấy phép & ghi công (license MIT).
+- TTS `CleanTTSText` bỏ emoji nên không ảnh hưởng audio.
 
 ### 3.2 Main Menu tinh gọn + Nút bấm to (phone/tablet)
 - **Home dashboard** `ui/menu/HomeMenu.kt` — mặc định `currentMode=null` (không phải VOICE). Hero gradient `🎙️ Trò chuyện` 140dp + grid `GridCells.Adaptive 150dp phone / 180dp tablet` 6 tile (`BOOK/STORY/MUSIC/WEATHER/NEWS/PDF`) bo 20dp, emoji 26sp trong vòng tròn pastel, `FilledTonalButton` Cài đặt 56dp footer. Một chạm tới mọi mode, không nhồi 8 tab.
@@ -155,7 +148,8 @@ android_app/
 | `mode14_state.db` | `databases/bibot.db` | `roomDbFile()` |
 | `.env` | `filesDir/bibot/datastore/bibot.preferences_pb` | `BibotPreferences` DataStore |
 
-- **DataStore** `BibotPreferences.kt:13` `preferencesDataStore(name="bibot")`: `persona`, `geminiModel`, `ttsPriority auto/offline/online`, `voiceSpeed 0.85f`, `sttOfflineFirst`, `ttsOfflineFallback`, `language vi`, `driveFolderId`. Thay `services/config.py` env + `SharedPreferences` cũ.
+- **DataStore** `BibotPreferences.kt:13` `preferencesDataStore(name="bibot")`: `persona`, `geminiModel`, `ttsPriority auto/offline/online`, `voiceSpeed 0.85f`, `sttOfflineFirst`, `ttsOfflineFallback`, `language vi`, `driveFolderId`, `weatherCity` (mới). Thay `services/config.py` env + `SharedPreferences` cũ.
+- **Thời tiết:** thêm key `WEATHER_CITY` + method `setWeatherCity()` trong `BibotPreferences.kt`; `WeatherScreen.kt` dùng `prefsState.weatherCity` thay `CITIES[0]`. Dropdown 5 thành phố: HCM, Hà Nội, Đà Nẵng, Hải Phòng, Cần Thơ (`SettingsScreen.kt`).
 - **Room** `BibotDatabase.kt:13` `bibot.db` 5 entity: `MemoryCore` (Tier0 bất tử), `MemoryFact` (Tier1 count+TTL), `ChatLog` (Tier2 xoay 500), `BookProgress` (`BOOK_SAVE_EVERY=8`), `PdfJob` (`pending/done`), `fallbackToDestructiveMigration`, singleton `get(context)`.
 - **External export** `getExternalFilesDir("exports")` cho user SAF (không cần `READ_MEDIA` từ Android 10 với app-specific).
 
@@ -301,7 +295,7 @@ android {
   defaultConfig {
     applicationId = "com.bibot.app"
     minSdk = 26; targetSdk = 34
-    versionCode = 5; versionName = "1.0.4"
+    versionCode = 5; versionName = "1.0.5"
     buildConfigField("String", "BIBOT_PERSONA", "\"Em là Bi\"")
   }
   buildFeatures { compose = true; buildConfig = true }
@@ -352,6 +346,8 @@ dependencies {
 | 19 | Không bao giờ nghe "PAUSE 2 SEC" | `PAUSE2SEC` chỉ là cờ → `splitPause()` tách trước mọi engine (`OfflineTtsHelper`/`PiperTtsHelper`/`CloudTtsBridge` strip phòng thủ), thực tế là `delay(2000)` = khoảng lặng 2s; UI hiện `⏸2s` |
 | 20 | Nút ⏮/⏭ (Rev/Next) nhảy chương thật sự | Trước đây chỉ đổi UI → loop không theo → vô tác dụng. Giờ: ⏭ = sang chương kế (qua `##`), ⏮ = về đầu chương / chương trước; item cũ mang `jumpSeq` bị consumer bỏ, `delayUntilDone` cắt delay chờ → bấm là nhảy ngay |
 | 21 | Cài model offline **không cần mạng** | **2026-09-30**: nút **Cài từ file** (file picker) cho từng model/engine/espeak, 0 request mạng; trước đó sideload `push_models.ps1` → `…/files/models_in` (giữ script PC, code staged* deprecated) |
+| 22 | Fluent Emoji 3D icons | Icon Home grid + Settings render đúng màu 3D (không tint), source MIT, credit trong Cài đặt + `THIRD_PARTY_NOTICES.md` |
+| 23 | Weather city picker | Dropdown 5 thành phố trong Settings → DataStore `WEATHER_CITY` → `WeatherScreen` dùng city đã chọn |
 
 ---
 
@@ -361,6 +357,7 @@ dependencies {
 - **v0.2** DataStore/Room/FilePaths + Hybrid STT/TTS (standard không key) + ModelCatalog/Downloader trong ⚙️ + Kho sách Demo 2 MD.
 - **v0.3** DriveBookSource + Public URL + BookRepository (official Drive của bạn), PDF→MD ML Kit on-device (`PdfToMarkdownHelper`), `DocBrowserScreen` (SAF browser, demo replaces PDF→MD), `BookProgress`, Firestore sync.
 - **v1.0** Release `Bibot.apk` Play Store, bỏ `windows_app/` hoàn toàn.
+- **v1.0.5** Icon Fluent Emoji 3D (Home + Settings, MIT), weather city picker 5 thành phố trong Settings, versionName 1.0.5 / versionCode 5.
 
 ---
 
