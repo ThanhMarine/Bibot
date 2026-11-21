@@ -200,7 +200,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                                 onOpenReader = { b, c, s -> openReader(b, c, s) }
                             )
                             BibotMode.MUSIC -> MusicScreen(playerVm = playerViewModel)
-                            BibotMode.WEATHER -> WeatherScreen(playerVm = playerViewModel)
+                            BibotMode.WEATHER -> WeatherScreen(playerVm = playerViewModel, weatherCity = bibotPrefsState.weatherCity)
                             BibotMode.NEWS -> NewsScreen(playerVm = playerViewModel)
                             BibotMode.SETTINGS -> SettingsScreen()
                             else -> HomeMenu(onModeSelected = { switchMode(it) })

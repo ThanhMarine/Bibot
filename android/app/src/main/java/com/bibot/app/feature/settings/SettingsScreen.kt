@@ -12,6 +12,8 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Campaign
@@ -44,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.BuildConfig
+import com.bibot.app.feature.weather.WeatherApi
 import com.bibot.app.R
 import com.bibot.app.core.locale.AppLocale
 import com.bibot.app.core.tts.PiperTtsHelper
@@ -163,6 +166,47 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // ===== Thời tiết — chọn địa phương cho Bản tin thời tiết =====
+        item {
+            val selectedCity = WeatherApi.CITIES.firstOrNull { it.id == prefsState.weatherCity }
+                ?: WeatherApi.CITIES.first()
+            ExpandableSection(
+                title = stringResource(R.string.sec_weather),
+                subtitle = selectedCity.label,
+                iconRes = R.drawable.fluent_globe,
+                defaultExpanded = false
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.weather_city_pick),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        WeatherApi.CITIES.forEach { c ->
+                            FilterChip(
+                                selected = c.id == prefsState.weatherCity,
+                                onClick = {
+                                    scope.launch {
+                                        try { prefs.setWeatherCity(c.id) } catch (_: Exception) {}
+                                    }
+                                },
+                                label = { Text(c.chip, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.weather_city_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
                 }
             }
         }

@@ -91,6 +91,15 @@
     <string name="licenses_intro">Bibot sử dụng các bộ tài nguyên mã nguồn mở sau. Toàn văn giấy phép được đóng gói trong ứng dụng và trong tệp THIRD_PARTY_NOTICES.md.</string>
     <string name="licenses_fluent">Fluent Emoji 3D — Microsoft Corporation — Giấy phép MIT</string>
     <string name="licenses_material">Material Icons — Google — Giấy phép Apache 2.0</string>
+    <string name="sec_weather">Thời tiết</string>
+    <string name="weather_sub">Chọn thành phố dự báo</string>
+    <string name="thanh_pho_hcm">TP.HCM</string>
+    <string name="thanh_pho_hanoi">Hà Nội</string>
+    <string name="thanh_pho_danang">Đà Nẵng</string>
+    <string name="thanh_pho_haiphong">Hải Phòng</string>
+    <string name="thanh_pho_cantho">Cần Thơ</string>
+    <string name="weather_city_pick">Chọn thành phố dự báo</string>
+    <string name="weather_city_hint">Áp dụng cho widget và bản tin thời tiết trên màn hình chính.</string>
     <string name="data_reset_sub">Đặt lại cài đặt về mặc định</string>
     <string name="books_sub_default">Sách nói &amp; truyện</string>
     <string name="books_sub_count">%1$d sách</string>

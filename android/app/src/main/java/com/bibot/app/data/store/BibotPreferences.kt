@@ -38,6 +38,8 @@ object PrefKeys {
     // 9.2: Drive kho sách — migrate từ SharedPreferences "bibot_drive" sang DataStore
     val DRIVE_FOLDER_ID = stringPreferencesKey("drive_folder_id") // BibotBooks folderId
     val DRIVE_PAGE_TOKEN = stringPreferencesKey("drive_page_token") // changes API token
+    // Weather: thành phố chọn sẵn (id trong WeatherApi.CITIES), mặc định "hcm"
+    val WEATHER_CITY = stringPreferencesKey("weather_city")
     // 10.3: mốc push log lần cuối (chỉ push log mới, không re-push 500 row)
     val MEMORY_LAST_PUSH_TS = longPreferencesKey("memory_last_push_ts")
     // Thong bao NPT: id da xem (chuoi "id1,id2", giu 50 ma moi nhat)
@@ -101,7 +103,9 @@ data class BibotPrefs(
     val readerPageTheme: String = "normal",
     val readerPageRotation: String = "0",
     // E2.3: crop lề trắng PDF PAGE
-    val readerCropMargins: Boolean = false
+    val readerCropMargins: Boolean = false,
+    // Weather: thành phố chọn sẵn (id trong WeatherApi.CITIES), mặc định "hcm"
+    val weatherCity: String = "hcm"
 )
 
 class BibotPreferences(private val context: Context) {
@@ -196,6 +200,8 @@ class BibotPreferences(private val context: Context) {
             p[PrefKeys.SEEN_ANNOUNCE_IDS] = cur.joinToString(",")
         }
     }
+
+    suspend fun setWeatherCity(v: String) { context.bibotDataStore.edit { it[PrefKeys.WEATHER_CITY] = v } }
 
     /** Đặt lại toàn bộ cài đặt (API key, prompt, model, folder Drive…) về mặc định. */
     suspend fun clearAll() { context.bibotDataStore.edit { it.clear() } }

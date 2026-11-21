@@ -301,14 +301,16 @@ object WeatherApi {
 fun WeatherScreen(
     modifier: Modifier = Modifier,
     // A3.2: controller audio chung (ExoPlayer + engine TTS) — đọc thời tiết đi qua đây.
-    playerVm: PlayerViewModel = viewModel()
+    playerVm: PlayerViewModel = viewModel(),
+    // E2.5: thành phố chọn sẵn (id trong WeatherApi.CITIES),默认 "hcm"
+    weatherCity: String = "hcm"
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var weatherData by remember { mutableStateOf<WeatherData?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var city by remember { mutableStateOf(WeatherApi.CITIES[0]) }
+    var city by remember { mutableStateOf(WeatherApi.CITIES.firstOrNull { it.id == weatherCity } ?: WeatherApi.CITIES.first()) }
     var isSpeaking by remember { mutableStateOf(false) }
 
     suspend fun loadWeather(selected: City, forceRefresh: Boolean = false) {
