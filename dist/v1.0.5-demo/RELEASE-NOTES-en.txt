@@ -1,5 +1,5 @@
 Bibot v1.0.5-demo — Play Console "What's new" (en-US)
-Updated: 2026-11-21 · versionName 1.0.5 · versionCode 5
+Updated: 2026-11-21 · versionName 1.0.5 · versionCode 6
 
 Bibot 1.0.5:
 • New Home & Settings icons (Fluent Emoji 3D)

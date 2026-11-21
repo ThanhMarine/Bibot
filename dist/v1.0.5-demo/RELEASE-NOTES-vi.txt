@@ -1,5 +1,5 @@
 Bibot v1.0.5-demo — Play Console "What's new" (vi-VN)
-Cập nhật: 21/11/2026 · versionName 1.0.5 · versionCode 5
+Cập nhật: 21/11/2026 · versionName 1.0.5 · versionCode 6
 
 Bibot 1.0.5:
 • Icon Home & Cài đặt mới (Fluent Emoji 3D)

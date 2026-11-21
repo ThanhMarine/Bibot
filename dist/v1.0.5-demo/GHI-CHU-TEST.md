@@ -4,14 +4,14 @@
 
 | Thành viên | Phiên bản | VersionCode | Kích thước |
 |------------|-----------|-------------|------------|
-| Bibot Demo (Free + Ads) | 1.0.5 | 5 | Bibot.aab ~23.2 MB |
-| Bibot VIP (Commercial) | 1.0.5-vip | 5 | BibotV.aab ~23.5 MB |
+| Bibot Demo (Free + Ads) | 1.0.5 | 6 | Bibot.aab ~23.2 MB |
+| Bibot VIP (Commercial) | 1.0.5-vip | 6 | BibotV.aab ~23.5 MB |
 
 minSdk 26 (Android 8.0) · targetSdk 36 · ABI: arm64-v8a, armeabi-v7a, x86_64
 
 ## Thành phần nộp Play Console (Demo / com.bibot.app)
 
-- **App bundle:** `Bibot.aab`
+- **App bundle:** `Bibot.aab` (versionCode 6)
 - **Deobfuscation file:** `mapping.txt`
 - **Native debug symbols:** `native-debug-symbols.zip`
 - **Kiểm tra toàn vẹn:** `SHA256.txt`
