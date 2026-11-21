@@ -1,6 +1,6 @@
 Bibot — Điều Khoản Sử Dụng (Terms of Use)
-Cập nhật lần cuối: 26/10/2026
-Phiên bản ứng dụng: 1.0.3 (versionCode 4)
+Cập nhật lần cuối: 21/11/2026
+Phiên bản ứng dụng: 1.0.5 (versionCode 5)
 Gói ứng dụng: com.bibot.app (Free) · com.bibot.app.vip (VIP)
 Nhà phát triển: Bibot Team
 Liên hệ: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
@@ -115,8 +115,8 @@ Liên hệ: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibo
 ---
 
 # Bibot — Terms of Use (English Version)
-Last updated: October 26, 2026
-App version: 1.0.3 (versionCode 4)
+Last updated: November 21, 2026
+App version: 1.0.5 (versionCode 5)
 Packages: com.bibot.app (Free) · com.bibot.app.vip (VIP)
 Developer: Bibot Team
 Contact: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
@@ -230,4 +230,4 @@ Contact: bibotvadmin@gmail.com · GitHub: https://github.com/ThanhMarine/Bibot
 📋 Ghi chú nộp Play Console (không hiển thị cho user, để dev đối chiếu):
 - Terms URL đề xuất: https://raw.githubusercontent.com/ThanhMarine/Bibot/main/Terms.md (song ngữ, cùng nơi với privacy-policy.md)
 - Khai Contains Ads = Yes (Free) / No (VIP); RECORD_AUDIO = Voice Chat offline, xử lý cục bộ; Families Policy cho Cổ tích như Mục 2.2
-- IAP (khi phát hành): khai Products/Subscriptions, chính sách hoàn tiền theo Google Play; giữ bản Terms này đồng bộ versionCode 4 / versionName 1.0.3
+- IAP (khi phát hành): khai Products/Subscriptions, chính sách hoàn tiền theo Google Play; giữ bản Terms này đồng bộ versionCode 5 / versionName 1.0.5
