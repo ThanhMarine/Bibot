@@ -1,0 +1,8 @@
+Bibot v1.0.5-demo — Play Console "What's new" (vi-VN)
+Cập nhật: 21/11/2026 · versionName 1.0.5 · versionCode 5
+
+Bibot 1.0.5:
+• Icon Home & Cài đặt mới (Fluent Emoji 3D)
+• Chọn thành phố thời tiết: HCM, Hà Nội, Đà Nẵng, Hải Phòng, Cần Thơ
+• Thêm mục Giấy phép & ghi công
+• Sửa lỗi và tối ưu hiệu năng

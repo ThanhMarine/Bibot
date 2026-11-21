@@ -1,0 +1,8 @@
+Bibot v1.0.5-demo — Play Console "What's new" (en-US)
+Updated: 2026-11-21 · versionName 1.0.5 · versionCode 5
+
+Bibot 1.0.5:
+• New Home & Settings icons (Fluent Emoji 3D)
+• Weather city picker (5 Vietnamese cities)
+• Added Licenses & credits section
+• Bug fixes and performance improvements
