@@ -1,8 +1,8 @@
 # Bibot — Trợ lý đọc & nghe tiếng Việt
 
 > Đọc sách, kể chuyện, trò chuyện AI bằng giọng nói — offline-first, không bắt buộc đăng nhập.
->
-> **Bản public:** `v1.0.0-demo` (Free, có quảng cáo) · Package `com.bibot.app` · Android 8.0+
+
+> **Bản public:** `v1.0.5-demo` (Free, có quảng cáo) · Package `com.bibot.app` · Android 8.0+
 
 ## Bibot là gì?
 
@@ -20,10 +20,13 @@ Bibot ("Em là Bi") là ứng dụng Android đọc sách & kể chuyện tiến
 - 🎙️ **Trò chuyện AI** — chat thoại thực tế, dùng API key của bạn (Gemini/OpenRouter) hoặc relay miễn phí; persona "Em là Bi" tùy biến trong Cài đặt.
 - 🌤️ **Tiện ích đọc bằng giọng nói** — thời tiết 3 ngày, điểm tin VnExpress/Tuổi Trẻ/BBC, quét nhạc trên máy.
 - ⚙️ **Đa engine giọng nói** — Piper / Sherpa-ONNX offline, Android TTS, Cloud TTS (khi có mạng); tốc độ 0.5–2.0x.
+- 🧩 **Fluent Emoji 3D** — icon Home + Settings chuyển từ Material Emoji sang bề mặt hình ảnh 3D Fluent (MIT, Microsoft) cho giao diện sắc nét hơn.
+- 🧭 **Thời tiết theo thành phố** — chọn HCM, Hà Nội, Đà Nẵng, Hải Phòng, Cần Thơ trong Cài đặt → Bản tin thời tiết 3 ngày theo khu vực của bạn.
+- 📜 **Giấy phép & ghi công** — license MIT (Microsoft), chi tiết trong `THIRD_PARTY_NOTICES.md` + section Cài đặt → Giấy phép & ghi công.
 
 ## Tải về & cài đặt (không qua CH Play)
 
-1. Vào [**Releases**](https://github.com/ThanhMarine/Bibot/releases) → tải `Bibot-v1.0.0-demo.apk` (~64MB).
+1. Vào [**Releases**](https://github.com/ThanhMarine/Bibot/releases) → tải `Bibot-v1.0.5-demo.apk` (~64MB).
 2. Mở file trên điện thoại → cho phép **"Cài đặt ứng dụng không xác định"** 1 lần → Cài đặt.
 3. Mở app, cấp quyền Microphone khi dùng Voice Chat. Không cần tài khoản.
 
@@ -49,6 +52,7 @@ Bibot ("Em là Bi") là ứng dụng Android đọc sách & kể chuyện tiến
 ## Lộ trình
 
 - [x] v1.0.0-demo public qua GitHub Releases
+- [x] v1.0.5-demo: Fluent Emoji 3D icons + weather city picker (5 thành phố Việt Nam) + version bump
 - [ ] Bản cập nhật OTA trong app + kênh store hãng (Galaxy/Xiaomi/Huawei)
 - [ ] Thêm kho truyện + model offline tiếng Việt
 - [ ] Bản VIP phát hành riêng
@@ -62,4 +66,4 @@ Bản APK Free được phép tải, cài và chia sẻ nguyên vẹn cho mục 
 
 ### English summary
 
-Bibot ("Em là Bi") is a Vietnamese reading & listening assistant for Android: audiobooks, fairy tales, English books, AI voice chat, news, weather and on-device music — offline-first, no login required. Grab `Bibot-v1.0.0-demo.apk` from [Releases](https://github.com/ThanhMarine/Bibot/releases) (Android 8.0+), allow unknown-source install once, and open. Privacy policy: [privacy-policy.md](https://github.com/ThanhMarine/Bibot/blob/main/privacy-policy.md). Contact: bibotvadmin@gmail.com. Source code is not open-source yet; feedback via Issues is welcome.
+Bibot ("Em là Bi") is a Vietnamese reading & listening assistant for Android: audiobooks, fairy tales, English books, AI voice chat, news, weather and on-device music — offline-first, no login required. Grab `Bibot-v1.0.5-demo.apk` from [Releases](https://github.com/ThanhMarine/Bibot/releases) (Android 8.0+), allow unknown-source install once, and open. Privacy policy: [privacy-policy.md](https://github.com/ThanhMarine/Bibot/blob/main/privacy-policy.md). Contact: bibotvadmin@gmail.com. Source code is not open-source yet; feedback via Issues is welcome.
