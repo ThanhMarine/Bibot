@@ -26,7 +26,7 @@ Bibot ("Em là Bi") là ứng dụng Android đọc sách & kể chuyện tiến
 
 ## Tải về & cài đặt (không qua CH Play)
 
-1. Vào [**Releases**](https://github.com/ThanhMarine/Bibot/releases) → tải `Bibot-v1.0.5-demo.apk` (~64MB).
+1. Vào [**Releases**](https://github.com/ThanhMarine/Bibot/releases) → tải `Bibot-v1.0.5-demo.apk` (~34MB).
 2. Mở file trên điện thoại → cho phép **"Cài đặt ứng dụng không xác định"** 1 lần → Cài đặt.
 3. Mở app, cấp quyền Microphone khi dùng Voice Chat. Không cần tài khoản.
 
