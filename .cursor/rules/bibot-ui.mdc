@@ -1,0 +1,39 @@
+---
+description: Bibot UI contract — Material Symbols only, one accent, large icons / legible small text, no 3D emoji
+alwaysApply: true
+---
+
+# Bibot UI Contract
+
+Áp dụng cho mọi file `*.kt` / `*.xml` của app. Mục tiêu: **một ngôn ngữ + một điểm nhấn**.
+
+## Icon
+- Chỉ dùng Material Symbols: `Icons.Rounded.*` (fallback `Icons.Filled.*`) qua facade `ui/icon/BibotIcons.kt`.
+- CẤM `R.drawable.fluent_*`, emoji raster, và `Image(painterResource(...))` cho icon chức năng.
+- Không rải `Icons.*` tuỳ tiện ở màn hình; mọi icon đều có tên ngữ nghĩa trong `BibotIcons`.
+
+## Màu
+- Accent duy nhất: `#1976D2` (`BibotAccent`). Secondary/tertiary chỉ là tone cùng họ màu này.
+- `BibotTheme(dynamicColor = false)`; Light/Dark dùng palette nội bộ, nhất quán mọi máy.
+- Cấm tím mặc định (`purple_700`, `Purple80`) và gradient trang trí.
+
+## Hình lớn – chữ nhỏ đủ nhìn
+- Badge icon Home: 56dp, icon 30–32dp; icon action 24dp; header section 20dp trong badge 32dp.
+- Chữ tối thiểu: label 12sp, body 14sp, title 16sp. Không dùng `fontSize < 12sp`.
+- Luôn dùng `MaterialTheme.typography.*`; cấm `fontSize = N.sp` ghi cứng.
+
+## Component & accessibility
+- Dùng `BibotSectionHeader`, `BibotIconBadge`, `BibotInfoCard` thay vì tự vẽ lặp.
+- Touch target ≥48dp; mọi control chỉ có icon phải có `contentDescription`.
+- Hoạ tiết Trọng Đồng chỉ làm nền, opacity thấp; không đặt sau đoạn chữ dài.
+
+## Ví dụ
+```kotlin
+// SAI
+Image(painterResource(R.drawable.fluent_globe), contentDescription = null)
+Text("Thời tiết", fontSize = 10.sp)
+
+// ĐÚNG
+Icon(BibotIcons.Globe, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+Text("Thời tiết", style = MaterialTheme.typography.bodyMedium)
+```
