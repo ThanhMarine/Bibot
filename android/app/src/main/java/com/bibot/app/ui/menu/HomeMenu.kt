@@ -29,6 +29,7 @@ import com.bibot.app.BuildConfig
 import com.bibot.app.core.announce.AnnounceApi
 import com.bibot.app.core.announce.AnnounceItem
 import com.bibot.app.ui.theme.BibotIconSize
+import com.bibot.app.ui.theme.BibotSpacing
 import com.bibot.app.data.store.BibotPreferences
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -76,9 +77,9 @@ fun HomeMenu(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = if (isTablet()) 190.dp else 150.dp),
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+        verticalArrangement = Arrangement.spacedBy(BibotSpacing.Md),
+        horizontalArrangement = Arrangement.spacedBy(BibotSpacing.Md),
+        contentPadding = PaddingValues(top = BibotSpacing.Md, bottom = 96.dp)
     ) {
         // Header Home (tên app + Mic + Settings) đã dời lên Top_bar —
         // grid chỉ còn banner NPT + các ô chức năng.
@@ -106,11 +107,11 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
         shape = shape,
         // Nền CHỈM 45% → nhìn rõ hoa văn trống đồng phía sau, vẫn đọc được chữ
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.height(120.dp).semantics { role = Role.Button }
+        modifier = Modifier.height(168.dp).semantics { role = Role.Button }
     ) {
         // Căn giữa tuyệt đối (ngang + dọc) — icon & tên cân đối trên mọi ô
         Column(
@@ -129,7 +130,7 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(BibotSpacing.Sm))
             Text(
                 item.mode.label(),
                 fontWeight = FontWeight.SemiBold,
@@ -227,14 +228,14 @@ private fun AnnounceBanner() {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { open = top }.padding(12.dp),
+            modifier = Modifier.fillMaxWidth().clickable { open = top }.padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = announceIcon(top.type),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
@@ -242,27 +243,33 @@ private fun AnnounceBanner() {
                     Text(
                         top.title,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 3,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                     if (unseen.size > 1) {
                         Spacer(Modifier.width(6.dp))
-                        Badge { Text("+${unseen.size - 1}", style = MaterialTheme.typography.labelSmall) }
+                        Badge { Text("${unseen.size}", style = MaterialTheme.typography.labelSmall) }
+                    } else {
+                        Spacer(Modifier.width(4.dp))
+                        Box(
+                            Modifier.size(8.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
                     }
                 }
-                Text(
-                    top.body,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
             }
-            IconButton(onClick = {
-                scope.launch { try { prefs.markAnnounceSeen(top.id) } catch (_: Exception) {} }
-            }) {
-                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.announce_dismiss))
+            IconButton(
+                onClick = {
+                    scope.launch { try { prefs.markAnnounceSeen(top.id) } catch (_: Exception) {} }
+                },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = stringResource(R.string.announce_dismiss),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }

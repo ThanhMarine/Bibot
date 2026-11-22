@@ -147,36 +147,69 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (currentMode == null) {
-                        IconButton(onClick = { pressBack() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.reader_back))
+                        Row(
+                            Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(BibotIcons.Book),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Column {
+                                Text(
+                                    stringResource(R.string.app_name),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    stringResource(R.string.persona),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     } else {
-                        IconButton(onClick = { switchMode(null) }) {
+                        IconButton(
+                            onClick = { switchMode(null) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
                             Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back_home))
                         }
+                        Text(
+                            currentMode!!.label(),
+                            Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
                     }
-                    Text(
-                        if (currentMode == null) stringResource(R.string.app_name)
-                        else currentMode!!.label(),
-                        Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1
-                    )
                     if (BuildConfig.ENABLE_VOICE) {
-                        IconButton(
+                        FilledIconButton(
                             onClick = { switchMode(BibotMode.VOICE) },
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(56.dp)
                         ) {
-                            Icon(painterResource(BibotIcons.Mic), contentDescription = stringResource(R.string.nav_voice))
+                            Icon(
+                                painterResource(BibotIcons.Mic),
+                                contentDescription = stringResource(R.string.nav_voice),
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
                     IconButton(
                         onClick = { switchMode(BibotMode.SETTINGS) },
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(painterResource(BibotIcons.Settings), contentDescription = stringResource(R.string.nav_settings))
+                        Icon(
+                            painterResource(BibotIcons.Settings),
+                            contentDescription = stringResource(R.string.nav_settings),
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                 }
                 }

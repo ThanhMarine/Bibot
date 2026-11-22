@@ -23,6 +23,6 @@ object BibotIconSize {
     val Section = 20.dp   // icon tiêu đề mục trong badge 32dp
     val Action = 24.dp    // icon nút/action
     val Tile = 96.dp      // THỬ NGHIỆM: icon ô Home phóng 3× (32dp -> 96dp)
-    val Badge = 56.dp     // huy hiệu icon Home
+    val Badge = 104.dp    // huy hiệu icon Home (đủ chứa icon 3× không bị cắt)
     val Touch = 48.dp     // vùng chạm tối thiểu
 }
