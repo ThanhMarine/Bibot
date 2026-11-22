@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,13 +74,16 @@ fun HomeMenu(
         HomeItem(BibotMode.NEWS, MaterialTheme.colorScheme.secondaryContainer),
     )
     val allItems = items
+    val config = LocalConfiguration.current
+    val compact = config.screenWidthDp > config.screenHeightDp
+    val gridGap = if (compact) BibotSpacing.Sm else BibotSpacing.Md
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = if (isTablet()) 190.dp else 150.dp),
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(BibotSpacing.Md),
-        horizontalArrangement = Arrangement.spacedBy(BibotSpacing.Md),
-        contentPadding = PaddingValues(top = BibotSpacing.Md, bottom = 96.dp)
+        verticalArrangement = Arrangement.spacedBy(gridGap),
+        horizontalArrangement = Arrangement.spacedBy(gridGap),
+        contentPadding = PaddingValues(top = gridGap, bottom = if (compact) 72.dp else 96.dp)
     ) {
         // Header Home (tên app + Mic + Settings) đã dời lên Top_bar —
         // grid chỉ còn banner NPT + các ô chức năng.
@@ -90,7 +94,7 @@ fun HomeMenu(
         }
 
         items(allItems) { item ->
-            HomeTile(item = item, onClick = { onModeSelected(item.mode) })
+            HomeTile(item = item, compact = compact, onClick = { onModeSelected(item.mode) })
         }
 
         // Nút Cài đặt đã được gỡ bỏ vì đã có trên main screen
@@ -99,7 +103,7 @@ fun HomeMenu(
 }
 
 @Composable
-private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
+private fun HomeTile(item: HomeItem, compact: Boolean = false, onClick: () -> Unit) {
     val haptic = LocalHapticFeedback.current
     val shape = RoundedCornerShape(20.dp)
     Card(
@@ -111,29 +115,29 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.height(168.dp).semantics { role = Role.Button }
+        modifier = Modifier.height(if (compact) 112.dp else 140.dp).semantics { role = Role.Button }
     ) {
         // Căn giữa tuyệt đối (ngang + dọc) — icon & tên cân đối trên mọi ô
         Column(
-            Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 14.dp),
+            Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = if (compact) 6.dp else 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
-                Modifier.size(BibotIconSize.Badge).clip(CircleShape).background(item.accent.copy(alpha = 0.18f)),
+                Modifier.size(if (compact) BibotIconSize.BadgeCompact else BibotIconSize.Badge).clip(CircleShape).background(item.accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
-                                Icon(
+                Icon(
                     painter = painterResource(item.mode.icon),
                     contentDescription = null,
-                    modifier = Modifier.size(BibotIconSize.Tile),
+                    modifier = Modifier.size(if (compact) BibotIconSize.TileCompact else BibotIconSize.Tile),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(Modifier.height(BibotSpacing.Sm))
+            Spacer(Modifier.height(if (compact) BibotSpacing.Xs else BibotSpacing.Sm))
             Text(
                 item.mode.label(),
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 textAlign = TextAlign.Center
             )

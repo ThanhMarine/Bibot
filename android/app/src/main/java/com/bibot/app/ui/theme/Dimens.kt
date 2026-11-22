@@ -18,11 +18,13 @@ object BibotRadius {
     val Lg = 20.dp
 }
 
-/** Kích thước icon & vùng chạm. Hình lớn – chữ nhỏ đủ nhìn. */
+/** Kích thước icon & vùng chạm. Hình lớn – chữ nhỏ đủ nhìn, nhưng gọn trên màn ngang. */
 object BibotIconSize {
-    val Section = 20.dp   // icon tiêu đề mục trong badge 32dp
+    val Section = 22.dp   // icon tiêu đề mục trong badge 32dp
     val Action = 24.dp    // icon nút/action
-    val Tile = 96.dp      // THỬ NGHIỆM: icon ô Home phóng 3× (32dp -> 96dp)
-    val Badge = 104.dp    // huy hiệu icon Home (đủ chứa icon 3× không bị cắt)
+    val Tile = 64.dp      // icon ô Home (badge 80dp) — giảm từ 96dp để không mất hình khi ngang
+    val TileCompact = 48.dp // icon ô Home khi landscape
+    val Badge = 80.dp     // huy hiệu icon Home
+    val BadgeCompact = 64.dp
     val Touch = 48.dp     // vùng chạm tối thiểu
 }

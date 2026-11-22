@@ -208,7 +208,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                         Icon(
                             painterResource(BibotIcons.Settings),
                             contentDescription = stringResource(R.string.nav_settings),
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                 }
