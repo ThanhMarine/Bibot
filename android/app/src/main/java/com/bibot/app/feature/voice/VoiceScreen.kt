@@ -172,7 +172,7 @@ fun VoiceScreen(
                         )
                     }
                     Text(
-                        "BiBot Voice Chat", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
+                        "BiBot Voice Chat", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
                         // QA debug (release ẩn): long-press title = giả lập 1 lượt thoại không cần mic
                         modifier = Modifier.pointerInput(Unit) {
                             detectTapGestures(onLongPress = { chatVm.runQaTurn() })
@@ -182,12 +182,12 @@ fun VoiceScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 if (ui.partialText.isNotEmpty()) {
-                    Text("Đang nghe: ${ui.partialText}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                    Text("Đang nghe: ${ui.partialText}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(8.dp))
                 }
                 Text(text = if (ui.isStreaming && ui.responseText.isEmpty()) "Em là Bi đang suy nghĩ..." else ui.responseText, style = MaterialTheme.typography.bodyLarge, lineHeight = 24.sp)
-                ui.sttError?.let { Spacer(Modifier.height(8.dp)); Text("STT: $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                ui.ttsStatus?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall) }
+                ui.sttError?.let { Spacer(Modifier.height(8.dp)); Text("STT: $it", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall) }
+                ui.ttsStatus?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall) }
                 if (stats.turns > 0 && stats.lastTtfaMs >= 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -196,7 +196,7 @@ fun VoiceScreen(
                             (if (stats.avgTtfaMs >= 0) " • TB ${stats.avgTtfaMs}ms" else "") +
                             (if (stats.bargeInCount > 0) " • ngắt lời ×${stats.bargeInCount}" else ""),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -211,7 +211,7 @@ fun VoiceScreen(
                         HandsFreeMode.PUSH_TO_TALK -> "Push-to-talk: Giữ để nói, thả để gửi"
                         else -> ""
                     },
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary,
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).padding(bottom = 8.dp)
 )
             }

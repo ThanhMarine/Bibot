@@ -57,6 +57,7 @@ __pycache__/
 /dist/v1.0.3-vip/
 /dist/v1.0.4-vip/
 /dist/v1.0.5-vip/
+/dist/v1.0.6-vip/
 
 # --- Mapping R8 (file lon, khong commit) ---
 /dist/*/mapping.txt

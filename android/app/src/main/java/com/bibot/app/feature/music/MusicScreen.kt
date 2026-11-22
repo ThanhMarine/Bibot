@@ -163,10 +163,10 @@ fun MusicScreen(
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(playerState.title, style = MaterialTheme.typography.titleSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                        Text(playerState.subtitle, style = MaterialTheme.typography.labelSmall, fontSize = 11.sp)
+                        Text(playerState.subtitle, style = MaterialTheme.typography.labelSmall)
                     }
                     TextButton(onClick = { playerVm.togglePlayPause() }) {
-                        Text(if (playerState.isPlaying) stringResource(R.string.reader_pause) else stringResource(R.string.mus_play), fontSize = 12.sp)
+                        Text(if (playerState.isPlaying) stringResource(R.string.reader_pause) else stringResource(R.string.mus_play))
                     }
                 }
             }
@@ -192,7 +192,7 @@ fun MusicScreen(
                             Text(
                                 if (useDefaultPlayer) stringResource(R.string.mus_tap_plays)
                                 else stringResource(R.string.mus_inapp_player),
-                                style = MaterialTheme.typography.labelSmall, fontSize = 11.sp
+                                style = MaterialTheme.typography.labelSmall
                             )
                         }
                         Switch(checked = useDefaultPlayer, onCheckedChange = { useDefaultPlayer = it })
@@ -229,7 +229,7 @@ fun MusicScreen(
             }
             searchMsg?.let {
                 Spacer(Modifier.height(4.dp))
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
             }
             if (noLocalHit) {
                 Spacer(Modifier.height(8.dp))
@@ -282,7 +282,7 @@ fun MusicScreen(
                 Text(
                     stringResource(R.string.mus_empty),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -303,7 +303,7 @@ fun MusicScreen(
             Text(
                 stringResource(R.string.mus_about),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -351,7 +351,6 @@ private fun TrackRow(
                         append(if (track.isPlayableExternally) context.getString(R.string.mus_on_device) else " • Bibot")
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    fontSize = 11.sp,
                     maxLines = 1
                 )
             }
@@ -359,8 +358,7 @@ private fun TrackRow(
             if (secs > 0) {
                 Text(
                     "${secs / 60}:${String.format("%02d", secs % 60)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
             IconButton(onClick = onPlay) {

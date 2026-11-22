@@ -57,7 +57,7 @@ fun SummaryDialog(
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(8.dp))
                 when (state) {
                     is SummaryUiState.Loading -> {
@@ -74,7 +74,7 @@ fun SummaryDialog(
                             Text(
                                 stringResource(R.string.summary_from_community),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.height(4.dp))
                         }
@@ -83,7 +83,7 @@ fun SummaryDialog(
                         Text(
                             stringResource(R.string.summary_ai_warning),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     is SummaryUiState.Gate -> {
@@ -99,7 +99,7 @@ fun SummaryDialog(
                                 if (state.msg == "empty") R.string.summary_empty else R.string.summary_failed
                             ),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -108,7 +108,7 @@ fun SummaryDialog(
                     Text(
                         stringResource(R.string.summary_left, creditsLeft),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

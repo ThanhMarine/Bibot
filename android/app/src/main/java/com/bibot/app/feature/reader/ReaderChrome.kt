@@ -258,7 +258,7 @@ fun ReaderSettingsPopup(
                                 if (fitMode == FIT_PAGE) R.string.chrome_fit_page
                                 else R.string.chrome_fit_width
                             ),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -277,7 +277,7 @@ fun ReaderSettingsPopup(
                                     else -> R.string.chrome_paging_continuous
                                 }
                             ),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -297,7 +297,7 @@ fun ReaderSettingsPopup(
                                     else -> R.string.chrome_theme_original
                                 }
                             ),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -310,7 +310,7 @@ fun ReaderSettingsPopup(
                         Text(stringResource(R.string.chrome_rotate_90), modifier = Modifier.weight(1f))
                         Text(
                             "$pageRotation°",
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -402,7 +402,7 @@ fun ReaderCompactBar(
                 Text(
                     chapterText, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             IconButton(onClick = onPrevChapter, modifier = Modifier.size(44.dp)) {

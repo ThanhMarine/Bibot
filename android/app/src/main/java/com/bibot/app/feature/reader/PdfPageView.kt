@@ -224,7 +224,7 @@ fun PdfPageView(
             Text(
                 context.getString(R.string.reader_error, openError ?: ""),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(24.dp)
             )
         }
@@ -507,7 +507,7 @@ fun PdfPageView(
                             Text(
                                 "${idx + 1}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -519,7 +519,7 @@ fun PdfPageView(
                         Text(
                             "${idx + 1} / $pageCount",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(32.dp)
                         )
                     }

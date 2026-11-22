@@ -466,7 +466,7 @@ fun WeatherScreen(
                 Text(
                     stringResource(R.string.weather_from_settings),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(4.dp))
             }
@@ -487,7 +487,7 @@ fun WeatherScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                             }
                             Text(stringResource(R.string.wx_check_net), style = MaterialTheme.typography.labelSmall)
                         }
@@ -512,7 +512,7 @@ fun WeatherScreen(
                                 Spacer(Modifier.width(16.dp))
                                 Column {
                                     Text("${w.temperature.toInt()}°C", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                                    Text(w.condition, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    Text(w.condition, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                                     Text(stringResource(R.string.wx_feels, w.location, w.feelsLike.toInt()), style = MaterialTheme.typography.labelSmall)
                                 }
                             }

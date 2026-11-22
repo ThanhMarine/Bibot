@@ -8,6 +8,9 @@ import androidx.compose.ui.graphics.Color
  * Không dùng dynamic color: palette nhất quán trên mọi máy.
  */
 
+/** Màu chữ duy nhất: đen, nét đậm. */
+val BibotInk = Color(0xFF000000)
+
 val BibotAccent = Color(0xFF1976D2)
 val BibotAccentBright = Color(0xFF90CAF9)   // primary trên nền tối
 val BibotAccentDeep = Color(0xFF0D47A1)     // primaryContainer trên nền tối

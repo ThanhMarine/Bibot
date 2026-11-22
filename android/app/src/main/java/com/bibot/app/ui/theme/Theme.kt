@@ -10,19 +10,23 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/**
+ * Nền sáng -> chữ đen đậm. Nền tối -> chữ trắng đậm.
+ * dynamicColor = false để palette nhất quán, nhưng vẫn theo hệ thống sáng/tối.
+ */
 private val DarkColorScheme = darkColorScheme(
     primary = BibotAccentBright,
-    onPrimary = BibotOnAccentDark,
+    onPrimary = BibotOnSurfaceDark,
     primaryContainer = BibotAccentDeep,
-    onPrimaryContainer = BibotAccentBright,
+    onPrimaryContainer = BibotOnSurfaceDark,
     secondary = BibotSecondaryDark,
-    onSecondary = BibotOnAccentDark,
+    onSecondary = BibotOnSurfaceDark,
     secondaryContainer = BibotSecondaryContainerDark,
-    onSecondaryContainer = BibotSecondaryDark,
+    onSecondaryContainer = BibotOnSurfaceDark,
     tertiary = BibotTertiaryDark,
-    onTertiary = BibotOnAccentDark,
+    onTertiary = BibotOnSurfaceDark,
     tertiaryContainer = BibotTertiaryContainerDark,
-    onTertiaryContainer = BibotTertiaryDark,
+    onTertiaryContainer = BibotOnSurfaceDark,
     background = BibotBackgroundDark,
     onBackground = BibotOnSurfaceDark,
     surface = BibotSurfaceDark,
@@ -35,23 +39,23 @@ private val DarkColorScheme = darkColorScheme(
 
 private val LightColorScheme = lightColorScheme(
     primary = BibotAccent,
-    onPrimary = BibotOnAccent,
+    onPrimary = BibotInk,
     primaryContainer = BibotAccentContainerLight,
-    onPrimaryContainer = BibotAccentDeep,
+    onPrimaryContainer = BibotInk,
     secondary = BibotSecondaryLight,
-    onSecondary = BibotOnAccent,
+    onSecondary = BibotInk,
     secondaryContainer = BibotSecondaryContainerLight,
-    onSecondaryContainer = BibotAccentDeep,
+    onSecondaryContainer = BibotInk,
     tertiary = BibotTertiaryLight,
-    onTertiary = BibotOnAccent,
+    onTertiary = BibotInk,
     tertiaryContainer = BibotTertiaryContainerLight,
-    onTertiaryContainer = BibotAccentDeep,
+    onTertiaryContainer = BibotInk,
     background = BibotBackgroundLight,
-    onBackground = BibotOnSurfaceLight,
+    onBackground = BibotInk,
     surface = BibotSurfaceLight,
-    onSurface = BibotOnSurfaceLight,
+    onSurface = BibotInk,
     surfaceVariant = BibotSurfaceVariantLight,
-    onSurfaceVariant = BibotOnSurfaceVariantLight,
+    onSurfaceVariant = BibotInk,
     outline = BibotOutlineLight,
     outlineVariant = BibotOutlineLight.copy(alpha = 0.6f)
 )
@@ -59,7 +63,6 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun BibotTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Mặc định TẮT: palette Bibot nhất quán trên mọi máy (không Material You).
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

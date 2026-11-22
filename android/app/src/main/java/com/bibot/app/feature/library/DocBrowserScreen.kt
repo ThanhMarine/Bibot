@@ -482,7 +482,7 @@ fun DocBrowserScreen(
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                 }
 
                 if (sel == LibSel.F(LibFilter.TRASH)) {
@@ -490,7 +490,7 @@ fun DocBrowserScreen(
                         Text(
                             stringResource(R.string.lib_trash_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -704,7 +704,7 @@ fun DocBrowserScreen(
                     Text(
                         stringResource(R.string.doc_scan_device_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -768,7 +768,7 @@ fun DocBrowserScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text(doc.name, style = MaterialTheme.typography.titleSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                     Text("${doc.sizeBytes / 1024} KB • ${doc.mimeType}", style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                                    if (inBookstore) Text(stringResource(R.string.doc_in_books), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    if (inBookstore) Text(stringResource(R.string.doc_in_books), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     if (!inBookstore) {
@@ -808,7 +808,7 @@ fun DocBrowserScreen(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Thêm file → kệ Sách & tài liệu tự cập nhật khi refresh.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        Text("Thêm file → kệ Sách & tài liệu tự cập nhật khi refresh.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -857,7 +857,7 @@ private fun LibraryCover(book: BookMeta) {
                     book.title.trim().firstOrNull()?.uppercase() ?: "?",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

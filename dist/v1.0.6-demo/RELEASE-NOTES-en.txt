@@ -1,0 +1,10 @@
+Bibot v1.0.6 - UI refresh
+Updated: 2026-11-22 | versionName 1.0.6 | versionCode 7
+
+- One visual language: self-drawn hand-drawn vector icons, single accent #1976D2.
+- Removed all Fluent Emoji 3D graphics (including the old Home tiles).
+- Consistent icon set across Home, Settings and top bar; stable light/dark palette.
+- Unified Bibot typography scale; smallest labels at least 12sp.
+- PDF: smarter layout, even side margins, zoom no longer sticks on a page.
+- Weather: choose any location by name or coordinates in Settings > Weather.
+- Bug fixes and stability improvements.

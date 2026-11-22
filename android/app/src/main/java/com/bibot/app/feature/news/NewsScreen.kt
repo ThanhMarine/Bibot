@@ -182,7 +182,7 @@ fun NewsScreen(
                     Text(
                         stringResource(R.string.news_fallback, NewsApi.sourceName(sourceId), actualSource),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 viewModel.speakError?.let { msg ->
@@ -198,7 +198,7 @@ fun NewsScreen(
                         Text(
                             msg,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -208,7 +208,7 @@ fun NewsScreen(
                         stringResource(R.string.news_hint),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -227,7 +227,7 @@ fun NewsScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                             }
                             Text(stringResource(R.string.news_check_net), style = MaterialTheme.typography.labelSmall)
                         }
@@ -279,7 +279,7 @@ fun NewsScreen(
                             sourceText,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

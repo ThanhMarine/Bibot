@@ -54,7 +54,7 @@ fun BibotInfoCard(text: String, modifier: Modifier = Modifier) {
             text = text,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             textAlign = TextAlign.Center
         )

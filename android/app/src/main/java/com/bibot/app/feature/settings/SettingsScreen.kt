@@ -140,7 +140,7 @@ fun SettingsScreen(
             Text(
                 stringResource(R.string.set_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
@@ -197,7 +197,7 @@ fun SettingsScreen(
                     Text(
                         stringResource(R.string.weather_city_pick),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     // Gợi ý nhanh — không phải giới hạn; bên dưới tìm được mọi nơi trên thế giới.
                     Row(
@@ -248,7 +248,7 @@ fun SettingsScreen(
                         Text(
                             weatherSearchMsg,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     weatherResults.forEach { c ->
@@ -268,7 +268,7 @@ fun SettingsScreen(
                                 Text(
                                     "${c.lat}, ${c.lon}",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -277,7 +277,7 @@ fun SettingsScreen(
                     Text(
                         stringResource(R.string.weather_coord_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     OutlinedTextField(
                         value = weatherCoordQuery,
@@ -306,7 +306,7 @@ fun SettingsScreen(
                     Text(
                         stringResource(R.string.weather_city_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -393,7 +393,7 @@ fun SettingsScreen(
                     Text(
                         stringResource(R.string.voice_pick_from_file),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     uiState.models.forEach { model ->
                         ModelCard(
@@ -520,7 +520,7 @@ private fun ExpandableSection(
                     if (subtitle.isNotEmpty()) {
                         Text(
                             subtitle, style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary, maxLines = 1,
+                            color = MaterialTheme.colorScheme.onSurface, maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -640,7 +640,7 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
                 msg = restoredMsg
             }) { Text(stringResource(R.string.common_default)) }
         }
-        msg?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
+        msg?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface) }
     }
 }
 
@@ -663,7 +663,7 @@ private fun ApiKeysContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
         Text(
             stringResource(R.string.api_intro),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurface
         )
         OutlinedTextField(
             value = apiKey, onValueChange = { apiKey = it },
@@ -702,7 +702,7 @@ private fun ApiKeysContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
         }, modifier = Modifier.fillMaxWidth()) {
             Text(if (apiKey.isBlank()) stringResource(R.string.api_use_free) else stringResource(R.string.api_save))
         }
-        msg?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
+        msg?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface) }
     }
 }
 
@@ -730,7 +730,7 @@ private fun VoiceSttStatusLine(enabled: Boolean) {
         Text(
             "STT offline: $it",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -789,9 +789,9 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
 
         // A2.3: Reading display settings (Snap config + RenderIfDirty)
         HorizontalDivider()
-        Text(stringResource(R.string.reader_display_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.reader_display_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(4.dp))
-        Text(stringResource(R.string.reader_display_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.reader_display_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(8.dp))
 
         // Font Size
@@ -830,7 +830,7 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
         SettingSwitchRow(stringResource(R.string.summary_share), prefsState.summaryShareEnabled) {
             scope.launch { prefs.setSummaryShareEnabled(it) }
         }
-        Text(stringResource(R.string.summary_share_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.summary_share_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -864,7 +864,7 @@ private fun ReaderValueSlider(
                 valueText,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
         Slider(
@@ -1072,7 +1072,7 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
                 Text(if (showAdvanced) stringResource(R.string.common_hide_advanced) else stringResource(R.string.common_advanced))
             }
             TextButton(onClick = handleWipeBooks, enabled = !wipeBusy && !syncing && busyId == null) {
-                Text(if (wipeBusy) stringResource(R.string.common_deleting) else stringResource(R.string.books_delete_dl), color = MaterialTheme.colorScheme.error)
+                Text(if (wipeBusy) stringResource(R.string.common_deleting) else stringResource(R.string.books_delete_dl), color = MaterialTheme.colorScheme.onSurface)
             }
         }
 
@@ -1119,7 +1119,7 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
                 if (books.isEmpty()) stringResource(R.string.books_empty)
                 else stringResource(R.string.books_not_found, query),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurface
             )
         } else {
             BookGroup(
@@ -1163,7 +1163,7 @@ private fun DataResetSection() {
         Text(
             stringResource(R.string.data_nobackup),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.onSurface
         )
         OutlinedButton(
             onClick = {
@@ -1186,11 +1186,11 @@ private fun DataResetSection() {
         ) {
             Text(
                 if (confirm) stringResource(R.string.data_confirm) else stringResource(R.string.data_reset_all),
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
         msg?.let {
-            Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -1211,7 +1211,7 @@ private fun BookGroup(
         Text(
             "$title — ${list.size}",
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
         if (list.size > collapsedLimit) {
@@ -1272,7 +1272,7 @@ private fun BookLibraryItem(
             TextButton(
                 onClick = onDelete,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-            ) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
+            ) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.onSurface) }
         }
     }
 }
@@ -1311,13 +1311,13 @@ private fun ModelCard(
             when (downloadState) {
                 is DownloadState.Downloading -> { LinearProgressIndicator(progress = { downloadState.percent / 100f }, modifier = Modifier.fillMaxWidth()); Text(stringResource(R.string.set_downloading, downloadState.percent), style = MaterialTheme.typography.labelSmall) }
                 is DownloadState.Unzipping -> { LinearProgressIndicator(progress = { downloadState.percent / 100f }, modifier = Modifier.fillMaxWidth()); Text(stringResource(R.string.set_unzipping, downloadState.percent), style = MaterialTheme.typography.labelSmall) }
-                is DownloadState.Error -> Text(stringResource(R.string.common_error, downloadState.message), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                is DownloadState.Error -> Text(stringResource(R.string.common_error, downloadState.message), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall)
                 else -> {}
             }
             Spacer(Modifier.height(6.dp))
             // File tải về (Download) thường bị gắn MIME lạ (.onnx/.tar.bz2) nên picker
             // DÙNG */* để luôn thấy file — không lọc MIME chặt gây "không tìm thấy file".
-            Text(pickedHint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+            Text(pickedHint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!installed && downloadState !is DownloadState.Downloading && downloadState !is DownloadState.Unzipping) {
                     Button(onClick = onDownload, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_download)) }
@@ -1478,7 +1478,7 @@ private fun PiperCompactRow(showAdvanced: Boolean, onToggleAdvanced: () -> Unit)
             Text(
                 stringResource(R.string.voice_pick_tip),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurface
             )
             PendingOnnxRow(
                 langLabel = "VI",
@@ -1527,7 +1527,7 @@ private fun PiperCompactRow(showAdvanced: Boolean, onToggleAdvanced: () -> Unit)
                 Text(stringResource(R.string.voice_pick_espeak))
             }
         }
-        msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
+        msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface) }
     }
 }
 
@@ -1555,16 +1555,16 @@ private fun AdsRewardContent() {
             Text(
                 stringResource(R.string.ads_vip_on),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
         Text(
             stringResource(R.string.ads_cloud_left, adsState.rewardedCloudChapters),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.onSurface
         )
         status?.let {
-            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
         }
         FilledTonalButton(onClick = {
             if (busy) return@FilledTonalButton
@@ -1651,17 +1651,17 @@ private fun VipContent() {
                 else if (daysLeft == Int.MAX_VALUE) stringResource(R.string.vip_life_on)
                 else stringResource(R.string.vip_month_on_days, fmtDate(adsState.vipUntil), daysLeft),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
             )
         } else {
             Text(
                 stringResource(R.string.vip_free_hint),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
         status?.let {
-            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
         }
         OutlinedTextField(
             value = code,
@@ -1759,7 +1759,7 @@ private fun CreditsContent() {
             Text(
                 label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth().clickable {
                     try { uriHandler.openUri(url) } catch (_: Exception) {}
                 }
@@ -1779,7 +1779,7 @@ private fun AuthorNoteContent() {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -1884,7 +1884,7 @@ private fun AnnounceHistoryContent() {
         Text(
             stringResource(R.string.announce_empty),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.onSurface
         )
         return
     }
@@ -1898,7 +1898,7 @@ private fun AnnounceHistoryContent() {
                         .format(java.util.Date(ms))
                 ),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -1921,7 +1921,7 @@ private fun AnnounceHistoryContent() {
         Text(
             stringResource(R.string.announce_cache_only),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1978,7 +1978,7 @@ private fun AnnounceHistoryContent() {
                         Text(
                             item.publishedAt,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

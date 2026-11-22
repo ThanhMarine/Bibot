@@ -1434,20 +1434,20 @@ fun ReaderScreen(
                 }
             }
             if (enBooks.isNotEmpty()) {
-                item { Text(stringResource(R.string.book_section_en, enBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
+                item { Text(stringResource(R.string.book_section_en, enBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) }
             }
             items(enBooks, key = { it.id }) { book ->
                 ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } }, onInfo = { onOpenDetail(book) })
             }
             if (otherBooks.isNotEmpty()) {
-                item { Text(stringResource(R.string.book_section_local, otherBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
+                item { Text(stringResource(R.string.book_section_local, otherBooks.size), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) }
             }
             items(otherBooks, key = { it.id }) { book ->
                 ReaderCard(book = book, onLoad = { loadBook(book) }, onDownload = { scope.launch { repo.download(book); repo.refreshAll(); status = context.getString(R.string.book_download_done, book.title) } }, onDelete = { scope.launch { repo.delete(book); repo.refreshAll() } }, onInfo = { onOpenDetail(book) })
             }
             item {
                 // Chỉ 1 vạch loading (ở đầu list) — bỏ vạch cuối list (trùng khi kệ trống).
-                status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
+                status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface) }
             }
         }
     } else {
@@ -1506,7 +1506,7 @@ fun ReaderScreen(
                 }
             }
             if (status != null) item {
-                Text(status!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text(status!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -1710,7 +1710,7 @@ fun ReaderScreen(
                     Text(
                         stringResource(R.string.chrome_browse_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                     )
                 }
@@ -1829,7 +1829,7 @@ fun ReaderScreen(
                                         it.title,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.clickable { menuVisible = !menuVisible }
                                     )
                                     Spacer(Modifier.height(8.dp))
@@ -1888,7 +1888,7 @@ Column(
                                 }
                             }
                             item(key = "status-$currentChapter") {
-                                status?.let { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
+                                status?.let { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface) }
                             }
                         }
                     }

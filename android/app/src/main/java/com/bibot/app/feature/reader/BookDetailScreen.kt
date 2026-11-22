@@ -346,7 +346,7 @@ fun BookDetailScreen(
                 modifier = Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -368,7 +368,7 @@ fun BookDetailScreen(
                 "Đọc từ đầu",
                 modifier = Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -489,7 +489,7 @@ fun BookDetailScreen(
             Text(
                 "Ngôn ngữ: ${b.lang?.uppercase() ?: "VI"}  •  Định dạng: ${b.mimeType?.substringAfterLast("/")?.uppercase() ?: "EPUB"}  •  Kích thước: ${(b.sizeBytes / 1024 / 1024).toString()} MB",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
@@ -497,7 +497,7 @@ fun BookDetailScreen(
             Text(
                 "Bookmark: ${resumePos.resumeLabel()}  •  Đã đọc: ${formatReadTime(prog?.updatedAt ?: 0L)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
@@ -509,20 +509,20 @@ fun BookDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Text(stringResource(R.string.reader_cleaning), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.reader_cleaning), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             } else if (chapterTitles.isNotEmpty()) {
                 Text(
                     stringResource(R.string.book_detail_toc, chapterTitles.size),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             } else if (b.localFile == null) {
                 Text(
                     stringResource(R.string.book_not_downloaded),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }

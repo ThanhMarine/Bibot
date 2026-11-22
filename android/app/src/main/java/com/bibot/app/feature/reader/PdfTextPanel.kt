@@ -179,7 +179,7 @@ fun PdfTextPanelSheet(
                                         " (${annotations.size})",
                                     Modifier.padding(horizontal = 16.dp),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 annotations.take(40).forEach { a ->
                                     Row(

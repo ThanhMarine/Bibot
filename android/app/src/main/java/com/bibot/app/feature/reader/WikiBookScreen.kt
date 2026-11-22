@@ -132,7 +132,7 @@ fun WikiBookScreen(
                 Text(
                     stringResource(R.string.wiki_subtitle),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -176,7 +176,7 @@ fun WikiBookScreen(
                 Text(
                     stringResource(R.string.wiki_ai_warning),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -204,7 +204,7 @@ fun WikiBookScreen(
                     error != null -> Text(
                         stringResource(R.string.summary_failed),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     else -> {
                         Row(
@@ -223,7 +223,7 @@ fun WikiBookScreen(
                                     "$progressPercent%",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -233,7 +233,7 @@ fun WikiBookScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             trackColor = MaterialTheme.colorScheme.surface
                         )
                         // Contribute button (đóng góp chương thiếu) — ẩn khi chưa có TOC.
@@ -261,7 +261,7 @@ fun WikiBookScreen(
             Text(
                 stringResource(R.string.wiki_no_toc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -328,14 +328,14 @@ fun WikiBookScreen(
                                     Text(
                                         stringResource(R.string.summary_ai_warning),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 // Summary text
                                 Text(
                                     summaryText,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 5,
                                     overflow = TextOverflow.Ellipsis
                                 )

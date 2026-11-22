@@ -215,7 +215,7 @@ private fun AnnounceBanner() {
                         Text(
                             a.publishedAt,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -256,7 +256,7 @@ private fun AnnounceBanner() {
                     top.body,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             IconButton(onClick = {
