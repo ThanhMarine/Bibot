@@ -140,7 +140,8 @@ class BibotPreferences(private val context: Context) {
             readerPagingMode = p[PrefKeys.READER_PAGING_MODE] ?: "continuous",
             readerPageTheme = p[PrefKeys.READER_PAGE_THEME] ?: "normal",
             readerPageRotation = p[PrefKeys.READER_PAGE_ROTATION] ?: "0",
-            readerCropMargins = p[PrefKeys.READER_CROP_MARGINS] ?: true
+            readerCropMargins = p[PrefKeys.READER_CROP_MARGINS] ?: true,
+            weatherCity = p[PrefKeys.WEATHER_CITY] ?: "hcm"
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }

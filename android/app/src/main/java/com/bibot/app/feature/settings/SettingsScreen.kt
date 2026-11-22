@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.BuildConfig
 import com.bibot.app.feature.weather.WeatherApi
+import com.bibot.app.feature.weather.City
 import com.bibot.app.R
 import com.bibot.app.core.locale.AppLocale
 import com.bibot.app.core.tts.PiperTtsHelper
@@ -120,6 +121,13 @@ fun SettingsScreen(
     val installedCount = uiState.installed.count { it.value }
     var booksCount by remember { mutableIntStateOf(-1) }
 
+    // Cài đặt > Thời tiết: nguồn chọn vị trí DUY NHẤT (tab Weather chỉ hiển thị).
+    var weatherQuery by remember { mutableStateOf("") }
+    var weatherResults by remember { mutableStateOf<List<City>>(emptyList()) }
+    var weatherCoordQuery by remember { mutableStateOf("") }
+    var weatherSearching by remember { mutableStateOf(false) }
+    var weatherSearchMsg by remember { mutableStateOf("") }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -171,9 +179,9 @@ fun SettingsScreen(
         }
 
         // ===== Thời tiết — chọn địa phương cho Bản tin thời tiết =====
+        // ===== Thời tiết — nơi DUY NHẤT chọn vị trí cho bản tin thời tiết =====
         item {
-            val selectedCity = WeatherApi.CITIES.firstOrNull { it.id == prefsState.weatherCity }
-                ?: WeatherApi.CITIES.first()
+            val selectedCity = WeatherApi.cityFromPref(prefsState.weatherCity)
             ExpandableSection(
                 title = stringResource(R.string.sec_weather),
                 subtitle = selectedCity.label,
@@ -186,21 +194,109 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
+                    // Gợi ý nhanh — không phải giới hạn; bên dưới tìm được mọi nơi trên thế giới.
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         WeatherApi.CITIES.forEach { c ->
                             FilterChip(
-                                selected = c.id == prefsState.weatherCity,
+                                selected = c.id == selectedCity.id,
                                 onClick = {
                                     scope.launch {
-                                        try { prefs.setWeatherCity(c.id) } catch (_: Exception) {}
+                                        try { prefs.setWeatherCity(WeatherApi.encodeCity(c)) } catch (_: Exception) {}
                                     }
                                 },
                                 label = { Text(c.chip, fontSize = 12.sp) }
                             )
                         }
+                    }
+                    OutlinedTextField(
+                        value = weatherQuery,
+                        onValueChange = { weatherQuery = it },
+                        label = { Text(stringResource(R.string.weather_search_label)) },
+                        placeholder = { Text(stringResource(R.string.weather_search_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                if (weatherQuery.isBlank()) return@IconButton
+                                weatherSearching = true
+                                weatherSearchMsg = ""
+                                scope.launch {
+                                    val list = try {
+                                        WeatherApi.searchLocations(weatherQuery).getOrElse { emptyList() }
+                                    } catch (_: Exception) { emptyList() }
+                                    weatherResults = list
+                                    if (list.isEmpty()) {
+                                        weatherSearchMsg = context.getString(R.string.weather_search_empty)
+                                    }
+                                    weatherSearching = false
+                                }
+                            }) {
+                                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.weather_search_cd))
+                            }
+                        }
+                    )
+                    if (weatherSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (weatherSearchMsg.isNotBlank()) {
+                        Text(
+                            weatherSearchMsg,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    weatherResults.forEach { c ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scope.launch {
+                                    try { prefs.setWeatherCity(WeatherApi.encodeCity(c)) } catch (_: Exception) {}
+                                }
+                                weatherResults = emptyList()
+                                weatherQuery = c.label
+                                weatherSearchMsg = ""
+                            },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(c.label, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "${c.lat}, ${c.lon}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                    Text(
+                        stringResource(R.string.weather_coord_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    OutlinedTextField(
+                        value = weatherCoordQuery,
+                        onValueChange = { weatherCoordQuery = it },
+                        label = { Text(stringResource(R.string.weather_coord_label)) },
+                        placeholder = { Text("10.8231, 106.6297") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Button(onClick = {
+                        val parts = weatherCoordQuery.split(",").map { it.trim() }
+                        val lat = parts.getOrNull(0)?.toDoubleOrNull()
+                        val lon = parts.getOrNull(1)?.toDoubleOrNull()
+                        if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+                            weatherSearchMsg = context.getString(R.string.weather_coord_invalid)
+                        } else {
+                            val c = WeatherApi.customCity("$lat, $lon", "$lat, $lon", lat, lon)
+                            scope.launch {
+                                try { prefs.setWeatherCity(WeatherApi.encodeCity(c)) } catch (_: Exception) {}
+                            }
+                            weatherSearchMsg = ""
+                        }
+                    }) {
+                        Text(stringResource(R.string.weather_coord_use))
                     }
                     Text(
                         stringResource(R.string.weather_city_hint),

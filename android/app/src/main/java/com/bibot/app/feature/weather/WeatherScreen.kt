@@ -1,11 +1,9 @@
 package com.bibot.app.feature.weather
 
 import android.content.Context
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Air
@@ -42,6 +40,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.time.LocalDate
 import com.bibot.app.R
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -82,7 +81,71 @@ data class City(val id: String, val label: String, val chip: String, val lat: Do
 
 object WeatherApi {
     private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
+    private const val GEO_URL = "https://geocoding-api.open-meteo.com/v1/search"
     private const val CACHE_TTL_MS = 30 * 60 * 1000L
+    private const val CUSTOM_PREFIX = "custom|"
+
+    private fun safeId(s: String): String = s.replace(Regex("[^A-Za-z0-9_.-]"), "_")
+
+    /** Tạo City tuỳ ý từ toạ độ (id ổn định theo lat/lon để cache không loạn). */
+    fun customCity(label: String, chip: String, lat: Double, lon: Double): City =
+        City(
+            id = "geo-${safeId("$lat")}-${safeId("$lon")}",
+            label = label.ifBlank { "$lat, $lon" },
+            chip = chip.ifBlank { label.ifBlank { "$lat, $lon" } },
+            lat = lat, lon = lon
+        )
+
+    /** Mã hoá vị trí vào DataStore: id có sẵn hoặc đầy đủ toạ độ cho vị trí tự do. */
+    fun encodeCity(city: City): String {
+        if (CITIES.any { it.id == city.id }) return city.id
+        return listOf("custom", city.id, city.label, city.chip, city.lat.toString(), city.lon.toString())
+            .joinToString("|") { it.replace("|", " ") }
+    }
+
+    /** Đọc vị trí từ DataStore (tương thích cả giá trị id cũ của 5 thành phố). */
+    fun cityFromPref(value: String): City {
+        CITIES.firstOrNull { it.id == value }?.let { return it }
+        if (value.startsWith(CUSTOM_PREFIX)) {
+            val p = value.split("|")
+            if (p.size >= 6) {
+                val lat = p[4].toDoubleOrNull()
+                val lon = p[5].toDoubleOrNull()
+                if (lat != null && lon != null && lat in -90.0..90.0 && lon in -180.0..180.0) {
+                    return City(p[1], p[2].ifBlank { p[1] }, p[3].ifBlank { p[2] }, lat, lon)
+                }
+            }
+        }
+        return CITIES.first()
+    }
+
+    /** Tìm vị trí bất kỳ theo tên (Open-Meteo Geocoding) — không giới hạn 5 thành phố. */
+    suspend fun searchLocations(query: String): Result<List<City>> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext Result.success(emptyList())
+        try {
+            val url = "$GEO_URL?name=${URLEncoder.encode(query.trim(), "UTF-8")}" +
+                "&count=8&language=vi&format=json"
+            val json = JSONObject(downloadText(url))
+            val arr = json.optJSONArray("results") ?: return@withContext Result.success(emptyList())
+            val out = mutableListOf<City>()
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val name = o.optString("name", "").trim()
+                if (name.isBlank()) continue
+                val admin = o.optString("admin1", "").trim()
+                val country = o.optString("country", "").trim()
+                val label = listOf(name, admin, country).filter { it.isNotBlank() }.distinct()
+                    .joinToString(", ")
+                val lat = o.optDouble("latitude", Double.NaN)
+                val lon = o.optDouble("longitude", Double.NaN)
+                if (lat.isNaN() || lon.isNaN()) continue
+                out += customCity(label, name, lat, lon)
+            }
+            Result.success(out.distinctBy { it.id })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     // Đủ 5 thành phố như bản Raspberry Pi (weather.py LOCATIONS)
     val CITIES = listOf(
@@ -192,7 +255,7 @@ object WeatherApi {
             "&forecast_days=3&timezone=Asia%2FHo_Chi_Minh"
 
     fun cacheFile(context: Context, cityId: String): java.io.File =
-        java.io.File(com.bibot.app.data.files.FilePaths.cacheRoot(context), "weather_$cityId.json").also {
+        java.io.File(com.bibot.app.data.files.FilePaths.cacheRoot(context), "weather_${safeId(cityId)}.json").also {
             try { it.parentFile?.mkdirs() } catch (_: Exception) {}
         }
 
@@ -223,20 +286,22 @@ object WeatherApi {
             }
         }
 
-    private fun downloadJson(city: City): JSONObject {
+    private fun downloadText(url: String): String {
         var conn: HttpURLConnection? = null
         try {
-            conn = URL(buildUrl(city)).openConnection() as HttpURLConnection
+            conn = URL(url).openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.connectTimeout = 10000
             conn.readTimeout = 15000
             val code = conn.responseCode
-            if (code != 200) throw IllegalStateException("Máy chủ thời tiết phản hồi HTTP $code")
-            return JSONObject(conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() })
+            if (code != 200) throw IllegalStateException("Máy chủ phản hồi HTTP $code")
+            return conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {
             try { conn?.disconnect() } catch (_: Exception) {}
         }
     }
+
+    private fun downloadJson(city: City): JSONObject = JSONObject(downloadText(buildUrl(city)))
 
     private fun parse(json: JSONObject, location: String): WeatherData {
         val cur = json.getJSONObject("current")
@@ -302,7 +367,7 @@ fun WeatherScreen(
     modifier: Modifier = Modifier,
     // A3.2: controller audio chung (ExoPlayer + engine TTS) — đọc thời tiết đi qua đây.
     playerVm: PlayerViewModel = viewModel(),
-    // E2.5: thành phố chọn sẵn (id trong WeatherApi.CITIES),默认 "hcm"
+    // Vị trí do người dùng chọn trong Cài đặt > Thời tiết (id cũ hoặc vị trí tuỳ ý đã mã hoá).
     weatherCity: String = "hcm"
 ) {
     val context = LocalContext.current
@@ -310,7 +375,8 @@ fun WeatherScreen(
     var weatherData by remember { mutableStateOf<WeatherData?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var city by remember { mutableStateOf(WeatherApi.CITIES.firstOrNull { it.id == weatherCity } ?: WeatherApi.CITIES.first()) }
+    // Derived từ preference: đổi vị trí trong Settings lập tức cập nhật tab (không cần state riêng).
+    val city = WeatherApi.cityFromPref(weatherCity)
     var isSpeaking by remember { mutableStateOf(false) }
 
     suspend fun loadWeather(selected: City, forceRefresh: Boolean = false) {
@@ -397,18 +463,11 @@ fun WeatherScreen(
                         Text(stringResource(R.string.common_refresh), fontSize = 12.sp)
                     }
                 }
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    WeatherApi.CITIES.forEach { c ->
-                        FilterChip(
-                            selected = c.id == city.id,
-                            onClick = { if (c.id != city.id) city = c },
-                            label = { Text(c.chip, fontSize = 12.sp) }
-                        )
-                    }
-                }
+                Text(
+                    stringResource(R.string.weather_from_settings),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
                 Spacer(Modifier.height(4.dp))
             }
 

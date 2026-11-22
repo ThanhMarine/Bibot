@@ -98,7 +98,7 @@
     <string name="thanh_pho_danang">Đà Nẵng</string>
     <string name="thanh_pho_haiphong">Hải Phòng</string>
     <string name="thanh_pho_cantho">Cần Thơ</string>
-    <string name="weather_city_pick">Chọn thành phố dự báo thời tiết</string>
+    <string name="weather_city_pick">Choose a location for the weather report</string>
     <string name="weather_city_hint">Áp dụng cho widget và bản tin thời tiết trên màn hình chính.</string>
     <string name="data_reset_sub">Reset settings to defaults</string>
     <string name="books_sub_default">Audiobooks &amp; stories</string>
@@ -623,4 +623,14 @@
     <string name="app_version_format">Bibot v%1$s (Build %2$d)</string>
     <string name="doc_scan_device">Scan device storage</string>
     <string name="doc_scan_device_hint">Scan common folders (Download, Documents, Bibot) for book files</string>
+    <string name="weather_from_settings">Change in Settings &gt; Weather</string>
+    <string name="weather_search_label">Search any city or place</string>
+    <string name="weather_search_hint">e.g. London, Tokyo, Da Lat</string>
+    <string name="weather_search_cd">Search location</string>
+    <string name="weather_search_empty">No matching location found</string>
+    <string name="weather_search_fail">Could not search - check your connection</string>
+    <string name="weather_coord_hint">Or enter exact coordinates (latitude, longitude):</string>
+    <string name="weather_coord_label">Latitude, Longitude</string>
+    <string name="weather_coord_invalid">Invalid coordinates. Use: lat, lon (e.g. 10.8231, 106.6297)</string>
+    <string name="weather_coord_use">Use these coordinates</string>
 </resources>
