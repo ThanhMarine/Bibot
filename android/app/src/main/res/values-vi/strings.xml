@@ -88,8 +88,7 @@
     <string name="sec_announce">Thông báo</string>
     <string name="sec_licenses">Giấy phép &amp; ghi công</string>
     <string name="licenses_sub">Fluent Emoji 3D • Material Icons</string>
-    <string name="licenses_intro">Bibot sử dụng các bộ tài nguyên mã nguồn mở sau. Toàn văn giấy phép được đóng gói trong ứng dụng và trong tệp THIRD_PARTY_NOTICES.md.</string>
-    <string name="licenses_fluent">Fluent Emoji 3D — Microsoft Corporation — Giấy phép MIT</string>
+    <string name="licenses_intro">Bibot dùng bộ icon vector hand-drawn tự vẽ cùng các thành phần mã nguồn mở bên dưới. Toàn văn giấy phép được đóng gói trong tệp THIRD_PARTY_NOTICES.md.</string>
     <string name="licenses_material">Material Icons — Google — Giấy phép Apache 2.0</string>
     <string name="sec_weather">Thời tiết</string>
     <string name="weather_sub">Chọn thành phố dự báo</string>

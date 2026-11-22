@@ -3,6 +3,7 @@
 > Plan chi tiết: `tasks/plan.md`. Rule dự án: `.cursor/rules/bibot-ui.mdc`. Tick từng ô khi hoàn thành; commit theo phase.
 
 ## Quyết định đã duyệt
+- [x] Icon vector hand-drawn tự vẽ; Magnific chỉ tham khảo phong cách, không dùng asset
 - [x] Accent `#1976D2`; `dynamicColor = false`; hình lớn – chữ nhỏ đủ nhìn
 - [x] Xoá toàn bộ Fluent 3D, kể cả 5 ô Home
 - [x] Phát hành bản UI này với `versionName 1.0.6` / `versionCode 7`
@@ -10,7 +11,7 @@
 ## Phase 1 — Foundation
 - [ ] Task 1: Khoá palette & bỏ dynamic color (`Color.kt`, `Theme.kt`, `themes.xml`, `colors.xml`)
 - [ ] Task 2: Chuẩn hoá Typography & spacing token (`Type.kt`, `Dimens.kt`)
-- [ ] Task 3: Tạo facade `BibotIcons` (`ui/icon/BibotIcons.kt`)
+- [ ] Task 3: Tạo facade `BibotIcons` — 21 vector hand-drawn tự vẽ (`ui/icon/BibotIcons.kt`)
 
 ### Checkpoint: Foundation
 - [ ] Build xanh; accent nhất quán Light/Dark; có `BibotIcons`

@@ -2,11 +2,8 @@ package com.bibot.app.ui.menu
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
-import androidx.annotation.DrawableRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +16,9 @@ import com.bibot.app.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bibot.app.ui.components.TrongDongWatermark
+import com.bibot.app.ui.icon.BibotIcons
+import androidx.annotation.DrawableRes
+import androidx.compose.ui.res.painterResource
 import com.bibot.app.ui.components.ads.AdsBanner
 import com.bibot.app.ui.components.ads.AdsInterstitialHelper
 import com.bibot.app.ui.components.ads.AdsRewardedHelper
@@ -41,18 +41,17 @@ import com.bibot.app.data.ads.AdManager
 import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.data.store.BibotPrefs
 
-// Icon Home/menu dùng bộ Fluent Emoji 3D (MIT — Microsoft) trong res/drawable-nodpi.
-// iconRes thay ImageVector để giữ nguyên màu 3D (Icon() sẽ tint mất màu).
-enum class BibotMode(@DrawableRes val iconRes: Int, val titleRes: Int) {
-    VOICE(R.drawable.fluent_microphone, R.string.nav_voice),
-    BOOK(R.drawable.fluent_books, R.string.nav_book),
-    STORY(R.drawable.fluent_open_book, R.string.nav_story),
-    COTICH(R.drawable.fluent_magic_wand, R.string.nav_cotich),
-    ABOUT(R.drawable.fluent_information, R.string.nav_about),
-    MUSIC(R.drawable.fluent_musical_notes, R.string.nav_music),
-    WEATHER(R.drawable.fluent_sun_behind_cloud, R.string.nav_weather),
-    NEWS(R.drawable.fluent_newspaper, R.string.nav_news),
-    SETTINGS(R.drawable.fluent_gear, R.string.nav_settings)
+// Một ngôn ngữ icon: Material Symbols qua BibotIcons (không dùng raster/emoji).
+enum class BibotMode(@DrawableRes val icon: Int, val titleRes: Int) {
+    VOICE(BibotIcons.Mic, R.string.nav_voice),
+    BOOK(BibotIcons.Book, R.string.nav_book),
+    STORY(BibotIcons.Story, R.string.nav_story),
+    COTICH(BibotIcons.FairyTales, R.string.nav_cotich),
+    ABOUT(BibotIcons.Info, R.string.nav_about),
+    MUSIC(BibotIcons.Music, R.string.nav_music),
+    WEATHER(BibotIcons.Weather, R.string.nav_weather),
+    NEWS(BibotIcons.News, R.string.nav_news),
+    SETTINGS(BibotIcons.Settings, R.string.nav_settings)
 }
 
 /** Ten mode theo ngon ngu UI (P2 i18n) — noi dung sach/truyen giu nguyen. */
@@ -170,14 +169,14 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                             onClick = { switchMode(BibotMode.VOICE) },
                             modifier = Modifier.size(44.dp)
                         ) {
-                            Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.nav_voice))
+                            Icon(painterResource(BibotIcons.Mic), contentDescription = stringResource(R.string.nav_voice))
                         }
                     }
                     IconButton(
                         onClick = { switchMode(BibotMode.SETTINGS) },
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
+                        Icon(painterResource(BibotIcons.Settings), contentDescription = stringResource(R.string.nav_settings))
                     }
                 }
                 }

@@ -1,13 +1,14 @@
 package com.bibot.app.feature.settings
 
 import android.net.Uri
+import androidx.annotation.DrawableRes
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,7 +32,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -46,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.BuildConfig
+import com.bibot.app.ui.icon.BibotIcons
+import com.bibot.app.ui.theme.BibotIconSize
 import com.bibot.app.feature.weather.WeatherApi
 import com.bibot.app.feature.weather.City
 import com.bibot.app.R
@@ -144,11 +147,11 @@ fun SettingsScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(R.drawable.fluent_globe),
+                        Icon(
+                            painter = painterResource(BibotIcons.Globe),
                             contentDescription = null,
                             modifier = Modifier.size(24.dp),
-                            contentScale = ContentScale.Fit
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(stringResource(R.string.language_title), style = MaterialTheme.typography.titleMedium)
@@ -184,7 +187,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_weather),
                 subtitle = selectedCity.label,
-                iconRes = R.drawable.fluent_globe,
+                icon = BibotIcons.Globe,
                 defaultExpanded = false
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -312,7 +315,7 @@ fun SettingsScreen(
                 ExpandableSection(
                     title = stringResource(R.string.sec_ai),
                     subtitle = stringResource(R.string.ai_sub, prefsState.persona, BotPromptManager.styleLabel(prefsState.botStyle), prefsState.botMaxWords),
-                    iconRes = R.drawable.fluent_robot,
+                    icon = BibotIcons.Robot,
                     defaultExpanded = false
                 ) {
                     AiPromptContent(prefsState = prefsState, prefs = prefs)
@@ -327,7 +330,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.sec_api),
                 subtitle = if (hasKey) stringResource(R.string.api_sub_key, prefsState.geminiModel)
                 else stringResource(R.string.api_sub_free, prefsState.geminiModel),
-                iconRes = R.drawable.fluent_key,
+                icon = BibotIcons.Key,
                 defaultExpanded = false
             ) {
                 ApiKeysContent(prefsState = prefsState, prefs = prefs)
@@ -339,7 +342,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_voice),
                 subtitle = ttsLabel(prefsState.ttsPriority) + " • " + "%.1f".format(prefsState.voiceSpeed) + "x",
-                iconRes = R.drawable.fluent_speaker,
+                icon = BibotIcons.Speaker,
                 defaultExpanded = true
             ) {
                 VoiceContent(prefsState = prefsState, prefs = prefs)
@@ -352,7 +355,7 @@ fun SettingsScreen(
                 ExpandableSection(
                     title = stringResource(R.string.sec_ads),
                     subtitle = stringResource(R.string.ads_sub),
-                    iconRes = R.drawable.fluent_ticket,
+                    icon = BibotIcons.Ticket,
                     defaultExpanded = false
                 ) {
                     AdsRewardContent()
@@ -366,7 +369,7 @@ fun SettingsScreen(
                 ExpandableSection(
                     title = stringResource(R.string.sec_vip),
                     subtitle = stringResource(R.string.vip_sub),
-                    iconRes = R.drawable.fluent_crown,
+                    icon = BibotIcons.Crown,
                     defaultExpanded = false
                 ) {
                     VipContent()
@@ -379,7 +382,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_models),
                 subtitle = stringResource(R.string.models_sub, installedCount, uiState.models.size, uiState.freeSpaceMb),
-                iconRes = R.drawable.fluent_package,
+                icon = BibotIcons.Package,
                 defaultExpanded = false,
                 onRefresh = { modelsVm.refresh() }
             ) {
@@ -409,7 +412,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_books),
                 subtitle = if (booksCount >= 0) stringResource(R.string.books_sub_count, booksCount) else stringResource(R.string.books_sub_default),
-                iconRes = R.drawable.fluent_books,
+                icon = BibotIcons.Books,
                 defaultExpanded = false
             ) {
                 BookLibrarySection(onCount = { booksCount = it })
@@ -421,7 +424,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_announce),
                 subtitle = stringResource(R.string.announce_sub),
-                iconRes = R.drawable.fluent_bell,
+                icon = BibotIcons.Bell,
                 defaultExpanded = false
             ) {
                 AnnounceHistoryContent()
@@ -433,7 +436,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_data),
                 subtitle = stringResource(R.string.data_reset_sub),
-                iconRes = R.drawable.fluent_broom,
+                icon = BibotIcons.Broom,
                 defaultExpanded = false
             ) {
                 DataResetSection()
@@ -445,7 +448,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.help_section_title),
                 subtitle = stringResource(R.string.help_section_sub),
-                iconRes = R.drawable.fluent_question,
+                icon = BibotIcons.Question,
                 defaultExpanded = false
             ) {
                 HelpGuideContent()
@@ -457,7 +460,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.nav_author_note),
                 subtitle = stringResource(R.string.nav_author_sign),
-                iconRes = R.drawable.fluent_love_letter,
+                icon = BibotIcons.Letter,
                 defaultExpanded = false
             ) {
                 AuthorNoteContent()
@@ -469,7 +472,7 @@ fun SettingsScreen(
             ExpandableSection(
                 title = stringResource(R.string.sec_licenses),
                 subtitle = stringResource(R.string.licenses_sub),
-                iconRes = R.drawable.fluent_information,
+                icon = BibotIcons.Info,
                 defaultExpanded = false
             ) {
                 CreditsContent()
@@ -507,7 +510,7 @@ fun SettingsScreen(
 private fun ExpandableSection(
     title: String,
     subtitle: String = "",
-    @DrawableRes iconRes: Int? = null,
+    @DrawableRes icon: Int? = null,
     defaultExpanded: Boolean = false,
     onRefresh: (() -> Unit)? = null,
     content: @Composable () -> Unit
@@ -519,14 +522,18 @@ private fun ExpandableSection(
                 modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (iconRes != null) {
-                    // Fluent Emoji 3D (MIT) — ảnh màu, không tint như Icon().
-                    Image(
-                        painter = painterResource(iconRes),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        contentScale = ContentScale.Fit
-                    )
+                if (icon != null) {
+                    Box(
+                        Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(BibotIconSize.Section),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Spacer(Modifier.width(10.dp))
                 }
                 Column(Modifier.weight(1f)) {
@@ -1758,7 +1765,6 @@ private val AUTHOR_NOTE = listOf(
 private fun CreditsContent() {
     val uriHandler = LocalUriHandler.current
     val entries = listOf(
-        stringResource(R.string.licenses_fluent) to "https://github.com/microsoft/fluentui-emoji",
         stringResource(R.string.licenses_material) to "https://fonts.google.com/icons"
     )
     val verName = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "?" }

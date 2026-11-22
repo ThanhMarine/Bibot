@@ -8,9 +8,9 @@ alwaysApply: true
 Áp dụng cho mọi file `*.kt` / `*.xml` của app. Mục tiêu: **một ngôn ngữ + một điểm nhấn**.
 
 ## Icon
-- Chỉ dùng Material Symbols: `Icons.Rounded.*` (fallback `Icons.Filled.*`) qua facade `ui/icon/BibotIcons.kt`.
-- CẤM `R.drawable.fluent_*`, emoji raster, và `Image(painterResource(...))` cho icon chức năng.
-- Không rải `Icons.*` tuỳ tiện ở màn hình; mọi icon đều có tên ngữ nghĩa trong `BibotIcons`.
+- Một ngôn ngữ duy nhất: **bộ vector hand-drawn tự vẽ** (stroke tròn, ~1.8dp, nét hơi lệch) trong `ui/icon/BibotIcons.kt`.
+- Không dùng asset bên ngoài (Magnific, Fluent Emoji…). CẤM `R.drawable.fluent_*`, emoji raster, `Image(painterResource(...))` cho icon chức năng.
+- Không rải `Icons.*` tuỳ tiện; mọi icon có tên ngữ nghĩa trong `BibotIcons`.
 
 ## Màu
 - Accent duy nhất: `#1976D2` (`BibotAccent`). Secondary/tertiary chỉ là tone cùng họ màu này.
@@ -34,6 +34,6 @@ Image(painterResource(R.drawable.fluent_globe), contentDescription = null)
 Text("Thời tiết", fontSize = 10.sp)
 
 // ĐÚNG
-Icon(BibotIcons.Globe, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+Icon(BibotIcons.Globe, contentDescription = null, tint = MaterialTheme.colorScheme.primary) // vector hand-drawn tự vẽ
 Text("Thời tiết", style = MaterialTheme.typography.bodyMedium)
 ```

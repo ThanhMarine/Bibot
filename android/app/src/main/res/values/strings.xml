@@ -88,8 +88,7 @@
     <string name="sec_announce">Announcements</string>
     <string name="sec_licenses">Licenses &amp; credits</string>
     <string name="licenses_sub">Fluent Emoji 3D • Material Icons</string>
-    <string name="licenses_intro">Bibot uses the following open-source assets. Full license texts are bundled inside the app and in THIRD_PARTY_NOTICES.md.</string>
-    <string name="licenses_fluent">Fluent Emoji 3D — Microsoft Corporation — MIT License</string>
+    <string name="licenses_intro">Bibot uses its own hand-drawn vector icons and the open-source components below. Full license texts are bundled in THIRD_PARTY_NOTICES.md.</string>
     <string name="licenses_material">Material Icons — Google — Apache License 2.0</string>
     <string name="sec_weather">Thời tiết</string>
     <string name="weather_sub">Chọn thành phố dự báo</string>

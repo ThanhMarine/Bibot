@@ -1,10 +1,10 @@
 # Implementation Plan: “Một ngôn ngữ + một điểm nhấn” (loại bỏ Fluent 3D)
 
 ## Overview
-Chuyển toàn bộ giao diện Bibot sang **một ngôn ngữ icon duy nhất (Material Symbols Rounded)** và **một màu nhấn duy nhất (Bibot Accent)**. Loại bỏ hoàn toàn 20 file Fluent Emoji 3D (`fluent_*.png`) khỏi Home, Settings và mã nguồn. Đồng thời khoá palette màu, chuẩn hoá typography và trích component dùng chung để giao diện nhìn như được thiết kế có chủ đích thay vì ghép nhiều phong cách.
+Chuyển toàn bộ giao diện Bibot sang **một ngôn ngữ icon duy nhất (vector hand-drawn tự vẽ)** và **một màu nhấn duy nhất (Bibot Accent)**. Loại bỏ hoàn toàn 20 file Fluent Emoji 3D (`fluent_*.png`) khỏi Home, Settings và mã nguồn. Đồng thời khoá palette màu, chuẩn hoá typography và trích component dùng chung để giao diện nhìn như được thiết kế có chủ đích thay vì ghép nhiều phong cách.
 
 Quyết định thiết kế **đã được người dùng duyệt**:
-- **Icon:** Material Symbols Rounded (`Icons.Rounded.*`, fallback `Icons.Filled.*` nếu thiếu) cho MỌI chức năng: Home grid, Settings header, thanh công cụ, action, trạng thái.
+- **Icon:** bộ **vector hand-drawn tự vẽ** (stroke tròn ~1.8dp, nét hơi lệch) trong `BibotIcons` cho MỌI chức năng: Home grid, Settings header, TopBar, action. Magnific **chỉ tham khảo phong cách**, không dùng asset.
 - **Accent:** `Bibot Accent = #1976D2` (xanh dương Bibot). Secondary/tertiary chỉ là biến thể tone cùng họ màu; không dùng teal/pink tách biệt như hiện nay.
 - **Không giữ bất kỳ raster emoji nào** — xoá toàn bộ Fluent 3D, **kể cả 5 ô Home**. Không dùng `Image(painterResource(...))` cho icon chức năng nữa.
 - **Hình lớn – chữ nhỏ đủ nhìn:** ưu tiên icon/badge lớn (Home 56dp badge / 30–32dp icon); chữ tối thiểu label 12sp, body 14sp, title 16sp, không phóng to chữ quá mức.
@@ -15,7 +15,7 @@ Rule dự án đã được tạo: `.cursor/rules/bibot-ui.mdc` (alwaysApply) đ
 
 ## Architecture Decisions
 - **Dependency hạ tầng trước**: palette/typography/icon facade phải xong trước khi migrate màn hình,否则 mỗi màn hình sẽ tự chọn màu/icon riêng tiếp.
-- **Facade `BibotIcons`**: mọi icon đi qua một object ánh xạ tên ngữ nghĩa (`BibotIcons.Book`, `BibotIcons.Weather`…) → `ImageVector`. Tránh dùng tuỳ tiện `Icons.Filled.X` rải rác (hiện có hàng chục chỗ).
+- **Facade `BibotIcons`**: mọi icon đi qua object ánh xạ tên ngữ nghĩa → `ImageVector` hand-drawn tự vẽ. Tránh rải `Icons.Filled.X` (hiện có hàng chục chỗ).
 - **Migrate theo chiều dọc từng màn hình**: Home xong mới tới Settings, rồi mới xoá file PNG. Mỗi bước đều build được và chụp màn hình đối chiếu.
 - **Font chữ**: dùng `MaterialTheme.typography.*`; xoá dần các `fontSize = N.sp` ghi cứng (hiện ~91 chỗ) theo từng màn hình thay vì sửa toàn bộ cùng lúc.
 - **Component hoá Settings**: `SettingsScreen.kt` ~1.900 dòng nên tách dần `BibotSectionHeader`, `BibotIconBadge`, `BibotInfoCard` để các bước sau không làm tăng lỗi.
@@ -54,11 +54,11 @@ Rule dự án đã được tạo: `.cursor/rules/bibot-ui.mdc` (alwaysApply) đ
 **Files:** `ui/theme/Type.kt`, new `ui/theme/Dimens.kt`
 **Scope:** S
 
-#### Task 3: Tạo facade `BibotIcons`
-**Description:** Tạo object ánh xạ ~20 ngữ nghĩa đang dùng (microphone, book, story, magic wand, music, weather, news, settings, globe, robot, key, speaker, ticket, crown, package, books, bell, broom, question, letter, info) sang `ImageVector` Material Symbols Rounded.
+#### Task 3: Tạo facade `BibotIcons` (vector hand-drawn tự vẽ)
+**Description:** Tạo ~21 `ImageVector` hand-drawn bằng `ImageVector.Builder` (viewport 24dp, stroke 1.8f, cap/join round, nét hơi lệch) cho các ngữ nghĩa: microphone, book, story, fairy, music, weather, news, settings, globe, robot, key, speaker, ticket, crown, package, books, bell, broom, question, letter, info. Không dùng asset Magnific/Fluent.
 
 **Acceptance:**
-- [ ] `BibotIcons` biên dịch; mọi tên đều có icon tương đương.
+- [ ] `BibotIcons` biên dịch; 21 icon đều là vector tự vẽ, cùng stroke/cap/join.
 - [ ] Không có `ImageVector` nullable; có fallback rõ ràng.
 - [ ] Chưa xoá file Fluent ở task này (tránh build broken giữa chừng).
 
@@ -226,13 +226,14 @@ Rule dự án đã được tạo: `.cursor/rules/bibot-ui.mdc` (alwaysApply) đ
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | `SettingsScreen.kt` ~1.900 dòng, sửa icon + font dễ sót | High | Chia Task 5 và Task 7 riêng; build + screenshot sau mỗi task; grep `fluent_`/`fontSize` sau cùng |
-| Material Symbols Rounded thiếu vài icon | Medium | Fallback `Icons.Filled.*` trong `BibotIcons`; không tuỳ biến ngoài facade |
+| Vector hand-drawn khó đọc ở 20dp | Medium | Dùng stroke 1.8f + cap round, kiểm tra screenshot; tăng lên 22dp nếu cần |
 | Tắt dynamic color làm “khác máy” cũ | Medium | Review ảnh Light/Dark ở Checkpoint 1 trước khi migrate icon |
 | Xoá asset nhưng sót tham chiếu → build fail | High | Task 6 chạy sau Task 4/5; grep toàn repo trước khi xoá |
 | Hoạ tiết nền + banner vẫn làm nhiễu | Medium | Task 10 đo contrast, hạ alpha, gom banner |
 | Không có device thật | Low | Dùng AVD `bibot_smoke_api34` như các lần trước |
 
 ## Decisions Confirmed (không còn open question)
+- Icon: vector hand-drawn **tự vẽ**; Magnific chỉ tham khảo phong cách, **không dùng asset/bản quyền ngoài**.
 - Accent `#1976D2` — đã duyệt.
 - Xoá toàn bộ Fluent 3D, kể cả 5 ô Home — đã xác nhận.
 - Bump `1.0.6` / `versionCode 7` khi phát hành bản UI — đã duyệt.
