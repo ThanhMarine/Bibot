@@ -22,7 +22,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import com.bibot.app.R
@@ -128,7 +127,7 @@ private fun HomeTile(item: HomeItem, compact: Boolean = false, onClick: () -> Un
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(item.mode.icon),
+                    imageVector = item.mode.icon,
                     contentDescription = null,
                     modifier = Modifier.size(if (compact) BibotIconSize.TileCompact else BibotIconSize.Tile),
                     tint = MaterialTheme.colorScheme.primary

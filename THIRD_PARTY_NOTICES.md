@@ -1,10 +1,10 @@
 # Third-Party Notices - Bibot
 
-Bibot dùng **bộ icon vector hand-drawn tự vẽ** (`android/app/src/main/res/drawable/ic_hd_*.xml`)
-cho mọi icon chức năng. Các icon này là tác phẩm của dự án, không dùng asset bên ngoài
-(Fluent Emoji / Magnific / Twemoji / OpenMoji / Noto đều không được dùng).
+Bibot dùng **Material Symbols Rounded** qua facade `ui/icon/BibotIcons.kt` cho mọi icon
+chức năng. Không dùng asset icon bên ngoài (Fluent Emoji, Magnific, Twemoji, OpenMoji,
+Noto, hay bộ vector hand-drawn tự vẽ trước đó đều đã bị loại bỏ).
 
-Ngoài ra Bibot dùng các thành phần mã nguồn mở/công cộng sau.
+Các thành phần mã nguồn mở/công cộng sau vẫn được dùng.
 
 ## Material Icons / Material 3 (Google)
 

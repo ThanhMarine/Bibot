@@ -1,6 +1,5 @@
 package com.bibot.app.ui.components
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -26,7 +25,7 @@ import com.bibot.app.ui.theme.BibotIconSize
 /** Huy hiệu icon dùng chung cho tiêu đề mục Cài đặt. */
 @Composable
 fun BibotIconBadge(
-    @DrawableRes icon: Int,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     size: Dp = 32.dp
 ) {
@@ -35,7 +34,7 @@ fun BibotIconBadge(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            painter = painterResource(icon),
+            imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(if (size >= 48.dp) BibotIconSize.Tile else BibotIconSize.Section),
             tint = MaterialTheme.colorScheme.primary

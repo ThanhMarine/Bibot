@@ -1,7 +1,6 @@
 package com.bibot.app.feature.settings
 
 import android.net.Uri
-import androidx.annotation.DrawableRes
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,12 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -151,7 +150,7 @@ fun SettingsScreen(
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            painter = painterResource(BibotIcons.Globe),
+                            imageVector = BibotIcons.Globe,
                             contentDescription = null,
                             modifier = Modifier.size(24.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -499,7 +498,7 @@ fun SettingsScreen(
 private fun ExpandableSection(
     title: String,
     subtitle: String = "",
-    @DrawableRes icon: Int? = null,
+    icon: ImageVector? = null,
     defaultExpanded: Boolean = false,
     onRefresh: (() -> Unit)? = null,
     content: @Composable () -> Unit

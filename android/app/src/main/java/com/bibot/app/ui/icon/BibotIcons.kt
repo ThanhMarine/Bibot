@@ -1,36 +1,55 @@
 package com.bibot.app.ui.icon
 
-import androidx.annotation.DrawableRes
-import com.bibot.app.R
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.CleaningServices
+import androidx.compose.material.icons.rounded.ConfirmationNumber
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.MailOutline
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SmartToy
+import androidx.compose.material.icons.rounded.WbCloudy
+import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * Một ngôn ngữ icon duy nhất Bibot: vector hand-drawn tự vẽ (res/drawable/ic_hd_*.xml).
- * Không dùng asset Fluent/Magnific hay Material Icons. Mọi icon chức năng đều lấy
- * id từ object này và tint bằng accent #1976D2 qua Icon().
+ * Một ngôn ngữ icon duy nhất cho Bibot: Material Symbols Rounded.
+ * Mọi icon chức năng (Home, Settings, TopBar) đều đi qua object này.
  */
 object BibotIcons {
     // Home / mode
-    @DrawableRes val Mic = R.drawable.ic_hd_mic
-    @DrawableRes val Book = R.drawable.ic_hd_book
-    @DrawableRes val Story = R.drawable.ic_hd_story
-    @DrawableRes val FairyTales = R.drawable.ic_hd_fairy
-    @DrawableRes val Music = R.drawable.ic_hd_music
-    @DrawableRes val Weather = R.drawable.ic_hd_weather
-    @DrawableRes val News = R.drawable.ic_hd_news
-    @DrawableRes val Settings = R.drawable.ic_hd_settings
+    val Mic: ImageVector = Icons.Rounded.Mic
+    val Book: ImageVector = Icons.AutoMirrored.Rounded.MenuBook
+    val Story: ImageVector = Icons.Rounded.AutoStories
+    val FairyTales: ImageVector = Icons.Rounded.AutoAwesome
+    val Music: ImageVector = Icons.Rounded.MusicNote
+    val Weather: ImageVector = Icons.Rounded.WbCloudy
+    val News: ImageVector = Icons.AutoMirrored.Rounded.Article
+    val Settings: ImageVector = Icons.Rounded.Settings
 
     // Settings sections
-    @DrawableRes val Globe = R.drawable.ic_hd_globe
-    @DrawableRes val Robot = R.drawable.ic_hd_robot
-    @DrawableRes val Key = R.drawable.ic_hd_key
-    @DrawableRes val Speaker = R.drawable.ic_hd_speaker
-    @DrawableRes val Ticket = R.drawable.ic_hd_ticket
-    @DrawableRes val Crown = R.drawable.ic_hd_crown
-    @DrawableRes val Package = R.drawable.ic_hd_package
-    @DrawableRes val Books = R.drawable.ic_hd_books
-    @DrawableRes val Bell = R.drawable.ic_hd_bell
-    @DrawableRes val Broom = R.drawable.ic_hd_broom
-    @DrawableRes val Question = R.drawable.ic_hd_question
-    @DrawableRes val Letter = R.drawable.ic_hd_letter
-    @DrawableRes val Info = R.drawable.ic_hd_info
+    val Globe: ImageVector = Icons.Rounded.Public
+    val Robot: ImageVector = Icons.Rounded.SmartToy
+    val Key: ImageVector = Icons.Rounded.Key
+    val Speaker: ImageVector = Icons.AutoMirrored.Rounded.VolumeUp
+    val Ticket: ImageVector = Icons.Rounded.ConfirmationNumber
+    val Crown: ImageVector = Icons.Rounded.WorkspacePremium
+    val Package: ImageVector = Icons.Rounded.Inventory2
+    val Books: ImageVector = Icons.AutoMirrored.Rounded.MenuBook
+    val Bell: ImageVector = Icons.Rounded.Notifications
+    val Broom: ImageVector = Icons.Rounded.CleaningServices
+    val Question: ImageVector = Icons.AutoMirrored.Rounded.HelpOutline
+    val Letter: ImageVector = Icons.Rounded.MailOutline
+    val Info: ImageVector = Icons.Rounded.Info
 }

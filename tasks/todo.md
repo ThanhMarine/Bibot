@@ -3,7 +3,7 @@
 > Plan chi tiết: `tasks/plan.md`. Rule dự án: `.cursor/rules/bibot-ui.mdc`.
 
 ## Quyết định đã duyệt
-- [x] Icon vector hand-drawn tự vẽ; Magnific chỉ tham khảo phong cách, không dùng asset
+- [x] Icon Material Symbols Rounded; Không dùng asset icon ngoài (Fluent/Magnific/hand-drawn tự vẽ)
 - [x] Accent `#1976D2`; `dynamicColor = false`; hình lớn (icon Home 3×) – chữ nhỏ đủ nhìn
 - [x] Xoá toàn bộ Fluent 3D, kể cả 5 ô Home
 - [x] Chữ: đen đậm trên nền sáng, trắng đậm trên nền tối (không khoá chế độ sáng)
@@ -12,7 +12,7 @@
 ## Phase 1 — Foundation
 - [x] Task 1: Khoá palette & bỏ dynamic color
 - [x] Task 2: Chuẩn hoá Typography & spacing token
-- [x] Task 3: Tạo facade `BibotIcons` — 21 vector hand-drawn tự vẽ
+- [x] Task 3: Tạo facade `BibotIcons` — 21 Material Symbols Rounded
 
 ### Checkpoint: Foundation
 - [x] Build xanh; accent nhất quán Light/Dark; có `BibotIcons`

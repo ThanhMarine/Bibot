@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -17,8 +18,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bibot.app.ui.components.TrongDongWatermark
 import com.bibot.app.ui.icon.BibotIcons
-import androidx.annotation.DrawableRes
-import androidx.compose.ui.res.painterResource
 import com.bibot.app.ui.components.ads.AdsBanner
 import com.bibot.app.ui.components.ads.AdsInterstitialHelper
 import com.bibot.app.ui.components.ads.AdsRewardedHelper
@@ -42,7 +41,7 @@ import com.bibot.app.data.store.BibotPreferences
 import com.bibot.app.data.store.BibotPrefs
 
 // Một ngôn ngữ icon: Material Symbols qua BibotIcons (không dùng raster/emoji).
-enum class BibotMode(@DrawableRes val icon: Int, val titleRes: Int) {
+enum class BibotMode(val icon: ImageVector, val titleRes: Int) {
     VOICE(BibotIcons.Mic, R.string.nav_voice),
     BOOK(BibotIcons.Book, R.string.nav_book),
     STORY(BibotIcons.Story, R.string.nav_story),
@@ -153,7 +152,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                painter = painterResource(BibotIcons.Book),
+                                imageVector = BibotIcons.Book,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(28.dp)
@@ -195,7 +194,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                             modifier = Modifier.size(56.dp)
                         ) {
                             Icon(
-                                painterResource(BibotIcons.Mic),
+                                BibotIcons.Mic,
                                 contentDescription = stringResource(R.string.nav_voice),
                                 modifier = Modifier.size(28.dp)
                             )
@@ -206,7 +205,7 @@ fun BibotMainScreen(playerViewModel: PlayerViewModel = viewModel()) {
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            painterResource(BibotIcons.Settings),
+                            BibotIcons.Settings,
                             contentDescription = stringResource(R.string.nav_settings),
                             modifier = Modifier.size(30.dp)
                         )
