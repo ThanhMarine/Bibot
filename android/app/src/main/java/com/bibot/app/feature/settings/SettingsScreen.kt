@@ -479,13 +479,22 @@ fun SettingsScreen(
         item {
             val verName = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "?" }
             val verCode = try { BuildConfig.VERSION_CODE } catch (_: Exception) { 0 }
-            Text(
-                text = stringResource(R.string.app_version_format, verName, verCode),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                textAlign = TextAlign.Center
-            )
+            // Dòng nhận diện phiên bản: dùng thẻ nổi bật thay vì chữ nhỏ/mờ.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Text(
+                    text = stringResource(R.string.app_version_format, verName, verCode),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 16.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         item { Spacer(Modifier.height(32.dp)) }
