@@ -78,7 +78,7 @@
     <string name="book_delete">Xóa</string>
     <string name="set_hint">Chạm để mở từng nhóm — mặc định thu gọn cho gọn.</string>
     <string name="sec_ai">AI Trò chuyện</string>
-    <string name="sec_api">API &amp; Model AI</string>
+    <string name="sec_api">AI Gemini (Chat &amp; Thông tin)</string>
     <string name="sec_voice">Giọng đọc</string>
     <string name="sec_models">Mô hình offline</string>
     <string name="sec_books">Kho sách</string>
@@ -131,13 +131,13 @@
     <string name="common_advanced">Tùy chọn nâng cao</string>
     <string name="common_hide_advanced">Ẩn tùy chọn nâng cao</string>
     <string name="common_hide_singles">Ẩn file lẻ</string>
-    <string name="api_gemini">Gemini API Key (tùy chọn)</string>
+    <string name="api_gemini">Gemini API Key</string>
     <string name="api_openrouter">OpenRouter Key (tùy chọn)</string>
     <string name="api_cloud_key">Cloud TTS Key (tùy chọn)</string>
     <string name="api_hint_relay">Trống = Free via relay</string>
     <string name="api_empty_offline">Trống = Piper/offline</string>
-    <string name="api_save">Lưu API Key</string>
-    <string name="api_saved">Đã lưu API Key</string>
+    <string name="api_save">Lưu</string>
+    <string name="api_saved">Đã lưu</string>
     <string name="api_removed">Đã xoá key — dùng Bibot Free</string>
     <string name="set_tts_auto">Tự động (khuyên dùng)</string>
     <string name="set_tts_offline">Ưu tiên Offline</string>
@@ -491,26 +491,34 @@
     <b>Giọng khuyến nghị:</b> VI (vi_VN), EN (en_US Lessac)
     ]]>
     </string>
-    <string name="help_title_cloud_api">Cloud API Keys (Gemini / OpenRouter / Cloud TTS)</string>
+    <string name="help_title_cloud_api">Gemini API (Chat &amp; Thông tin)</string>
     <string name="help_cloud_api"><![CDATA[
-    <b>Cách tạo API Key miễn phí:</b>\n\n
-    <b>Gemini (Google AI Studio):</b>\n
-    1. Truy cập <a href="https://aistudio.google.com">aistudio.google.com</a>\n
-    2. Đăng nhập bằng tài khoản Google\n
-    3. Get API Key → Create API key → Copy\n
-    4. Dán vào Cài đặt → API & Model → Gemini API Key\n\n
-    <b>OpenRouter (Free models):</b>\n
-    1. Đăng ký <a href="https://openrouter.ai">openrouter.ai</a>\n
-    2. Keys → Create Key → Copy\n
-    3. Dán vào Cài đặt → API & Model → OpenRouter Key\n\n
-    <b>Cloud TTS (Google Cloud):</b>\n
-    1. Tạo project trên <a href="https://console.cloud.google.com">Google Cloud Console</a>\n
-    2. Enable "Cloud Text-to-Speech API"\n
-    3. IAM → Service Accounts → Create Key (JSON)\n
-    4. Dán nội dung JSON vào Cài đặt → API & Model → Cloud TTS Key\n\n
-    <b>Lưu ý:</b> Free tier có giới hạn. Khuyến nghị dùng Offline TTS (Piper) để tiết kiệm.
-    ]]>
-    </string>
+    <b>Chỉ cần 1 key Gemini:</b>
+
+
+    App dùng Gemini cho <b>Chat</b> với Em là Bi và <b>tóm tắt thông tin</b> (sách, tin tức). Không cần OpenRouter hay Cloud TTS.
+
+
+    <b>Tạo key miễn phí:</b>
+
+    1. Mở aistudio.google.com
+
+    2. Đăng nhập Google
+
+    3. Get API key → Create API key → Copy
+
+    4. Cài đặt → AI Gemini → dán vào ô Gemini API key → chọn model → Lưu
+
+
+    <b>Chọn model:</b>
+
+    • Flash Lite (khuyên dùng): nhanh, tiết kiệm
+
+    • Flash: chất lượng cao hơn
+
+
+    <b>Không có key:</b> vẫn dùng được Bibot Free (relay) và các tính năng offline.
+    ]]></string>
     <string name="help_title_offline_model">Mô hình Offline (Sherpa STT / Piper TTS)</string>
     <string name="help_offline_model"><![CDATA[
     <b>Cài đặt mô hình offline:</b>\n
@@ -523,18 +531,35 @@
     </string>
     <string name="help_title_faq">Câu hỏi thường gặp (FAQ)</string>
     <string name="help_faq"><![CDATA[
-    <b>Q: TTS offline không phát được?</b>\n
-    A: Kiểm tra Cài đặt → Giọng đọc → Đã chọn "Ưu tiên Offline"? Model đã "Đã sẵn sàng"?\n\n
-    <b>Q: STT không nhận diện giọng?</b>\n
-    A: Kiểm tra mic có quyền, nói to rõ ràng, thử Offline STT (Sherpa).\n\n
-    <b>Q: App bị đóng khi đọc sách dài?</b>\n
-    A: Bật "Giữ màn hình sáng" trong Cài đặt → Dữ liệu. Tắt tối ưu pin cho Bibot.\n\n
-    <b>Q: Không thấy sách vừa tải?</b>\n
-    A: Bấm "Làm mới" ở màn hình Kho sách. Kiểm tra folder Drive có public.\n\n
-    <b>Q: Muốn đổi ngôn ngữ giao diện?</b>\n
-    A: Cài đặt → Ngôn ngữ → Chọn Tiếng Việt / English / Theo máy.
-    ]]>
-    </string>
+    <b>Q: Chat AI không trả lời?</b>
+
+    A: Cài đặt → AI Gemini → kiểm tra key, hoặc để trống để dùng Bibot Free. Kiểm tra kết nối mạng.
+
+
+    <b>Q: Chọn vị trí thời tiết ở đâu?</b>
+
+    A: Cài đặt → Thời tiết: gõ tên địa điểm bất kỳ hoặc nhập toạ độ lat, lon. Tab Thời tiết chỉ hiển thị vị trí đã chọn.
+
+
+    <b>Q: Chữ PDF sát lề / khó đọc?</b>
+
+    A: Giữ crop lề trong tuỳ chọn reader; chạm đúp để zoom, kéo vượt mép để sang trang khác.
+
+
+    <b>Q: Không thấy sách vừa thêm?</b>
+
+    A: Thư viện → Quét bộ nhớ máy hoặc Refresh. Có thể chọn nhiều file cùng lúc.
+
+
+    <b>Q: Xem phiên bản app ở đâu?</b>
+
+    A: Cuối màn Cài đặt và trong mục Giấy phép &amp; ghi công.
+
+
+    <b>Q: Đổi ngôn ngữ?</b>
+
+    A: Cài đặt → Ngôn ngữ → Tiếng Việt / English / Theo máy.
+    ]]></string>
     <string name="help_title_contact">Liên hệ &amp; Phản hồi</string>
     <string name="help_contact"><![CDATA[
         <b>Góp ý / Báo lỗi:</b>\n\n
@@ -621,4 +646,8 @@
     <string name="weather_coord_label">Vĩ độ, Kinh độ</string>
     <string name="weather_coord_invalid">Toạ độ không hợp lệ. Dùng: lat, lon (vd: 10.8231, 106.6297)</string>
     <string name="weather_coord_use">Dùng toạ độ này</string>
+    <string name="api_intro">Chỉ cần 1 key Gemini cho Chat và tóm tắt thông tin. Không cần cấu hình gì thêm.</string>
+    <string name="api_model_label">Model AI</string>
+    <string name="api_model_lite">Flash Lite (khuyên dùng - nhanh)</string>
+    <string name="api_model_flash">Flash (chất lượng cao hơn)</string>
 </resources>

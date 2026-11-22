@@ -78,7 +78,7 @@
     <string name="book_delete">Delete</string>
     <string name="set_hint">Tap to expand each group — collapsed by default.</string>
     <string name="sec_ai">AI Chat</string>
-    <string name="sec_api">AI API &amp; Model</string>
+    <string name="sec_api">AI Gemini (Chat &amp; Information)</string>
     <string name="sec_voice">Voice</string>
     <string name="sec_models">Offline models</string>
     <string name="sec_books">Library</string>
@@ -131,14 +131,14 @@
     <string name="common_advanced">Advanced options</string>
     <string name="common_hide_advanced">Hide advanced options</string>
     <string name="common_hide_singles">Hide single files</string>
-    <string name="api_gemini">Gemini API key (optional)</string>
+    <string name="api_gemini">Gemini API key</string>
     <string name="api_openrouter">OpenRouter key (optional)</string>
     <string name="api_cloud_key">Cloud TTS key (optional)</string>
     <string name="api_hint_relay">Empty = free via relay</string>
     <string name="api_empty_offline">Empty = Piper/offline</string>
-    <string name="api_save">Save API key</string>
-    <string name="api_saved">API key saved</string>
-    <string name="api_removed">Key removed — using Bibot Free</string>
+    <string name="api_save">Save</string>
+    <string name="api_saved">Saved</string>
+    <string name="api_removed">Key removed — Bibot Free</string>
     <string name="set_tts_auto">Automatic (recommended)</string>
     <string name="set_tts_offline">Prefer offline</string>
     <string name="set_tts_online">Prefer cloud</string>
@@ -500,27 +500,34 @@
         <b>Giọng khuyến nghị:</b> VI (vi_VN), EN (en_US Lessac)
         ]]>
     </string>
-    <string name="help_title_cloud_api">Cloud API Keys (Gemini / OpenRouter / Cloud TTS)</string>
-    <string name="help_cloud_api">
-        <![CDATA[
-        <b>Cách tạo API Key miễn phí:</b>\n\n
-        <b>Gemini (Google AI Studio):</b>\n
-        1. Truy cập <a href="https://aistudio.google.com">aistudio.google.com</a>\n
-        2. Đăng nhập bằng tài khoản Google\n
-        3. Get API Key → Create API key → Copy\n
-        4. Dán vào Cài đặt → API & Model → Gemini API Key\n\n
-        <b>OpenRouter (Free models):</b>\n
-        1. Đăng ký <a href="https://openrouter.ai">openrouter.ai</a>\n
-        2. Keys → Create Key → Copy\n
-        3. Dán vào Cài đặt → API & Model → OpenRouter Key\n\n
-        <b>Cloud TTS (Google Cloud):</b>\n
-        1. Tạo project trên <a href="https://console.cloud.google.com">Google Cloud Console</a>\n
-        2. Enable "Cloud Text-to-Speech API"\n
-        3. IAM → Service Accounts → Create Key (JSON)\n
-        4. Dán nội dung JSON vào Cài đặt → API & Model → Cloud TTS Key\n\n
-        <b>Lưu ý:</b> Free tier có giới hạn. Khuyến nghị dùng Offline TTS (Piper) để tiết kiệm.
-        ]]>
-    </string>
+    <string name="help_title_cloud_api">Gemini API (Chat &amp; Information)</string>
+    <string name="help_cloud_api"><![CDATA[
+    <b>Chỉ cần 1 key Gemini:</b>
+
+
+    App dùng Gemini cho <b>Chat</b> với Em là Bi và <b>tóm tắt thông tin</b> (sách, tin tức). Không cần OpenRouter hay Cloud TTS.
+
+
+    <b>Tạo key miễn phí:</b>
+
+    1. Mở aistudio.google.com
+
+    2. Đăng nhập Google
+
+    3. Get API key → Create API key → Copy
+
+    4. Cài đặt → AI Gemini → dán vào ô Gemini API key → chọn model → Lưu
+
+
+    <b>Chọn model:</b>
+
+    • Flash Lite (khuyên dùng): nhanh, tiết kiệm
+
+    • Flash: chất lượng cao hơn
+
+
+    <b>Không có key:</b> vẫn dùng được Bibot Free (relay) và các tính năng offline.
+    ]]></string>
     <string name="help_title_offline_model">Offline Models (Sherpa STT / Piper TTS)</string>
     <string name="help_offline_model">
         <![CDATA[
@@ -533,20 +540,36 @@
         ]]>
     </string>
     <string name="help_title_faq">Câu hỏi thường gặp (FAQ)</string>
-    <string name="help_faq">
-        <![CDATA[
-        <b>Q: TTS offline không phát được?</b>\n
-        A: Kiểm tra Cài đặt → Giọng đọc → Đã chọn "Ưu tiên Offline"? Model đã "Đã sẵn sàng"?\n\n
-        <b>Q: STT không nhận diện giọng?</b>\n
-        A: Kiểm tra mic có quyền, nói to rõ ràng, thử Offline STT (Sherpa).\n\n
-        <b>Q: App bị đóng khi đọc sách dài?</b>\n
-        A: Bật "Giữ màn hình sáng" trong Cài đặt → Dữ liệu. Tắt tối ưu pin cho Bibot.\n\n
-        <b>Q: Không thấy sách vừa tải?</b>\n
-        A: Bấm "Làm mới" ở màn hình Kho sách. Kiểm tra folder Drive có public.\n\n
-        <b>Q: Muốn đổi ngôn ngữ giao diện?</b>\n
-        A: Cài đặt → Ngôn ngữ → Chọn Tiếng Việt / English / Theo máy.
-        ]]>
-    </string>
+    <string name="help_faq"><![CDATA[
+    <b>Q: Chat AI không trả lời?</b>
+
+    A: Cài đặt → AI Gemini → kiểm tra key, hoặc để trống để dùng Bibot Free. Kiểm tra kết nối mạng.
+
+
+    <b>Q: Chọn vị trí thời tiết ở đâu?</b>
+
+    A: Cài đặt → Thời tiết: gõ tên địa điểm bất kỳ hoặc nhập toạ độ lat, lon. Tab Thời tiết chỉ hiển thị vị trí đã chọn.
+
+
+    <b>Q: Chữ PDF sát lề / khó đọc?</b>
+
+    A: Giữ crop lề trong tuỳ chọn reader; chạm đúp để zoom, kéo vượt mép để sang trang khác.
+
+
+    <b>Q: Không thấy sách vừa thêm?</b>
+
+    A: Thư viện → Quét bộ nhớ máy hoặc Refresh. Có thể chọn nhiều file cùng lúc.
+
+
+    <b>Q: Xem phiên bản app ở đâu?</b>
+
+    A: Cuối màn Cài đặt và trong mục Giấy phép &amp; ghi công.
+
+
+    <b>Q: Đổi ngôn ngữ?</b>
+
+    A: Cài đặt → Ngôn ngữ → Tiếng Việt / English / Theo máy.
+    ]]></string>
     <string name="help_title_contact">Liên hệ &amp; Phản hồi</string>
     <string name="help_contact"><![CDATA[
         <b>Feedback / Bug reports:</b>\n\n
@@ -633,4 +656,8 @@
     <string name="weather_coord_label">Latitude, Longitude</string>
     <string name="weather_coord_invalid">Invalid coordinates. Use: lat, lon (e.g. 10.8231, 106.6297)</string>
     <string name="weather_coord_use">Use these coordinates</string>
+    <string name="api_intro">One key Gemini powers Chat and information summaries. No other setup needed.</string>
+    <string name="api_model_label">AI model</string>
+    <string name="api_model_lite">Flash Lite (recommended - fast)</string>
+    <string name="api_model_flash">Flash (higher quality)</string>
 </resources>

@@ -73,11 +73,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val GEMINI_MODEL_OPTIONS = listOf(
-    "gemini-3.5-flash-lite",
-    "gemini-3.5-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash"
+// Chỉ 2 lựa chọn dễ hiểu cho người dùng phổ thông (Chat + tóm tắt thông tin).
+private val GEMINI_MODELS = listOf(
+    "gemini-3.5-flash-lite" to R.string.api_model_lite,
+    "gemini-3.5-flash" to R.string.api_model_flash
 )
 
 private val TTS_PRIORITY_VALUES = listOf("auto", "offline", "online")
@@ -321,12 +320,13 @@ fun SettingsScreen(
             }
         }
 
-        // ===== API & Model =====
+        // ===== AI Gemini (duy nhất) =====
         item {
-            val hasKey = prefsState.geminiApiKey.isNotBlank() || prefsState.openRouterKey.isNotBlank()
+            val hasKey = prefsState.geminiApiKey.isNotBlank()
             ExpandableSection(
                 title = stringResource(R.string.sec_api),
-                subtitle = if (hasKey) stringResource(R.string.api_sub_key, prefsState.geminiModel) else stringResource(R.string.api_sub_free, prefsState.geminiModel),
+                subtitle = if (hasKey) stringResource(R.string.api_sub_key, prefsState.geminiModel)
+                else stringResource(R.string.api_sub_free, prefsState.geminiModel),
                 iconRes = R.drawable.fluent_key,
                 defaultExpanded = false
             ) {
@@ -649,72 +649,63 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
     }
 }
 
-// ===== 2. API keys =====
+// ===== 2. AI Gemini — cấu hình duy nhất cho Chat & Information =====
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApiKeysContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
     val scope = rememberCoroutineScope()
     var apiKey by remember(prefsState.geminiApiKey) { mutableStateOf(prefsState.geminiApiKey) }
-    var openRouterKey by remember(prefsState.openRouterKey) { mutableStateOf(prefsState.openRouterKey) }
-    var cloudTtsKey by remember(prefsState.cloudTtsApiKey) { mutableStateOf(prefsState.cloudTtsApiKey) }
     var msg by remember { mutableStateOf<String?>(null) }
     var modelExpanded by remember { mutableStateOf(false) }
-    // stringResource khong goi duoc trong scope.launch -> lay truoc o day
+    // stringResource không gọi được trong scope.launch -> lấy trước ở đây.
     val removedMsg = stringResource(R.string.api_removed)
     val savedMsg = stringResource(R.string.api_saved)
 
     LaunchedEffect(msg) { if (msg != null) { delay(3000); msg = null } }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            stringResource(R.string.api_intro),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         OutlinedTextField(
             value = apiKey, onValueChange = { apiKey = it },
             label = { Text(stringResource(R.string.api_gemini)) },
             placeholder = { Text(stringResource(R.string.api_hint_relay)) },
             modifier = Modifier.fillMaxWidth(), singleLine = true
         )
-        if (BuildConfig.ENABLE_VOICE) {
+        ExposedDropdownMenuBox(expanded = modelExpanded, onExpandedChange = { modelExpanded = !modelExpanded }) {
             OutlinedTextField(
-                value = openRouterKey, onValueChange = { openRouterKey = it },
-                label = { Text(stringResource(R.string.api_openrouter)) },
-                placeholder = { Text("sk-or-... (fallback chat)") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true
+                value = stringResource(
+                    GEMINI_MODELS.firstOrNull { it.first == prefsState.geminiModel }?.second
+                        ?: R.string.api_model_lite
+                ),
+                onValueChange = {}, readOnly = true,
+                label = { Text(stringResource(R.string.api_model_label)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(modelExpanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(), singleLine = true
             )
-        }
-        OutlinedTextField(
-            value = cloudTtsKey, onValueChange = { cloudTtsKey = it },
-            label = { Text(stringResource(R.string.api_cloud_key)) },
-            placeholder = { Text(stringResource(R.string.api_empty_offline)) },
-            modifier = Modifier.fillMaxWidth(), singleLine = true
-        )
-        if (BuildConfig.ENABLE_VOICE) {
-            ExposedDropdownMenuBox(expanded = modelExpanded, onExpandedChange = { modelExpanded = !modelExpanded }) {
-                OutlinedTextField(
-                    value = prefsState.geminiModel, onValueChange = {}, readOnly = true,
-                    label = { Text("Model AI") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(modelExpanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth(), singleLine = true
-                )
-                ExposedDropdownMenu(expanded = modelExpanded, onDismissRequest = { modelExpanded = false }) {
-                    GEMINI_MODEL_OPTIONS.forEach { m ->
-                        DropdownMenuItem(
-                            text = { Text(m, fontSize = 13.sp) },
-                            onClick = { scope.launch { prefs.setGeminiModel(m) }; modelExpanded = false }
-                        )
-                    }
+            ExposedDropdownMenu(expanded = modelExpanded, onDismissRequest = { modelExpanded = false }) {
+                GEMINI_MODELS.forEach { (id, labelRes) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(labelRes), fontSize = 13.sp) },
+                        onClick = {
+                            scope.launch { prefs.setGeminiModel(id) }
+                            modelExpanded = false
+                        }
+                    )
                 }
             }
         }
         Button(onClick = {
             scope.launch {
                 prefs.setGeminiKey(apiKey.trim())
-                prefs.setOpenRouterKey(openRouterKey.trim())
-                prefs.setCloudTtsKey(cloudTtsKey.trim())
-                msg = if (apiKey.isBlank() && openRouterKey.isBlank()) removedMsg
-                else savedMsg
+                msg = if (apiKey.isBlank()) removedMsg else savedMsg
             }
         }, modifier = Modifier.fillMaxWidth()) {
-            Text(if (apiKey.isBlank() && openRouterKey.isBlank()) stringResource(R.string.api_use_free) else stringResource(R.string.api_save))
+            Text(if (apiKey.isBlank()) stringResource(R.string.api_use_free) else stringResource(R.string.api_save))
         }
         msg?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
     }
