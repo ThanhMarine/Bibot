@@ -620,4 +620,7 @@
     <string name="announce_refresh">Refresh</string>
     <string name="announce_updated">Updated: %1$s</string>
     <string name="announce_cache_only">Could not refresh - showing the saved copy.</string>
+    <string name="app_version_format">Bibot v%1$s (Build %2$d)</string>
+    <string name="doc_scan_device">Scan device storage</string>
+    <string name="doc_scan_device_hint">Scan common folders (Download, Documents, Bibot) for book files</string>
 </resources>

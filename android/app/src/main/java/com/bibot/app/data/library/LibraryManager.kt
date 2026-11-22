@@ -185,12 +185,17 @@ class LibraryManager(private val context: Context) {
     }
 
     fun getFileName(uri: Uri): String? {
-        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0) cursor.getString(idx) else null
-            } else null
-        }
+        val fromResolver = try {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) cursor.getString(idx) else null
+                } else null
+            }
+        } catch (_: Exception) { null }
+        if (!fromResolver.isNullOrBlank()) return fromResolver
+        val path = uri.path
+        return if (!path.isNullOrBlank()) File(path).name.takeIf { it.isNotBlank() } else null
     }
 
     fun scanDir(dir: File, acc: MutableList<DocFileItem>) {
@@ -223,26 +228,73 @@ class LibraryManager(private val context: Context) {
         files.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
     }
 
+    private val bookExts = setOf("pdf", "epub", "txt", "md", "markdown", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "doc", "docx", "rtf", "html", "htm")
+
+    private fun isBookFile(name: String): Boolean = name.substringAfterLast('.', "").lowercase() in bookExts
+
     suspend fun scanStorage(): List<DocFileItem> = withContext(Dispatchers.IO) {
         val files = mutableListOf<DocFileItem>()
-        FilePaths.audioBooks(context).walkTopDown().filter { it.isFile }.forEach { f ->
+        val seen = HashSet<String>()
+
+        fun addFile(f: File) {
+            if (!f.isFile || !isBookFile(f.name)) return
+            val key = f.absolutePath
+            if (!seen.add(key)) return
             files += DocFileItem(
                 name = f.name, path = f.absolutePath,
                 isDirectory = false, mimeType = getMimeType(f.name), sizeBytes = f.length(), documentFile = null
             )
         }
-        val extDir = ContextCompat.getExternalFilesDirs(context, null).firstOrNull()
-        extDir?.let { base -> scanDir(base, files) }
-        files.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
+
+        fun scanShallow(dir: File?, maxDepth: Int = 3, depth: Int = 0) {
+            if (dir == null || !dir.exists() || !dir.canRead() || depth > maxDepth || files.size >= 500) return
+            try {
+                dir.listFiles()?.forEach { f ->
+                    if (f.name.startsWith(".")) return@forEach
+                    if (f.isDirectory) {
+                        if (depth < maxDepth) scanShallow(f, maxDepth, depth + 1)
+                    } else addFile(f)
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 1) App-managed book dirs
+        scanShallow(FilePaths.audioBooks(context), maxDepth = 4)
+        ContextCompat.getExternalFilesDirs(context, null).forEach { scanShallow(it, maxDepth = 4) }
+
+        // 2) Common public dirs (best-effort; may be restricted on Android 11+ without MANAGE_EXTERNAL_STORAGE)
+        val pub = android.os.Environment.getExternalStorageDirectory()
+        listOf("Download", "Downloads", "Documents", "Books", "Bibot", "Roms/Books", "ebook", "Ebook").forEach { rel ->
+            scanShallow(File(pub, rel), maxDepth = 3)
+        }
+        // Also direct common roots
+        scanShallow(File(pub, "Download"), maxDepth = 3)
+
+        files.sortedWith(compareBy({ it.name.lowercase() }))
     }
 
-    /** Copy file từ SAF Uri vào kệ → tên file đích (throw khi lỗi, caller báo). */
+    /** Copy file từ SAF Uri hoặc file path vào kệ → tên file đích (throw khi lỗi, caller báo). */
     suspend fun importFile(uri: Uri): String = withContext(Dispatchers.IO) {
+        val rawPath = uri.path
+        val srcFile = when {
+            uri.scheme == "file" && !rawPath.isNullOrBlank() -> File(rawPath)
+            uri.scheme.isNullOrBlank() && !rawPath.isNullOrBlank() -> File(rawPath)
+            else -> null
+        }
+        if (srcFile != null && srcFile.exists() && srcFile.isFile) {
+            val destName = srcFile.name.ifBlank { "file_${System.currentTimeMillis()}" }
+            val dest = File(FilePaths.audioBooks(context), destName)
+            if (srcFile.absolutePath != dest.absolutePath) {
+                srcFile.inputStream().use { input -> dest.outputStream().use { out -> input.copyTo(out) } }
+            }
+            return@withContext destName
+        }
+
         val destName = getFileName(uri) ?: "file_${System.currentTimeMillis()}"
         val dest = File(FilePaths.audioBooks(context), destName)
         context.contentResolver.openInputStream(uri)?.use { input ->
             dest.outputStream().use { out -> input.copyTo(out) }
-        }
+        } ?: throw IllegalArgumentException("Không mở được file: $uri")
         destName
     }
 

@@ -102,8 +102,8 @@ data class BibotPrefs(
     val readerPagingMode: String = "continuous",
     val readerPageTheme: String = "normal",
     val readerPageRotation: String = "0",
-    // E2.3: crop lề trắng PDF PAGE
-    val readerCropMargins: Boolean = false,
+    // E2.3: crop lề trắng PDF PAGE (mặc định bật để dàn trang thông minh, tăng vùng đọc)
+    val readerCropMargins: Boolean = true,
     // Weather: thành phố chọn sẵn (id trong WeatherApi.CITIES), mặc định "hcm"
     val weatherCity: String = "hcm"
 )
@@ -140,7 +140,7 @@ class BibotPreferences(private val context: Context) {
             readerPagingMode = p[PrefKeys.READER_PAGING_MODE] ?: "continuous",
             readerPageTheme = p[PrefKeys.READER_PAGE_THEME] ?: "normal",
             readerPageRotation = p[PrefKeys.READER_PAGE_ROTATION] ?: "0",
-            readerCropMargins = p[PrefKeys.READER_CROP_MARGINS] ?: false
+            readerCropMargins = p[PrefKeys.READER_CROP_MARGINS] ?: true
         )
     }
     val geminiKeyFlow: Flow<String> = context.bibotDataStore.data.map { it[PrefKeys.GEMINI_API_KEY] ?: "" }

@@ -128,13 +128,28 @@ fun Modifier.pdfPageZoomGestures(state: PdfPageZoomState): Modifier = pointerInp
                 val rawCentroid = event.calculateCentroid()
                 val centroid = if (rawCentroid.x.isFinite() && rawCentroid.y.isFinite()) rawCentroid
                 else Offset(view.width / 2f, view.height / 2f)
+                val before = state.offset
+                val beforeScale = state.scale
                 state.transform(
                     zoomChange = zoomChange,
                     panChange = panChange,
                     viewSize = view,
                     centroid = centroid
                 )
-                event.changes.forEach { change -> if (change.pressed) change.consume() }
+                // Khi zoom 1 ngón: nếu đã chạm mép dọc và kéo tiếp ra ngoài, nhả event
+                // để LazyColumn cuộn sang trang trước/sau (tránh "kẹt" tại trang đang zoom).
+                val atYEdge = run {
+                    val maxY = ((state.scale - PDF_ZOOM_MIN) * view.height / 2f).coerceAtLeast(0f)
+                    val atTop = before.y >= maxY - 0.5f && panChange.y > 0f
+                    val atBottom = before.y <= -maxY + 0.5f && panChange.y < 0f
+                    maxY > 0f && (atTop || atBottom)
+                }
+                val singleFingerPan = event.changes.count { it.pressed } < 2 &&
+                    kotlin.math.abs(zoomChange - 1f) < 0.01f
+                val shouldReleaseToList = singleFingerPan && atYEdge && beforeScale > PDF_ZOOM_MIN + 0.001f
+                if (!shouldReleaseToList) {
+                    event.changes.forEach { change -> if (change.pressed) change.consume() }
+                }
             }
         } while (event.changes.any { it.pressed })
     }

@@ -78,6 +78,9 @@ private val NIGHT_COLOR_MATRIX = floatArrayOf(
     0f, 0f, 0f, 1f, 0f
 )
 
+/** Lề khung trang PDF mỗi bên (dp) — đủ nhìn thấy nhưng không làm chữ nhỏ lại. */
+private const val PDF_PAGE_INSET_DP = 8f
+
 /**
  * E1.1 — Đường DISPLAY thuần cho PDF (VIEW, không chứa logic TTS):
  * Android `PdfRenderer` framework (+0 lib, tránh GPL) + pool bitmap LRU +
@@ -139,6 +142,9 @@ fun PdfPageView(
     // scroll cộng dồn chiều cao thiếu → nhảy rơi sai index (vd land 3 thay vì 8)
     // rồi bị anchor đứng yên ở đó khi bitmap render.
     val pageRatios = remember(file.absolutePath) { mutableStateMapOf<Int, Float>() }
+    // Tỉ lệ sau crop (theo bitmap đã cắt) để placeholder/box dùng đúng tỉ lệ hiển thị,
+    // tránh letterbox làm lề trắng quay lại.
+    val croppedRatios = remember(file.absolutePath) { mutableStateMapOf<Int, Float>() }
     // E2.3: số đo crop — render đang chạy với cờ crop CŨ khi user đổi toggle sẽ
     // bị bỏ (ép recycle) thay vì chèn bitmap sai trạng thái vào pool.
     var cropEpoch by remember(file.absolutePath) { mutableIntStateOf(0) }
@@ -188,11 +194,11 @@ fun PdfPageView(
         if (failed.isNotEmpty()) failed.clear()
     }
 
-    // E2.3: đổi CROP LỀ → render lại pool theo cờ mới. KHÔNG đụng pageRatios
-    // (tỉ lệ khung hình trang gốc giữ nguyên) → placeholder giữ nguyên chiều cao,
-    // ảnh crop letterbox trong khung → anchor/scroll đứng yên (bài học E2.3).
+    // Đổi CROP LỀ → render lại pool theo cờ mới. Xoá crop ratios để placeholder
+    // dùng lại tỉ lệ phù hợp; khi bitmap crop tới, sẽ lưu tỉ lệ mới và fill-width.
     LaunchedEffect(cropMargins) {
         cropEpoch++
+        croppedRatios.clear()
         if (bitmaps.isNotEmpty()) {
             for (b in bitmaps.values) { try { b.recycle() } catch (_: Exception) {} }
             bitmaps.clear()
@@ -290,6 +296,7 @@ fun PdfPageView(
         if (bitmaps.containsKey(idx) || failed.containsKey(idx)) return
         val r = renderer ?: return
         val epoch = cropEpoch
+        val wantCrop = cropMargins
         try {
             val bmp = renderMutex.withLock {
                 withContext(Dispatchers.IO) {
@@ -299,7 +306,7 @@ fun PdfPageView(
                         ?: renderPdfBitmap(r, idx, widthPx / 2, pageRotation)
                     // E2.3: crop lề trắng lúc render — SmartCrop IsRectWhite; null =
                     // không cắt được → giữ nguyên trang gốc (an toàn).
-                    if (raw != null && cropMargins) cropBitmapMargins(raw) else raw
+                    if (raw != null && wantCrop) cropBitmapMargins(raw) else raw
                 }
             }
             when {
@@ -307,7 +314,12 @@ fun PdfPageView(
                 // Toggle crop giữa chừng → kết quả sinh với cờ CŨ bị bỏ (recycle),
                 // tránh hiển thị bitmap không khớp trạng thái hiện tại.
                 epoch != cropEpoch -> try { bmp.recycle() } catch (_: Exception) {}
-                else -> bitmaps[idx] = bmp
+                else -> {
+                    if (wantCrop && bmp.width > 0 && bmp.height > 0) {
+                        croppedRatios[idx] = bmp.width.toFloat() / bmp.height.toFloat()
+                    }
+                    bitmaps[idx] = bmp
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             // Effect khác (đổi crop/xoay) hủy giữa chừng ≠ trang lỗi — không đánh dấu failed.
@@ -388,8 +400,8 @@ fun PdfPageView(
         // (ảnh đã xoay → bmp w/h tự là tỉ lệ hiệu dụng; placeholder → effPageRatio).
         // E2.3: 2 bên PHẢI trùng nhau, không là scrollToItem rơi index.
         fun pageSizeDp(ratioEff: Float, availW: Dp): Pair<Dp, Dp> {
-            val maxW = availW - 8.dp       // padding khung giấy 4dp × 2
-            val maxH = boxH - 24.dp        // chừa nhịp trên/dưới
+            val maxW = (availW - PDF_PAGE_INSET_DP.dp * 2).coerceAtLeast(100.dp)
+            val maxH = (boxH - 16.dp).coerceAtLeast(100.dp)  // chừa nhịp trên/dưới
             val (w, h) = fitPageSize(maxW.value, maxH.value, ratioEff, fitMode)
             return w.dp to h.dp
         }
@@ -402,14 +414,12 @@ fun PdfPageView(
             }
             val bmp = bitmaps[idx]
             val isSel = selectedPage == idx
-            // E2.3 crop: khung LUÔN theo tỉ lệ trang GỐC (pageRatios) — bitmap đã
-            // cắt letterbox trong khung → placeholder == kích thước khi render
-            // (cùng invariant với E2.3, không xê dịch anchor). Không crop: giữ
-            // nhịp cũ, bmp thắng (trùng tỉ lệ gốc ± làm tròn).
-            val ratioEff = if (!cropMargins && bmp != null && !bmp.isRecycled) {
-                bmp.width.toFloat() / bmp.height.toFloat()
-            } else {
-                effPageRatio(pageRatios[idx] ?: 0.707f, pageRotation)
+            // Fit thông minh: khi có bitmap (đã crop/xoay), dùng tỉ lệ bitmap để fill-width,
+            // tối thiểu lề. Khi chưa có bitmap, dùng tỉ lệ crop đã biết hoặc tỉ lệ trang gốc.
+            val ratioEff = when {
+                bmp != null && !bmp.isRecycled -> bmp.width.toFloat() / bmp.height.toFloat()
+                cropMargins && croppedRatios[idx] != null -> croppedRatios[idx]!!
+                else -> effPageRatio(pageRatios[idx] ?: 0.707f, pageRotation)
             }
             val (pw, ph) = pageSizeDp(ratioEff, availW)
             // UX 2026-11-16: zoom + pan TẠI CHỖ cho từng trang (pinch 1×–4×, chạm
@@ -544,7 +554,7 @@ fun PdfPageView(
                 } else {
                     PagePane(
                         pair, boxW,
-                        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
+                        Modifier.fillMaxWidth().padding(horizontal = PDF_PAGE_INSET_DP.dp, vertical = 3.dp)
                     )
                 }
             }
@@ -560,7 +570,15 @@ fun PdfPageView(
 private fun cropBitmapMargins(src: Bitmap): Bitmap {
     return try {
         val rect = SmartCrop.autoCrop(src) ?: return src
-        val out = Bitmap.createBitmap(src, rect.left, rect.top, rect.width(), rect.height())
+        // Giữ lại một viền trắng mỏng quanh vùng chữ: crop sát mép làm chữ dính
+        // ngay lề màn hình (khó đọc). ~2.5% chiều rộng trang, tối thiểu 8px.
+        val padX = (src.width * 0.025f).toInt().coerceIn(8, 48)
+        val padY = (src.height * 0.012f).toInt().coerceIn(8, 40)
+        val left = (rect.left - padX).coerceAtLeast(0)
+        val top = (rect.top - padY).coerceAtLeast(0)
+        val right = (rect.right + padX).coerceAtMost(src.width)
+        val bottom = (rect.bottom + padY).coerceAtMost(src.height)
+        val out = Bitmap.createBitmap(src, left, top, right - left, bottom - top)
         if (out !== src) {
             try { src.recycle() } catch (_: Exception) {}
         }

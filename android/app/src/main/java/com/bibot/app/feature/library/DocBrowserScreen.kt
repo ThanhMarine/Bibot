@@ -219,15 +219,24 @@ fun DocBrowserScreen(
 
     // SAF: Pick file(s) to add to bookstore (FAB + dùng)
     val filePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
             scope.launch {
                 try {
                     status = context.getString(R.string.doc_adding)
-                    val destName = lib.importFile(uri)
+                    var ok = 0
+                    for (uri in uris) {
+                        try {
+                            context.contentResolver.takePersistableUriPermission(
+                                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        } catch (_: Exception) {}
+                        lib.importFile(uri)
+                        ok++
+                    }
                     refreshLibrary()
-                    status = context.getString(R.string.doc_added_to_books, destName)
+                    status = context.getString(R.string.doc_added_to_books, "$ok file")
                 } catch (e: Exception) {
                     status = context.getString(R.string.doc_add_fail, e.message ?: "")
                 }
@@ -431,7 +440,12 @@ fun DocBrowserScreen(
         Scaffold(
             floatingActionButton = {
                 // B1.3: FAB + mở SAF (giữ picker cũ).
-                FloatingActionButton(onClick = { filePicker.launch("*/*") }) {
+                FloatingActionButton(onClick = {
+                    filePicker.launch(arrayOf(
+                        "application/pdf", "application/epub+zip", "text/plain", "text/markdown",
+                        "application/octet-stream", "*/*"
+                    ))
+                }) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.lib_add_desc))
                 }
             }
@@ -491,7 +505,12 @@ fun DocBrowserScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 // Empty state có hướng dẫn (hết màn trắng — B1.3).
-                                TextButton(onClick = { filePicker.launch("*/*") }) {
+                                TextButton(onClick = {
+                                    filePicker.launch(arrayOf(
+                                        "application/pdf", "application/epub+zip", "text/plain", "text/markdown",
+                                        "application/octet-stream", "*/*"
+                                    ))
+                                }) {
                                     Text(stringResource(R.string.doc_pick_file), fontSize = 12.sp)
                                 }
                             }
@@ -672,12 +691,21 @@ fun DocBrowserScreen(
                             Spacer(Modifier.width(4.dp))
                             Text(stringResource(R.string.doc_folder_saf), fontSize = 12.sp)
                         }
-                        TextButton(onClick = { requestLegacyPermission() }) {
-                            Text("Permission", fontSize = 12.sp)
+                        TextButton(onClick = {
+                            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                                android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (granted) scope.launch { scanStorage() } else requestLegacyPermission()
+                        }) {
+                            Text(stringResource(R.string.doc_scan_device), fontSize = 12.sp)
                         }
                         Spacer(Modifier.weight(1f))
                         if (isLoadingStorage) LinearProgressIndicator(modifier = Modifier.weight(0.3f))
                     }
+                    Text(
+                        stringResource(R.string.doc_scan_device_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Folder,
@@ -703,8 +731,12 @@ fun DocBrowserScreen(
                     }
                 }
 
-                val storageDirs = storageFiles.filter { it.isDirectory }.take(20)
-                val storageFilesList = storageFiles.filter { !it.isDirectory }
+                val q = debouncedQuery.trim()
+                val filteredStorage = if (q.isBlank()) storageFiles else storageFiles.filter {
+                    it.name.contains(q, ignoreCase = true) || it.mimeType.contains(q, ignoreCase = true)
+                }
+                val storageDirs = filteredStorage.filter { it.isDirectory }.take(20)
+                val storageFilesList = filteredStorage.filter { !it.isDirectory }
                     .sortedWith(NaturalSort.docFileItemNameComparator()) // A3.4: natural-sort cho comic pages
                     .take(50)
                 if (storageDirs.isNotEmpty()) {
@@ -755,7 +787,7 @@ fun DocBrowserScreen(
                     }
                 }
 
-                if (filteredStorageEmpty(storageFiles, isLoadingStorage, debouncedQuery)) {
+                if (q.isNotBlank() && filteredStorage.none { !it.isDirectory } && !isLoadingStorage && storageFiles.isNotEmpty()) {
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                             Column(Modifier.padding(12.dp)) {
@@ -832,15 +864,4 @@ private fun LibraryCover(book: BookMeta) {
     }
 }
 
-private fun filteredStorageEmpty(
-    storageFiles: List<DocFileItem>,
-    isLoadingStorage: Boolean,
-    debouncedQuery: String
-): Boolean {
-    if (isLoadingStorage || storageFiles.isEmpty() || debouncedQuery.isBlank()) return false
-    return storageFiles.none {
-        it.name.contains(debouncedQuery, ignoreCase = true) ||
-            it.mimeType.contains(debouncedQuery, ignoreCase = true)
-    }
-}
 // (DocFileItem + getFileName đã dời vào data.library.LibraryManager — core dùng chung.)

@@ -380,6 +380,18 @@ fun SettingsScreen(
             }
         }
 
+        item {
+            val verName = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "?" }
+            val verCode = try { BuildConfig.VERSION_CODE } catch (_: Exception) { 0 }
+            Text(
+                text = stringResource(R.string.app_version_format, verName, verCode),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
         item { Spacer(Modifier.height(32.dp)) }
     }
 }
@@ -1653,7 +1665,14 @@ private fun CreditsContent() {
         stringResource(R.string.licenses_fluent) to "https://github.com/microsoft/fluentui-emoji",
         stringResource(R.string.licenses_material) to "https://fonts.google.com/icons"
     )
+    val verName = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "?" }
+    val verCode = try { BuildConfig.VERSION_CODE } catch (_: Exception) { 0 }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = stringResource(R.string.app_version_format, verName, verCode),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
         Text(
             stringResource(R.string.licenses_intro),
             style = MaterialTheme.typography.bodyMedium,
