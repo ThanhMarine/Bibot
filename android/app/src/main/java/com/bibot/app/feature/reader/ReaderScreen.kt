@@ -1410,12 +1410,12 @@ fun ReaderScreen(
                     FilledTonalButton(onClick = { scope.launch { repo.refreshAll(); status = repo.lastSyncWarning.value ?: context.getString(R.string.book_refreshed, repo.books.value.size) } }) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.book_refresh), fontSize = 12.sp)
+                        Text(stringResource(R.string.book_refresh))
                     }
                     FilledTonalButton(onClick = { scope.launch { repo.refreshAll(); status = context.getString(R.string.book_scanned, repo.localBooks().size) } }) {
                         Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.book_scan_local), fontSize = 12.sp)
+                        Text(stringResource(R.string.book_scan_local))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1430,7 +1430,7 @@ fun ReaderScreen(
                     Button(onClick = {
                         if (urlInput.isBlank()) { status = context.getString(R.string.book_enter_url_first); return@Button }
                         scope.launch { status = context.getString(R.string.reader_loading_url); try { val f = repo.downloadFromUrl(urlInput.trim()); status = context.getString(R.string.book_downloaded, f.name); repo.refreshAll() } catch (e: Exception) { status = context.getString(R.string.reader_error, e.message ?: "") } }
-                    }) { Text(stringResource(R.string.book_download), fontSize = 12.sp) }
+                    }) { Text(stringResource(R.string.book_download)) }
                 }
             }
             if (enBooks.isNotEmpty()) {
@@ -1495,9 +1495,9 @@ fun ReaderScreen(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(story.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                            Text(collection.resolveLang(story) + " \u2022 " + story.source + " \u2022 " + (if (story.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + story.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                            Text(collection.resolveLang(story) + " \u2022 " + story.source + " \u2022 " + (if (story.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + story.displaySize, style = MaterialTheme.typography.labelSmall)
                         }
-                        FilledTonalButton(onClick = { loadBook(story) }) { Text(stringResource(if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read), fontSize = 12.sp) }
+                        FilledTonalButton(onClick = { loadBook(story) }) { Text(stringResource(if (collection.useStoryStrings) R.string.reader_play_tell else R.string.reader_play_read)) }
                         // B2/B5.8: icon info → màn About của truyện (metadata + Wiki).
                         IconButton(onClick = { onOpenDetail(story) }) {
                             Icon(Icons.Default.Info, contentDescription = stringResource(R.string.nav_about), modifier = Modifier.size(20.dp))
@@ -1695,8 +1695,7 @@ fun ReaderScreen(
                                     (savedAnchor?.page ?: 0) + 1,
                                     pageCount.coerceAtLeast(1)
                                 )
-                            else stringResource(R.string.chrome_resume, savedResume.sent.coerceAtLeast(0) + 1),
-                            fontSize = 12.sp
+                            else stringResource(R.string.chrome_resume, savedResume.sent.coerceAtLeast(0) + 1)
                         )
                     }
                 }
@@ -2166,7 +2165,7 @@ private fun ReaderCard(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(book.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                Text(book.source + " • " + book.lang.uppercase() + " • " + book.mimeType + " • " + (if (book.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + book.displaySize, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                Text(book.source + " • " + book.lang.uppercase() + " • " + book.mimeType + " • " + (if (book.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) + " " + book.displaySize, style = MaterialTheme.typography.labelSmall)
             }
             IconButton(onClick = onInfo) {
                 Icon(Icons.Default.Info, contentDescription = stringResource(R.string.nav_about), modifier = Modifier.size(20.dp))
@@ -2174,7 +2173,7 @@ private fun ReaderCard(
             if (!book.isDownloaded) {
                 IconButton(onClick = onDownload) { Icon(Icons.Default.Download, contentDescription = stringResource(R.string.book_download)) }
             } else {
-                FilledTonalButton(onClick = onLoad) { Text(stringResource(R.string.book_read), fontSize = 12.sp) }
+                FilledTonalButton(onClick = onLoad) { Text(stringResource(R.string.book_read)) }
                 IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.book_delete), modifier = Modifier.size(20.dp)) }
             }
         }

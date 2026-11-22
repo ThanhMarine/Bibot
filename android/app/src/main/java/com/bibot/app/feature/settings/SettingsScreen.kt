@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibot.app.BuildConfig
 import com.bibot.app.ui.icon.BibotIcons
+import com.bibot.app.ui.components.BibotIconBadge
+import com.bibot.app.ui.components.BibotInfoCard
 import com.bibot.app.ui.theme.BibotIconSize
 import com.bibot.app.feature.weather.WeatherApi
 import com.bibot.app.feature.weather.City
@@ -138,7 +140,8 @@ fun SettingsScreen(
             Text(
                 stringResource(R.string.set_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
             )
         }
 
@@ -172,7 +175,7 @@ fun SettingsScreen(
                                         try { AppLocale.applyAndRecreate(activity, v) } catch (_: Exception) {}
                                     }
                                 },
-                                label = { Text(label, fontSize = 12.sp) }
+                                label = { Text(label) }
                             )
                         }
                     }
@@ -209,7 +212,7 @@ fun SettingsScreen(
                                         try { prefs.setWeatherCity(WeatherApi.encodeCity(c)) } catch (_: Exception) {}
                                     }
                                 },
-                                label = { Text(c.chip, fontSize = 12.sp) }
+                                label = { Text(c.chip) }
                             )
                         }
                     }
@@ -482,22 +485,8 @@ fun SettingsScreen(
         item {
             val verName = try { BuildConfig.VERSION_NAME } catch (_: Exception) { "?" }
             val verCode = try { BuildConfig.VERSION_CODE } catch (_: Exception) { 0 }
-            // Dòng nhận diện phiên bản: dùng thẻ nổi bật thay vì chữ nhỏ/mờ.
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Text(
-                    text = stringResource(R.string.app_version_format, verName, verCode),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 16.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
+            // Dòng nhận diện phiên bản: thẻ nổi bật dùng chung.
+            BibotInfoCard(text = stringResource(R.string.app_version_format, verName, verCode))
         }
 
         item { Spacer(Modifier.height(32.dp)) }
@@ -523,17 +512,7 @@ private fun ExpandableSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (icon != null) {
-                    Box(
-                        Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(BibotIconSize.Section),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    BibotIconBadge(icon)
                     Spacer(Modifier.width(10.dp))
                 }
                 Column(Modifier.weight(1f)) {
@@ -637,7 +616,7 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
                 Text(stringResource(R.string.common_preview), style = MaterialTheme.typography.labelSmall)
                 Text(
                     BotPromptManager.build(template = botPrompt, persona = persona, style = botStyle, tone = botTone, maxWords = botMaxWords),
-                    style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, lineHeight = 16.sp
+                    style = MaterialTheme.typography.bodySmall, lineHeight = 16.sp
                 )
             }
         }
@@ -706,7 +685,7 @@ private fun ApiKeysContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
             ExposedDropdownMenu(expanded = modelExpanded, onDismissRequest = { modelExpanded = false }) {
                 GEMINI_MODELS.forEach { (id, labelRes) ->
                     DropdownMenuItem(
-                        text = { Text(stringResource(labelRes), fontSize = 13.sp) },
+                        text = { Text(stringResource(labelRes)) },
                         onClick = {
                             scope.launch { prefs.setGeminiModel(id) }
                             modelExpanded = false
@@ -774,7 +753,7 @@ private fun VoiceContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
             ExposedDropdownMenu(expanded = ttsExpanded, onDismissRequest = { ttsExpanded = false }) {
                 TTS_PRIORITY_VALUES.forEach { v ->
                     DropdownMenuItem(
-                        text = { Text(ttsLabel(v), fontSize = 13.sp) },
+                        text = { Text(ttsLabel(v)) },
                         onClick = { scope.launch { prefs.setTtsPriority(v) }; ttsExpanded = false }
                     )
                 }
@@ -1090,10 +1069,10 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
 
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { showAdvanced = !showAdvanced }) {
-                Text(if (showAdvanced) stringResource(R.string.common_hide_advanced) else stringResource(R.string.common_advanced), fontSize = 11.sp)
+                Text(if (showAdvanced) stringResource(R.string.common_hide_advanced) else stringResource(R.string.common_advanced))
             }
             TextButton(onClick = handleWipeBooks, enabled = !wipeBusy && !syncing && busyId == null) {
-                Text(if (wipeBusy) stringResource(R.string.common_deleting) else stringResource(R.string.books_delete_dl), fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                Text(if (wipeBusy) stringResource(R.string.common_deleting) else stringResource(R.string.books_delete_dl), color = MaterialTheme.colorScheme.error)
             }
         }
 
@@ -1114,8 +1093,7 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
                     enabled = !syncing, modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        if (signedInEmail != null) stringResource(R.string.books_signed_in, signedInEmail ?: "") else stringResource(R.string.books_signin),
-                        fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                        if (signedInEmail != null) stringResource(R.string.books_signed_in, signedInEmail ?: "") else stringResource(R.string.books_signin), maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
                 OutlinedButton(
@@ -1130,7 +1108,7 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
                         }
                     },
                     enabled = !syncing
-                ) { Text(stringResource(R.string.common_save), fontSize = 12.sp) }
+                ) { Text(stringResource(R.string.common_save)) }
             }
         }
 
@@ -1208,7 +1186,6 @@ private fun DataResetSection() {
         ) {
             Text(
                 if (confirm) stringResource(R.string.data_confirm) else stringResource(R.string.data_reset_all),
-                fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -1239,7 +1216,7 @@ private fun BookGroup(
         )
         if (list.size > collapsedLimit) {
             TextButton(onClick = onToggle, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Text(if (expanded) stringResource(R.string.common_collapse) else stringResource(R.string.common_view_all), fontSize = 11.sp)
+                Text(if (expanded) stringResource(R.string.common_collapse) else stringResource(R.string.common_view_all))
             }
         }
     }
@@ -1280,7 +1257,6 @@ private fun BookLibraryItem(
                     (if (book.isDownloaded) stringResource(R.string.book_is_downloaded) else stringResource(R.string.book_not_downloaded)) +
                     if (book.displaySize.isNotEmpty()) " • ${book.displaySize}" else "",
                 style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
                 color = if (book.isDownloaded) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary
             )
         }
@@ -1291,12 +1267,12 @@ private fun BookLibraryItem(
                 onClick = onDownload,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
                 enabled = !busy
-            ) { Text(stringResource(R.string.common_download), fontSize = 11.sp) }
+            ) { Text(stringResource(R.string.common_download)) }
         } else if (book.isDownloaded && onDelete != null) {
             TextButton(
                 onClick = onDelete,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-            ) { Text(stringResource(R.string.common_delete), fontSize = 11.sp, color = MaterialTheme.colorScheme.error) }
+            ) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -1330,8 +1306,8 @@ private fun ModelCard(
                 if (installed) Badge { Text(stringResource(R.string.common_installed)) } else Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) { Text(stringResource(R.string.common_not_installed)) }
             }
             Spacer(Modifier.height(6.dp))
-            Text(model.description, style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
-            if (installed) Text(stringResource(R.string.voice_used_mb, installedBytes / (1024*1024)), style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+            Text(model.description, style = MaterialTheme.typography.bodySmall)
+            if (installed) Text(stringResource(R.string.voice_used_mb, installedBytes / (1024*1024)), style = MaterialTheme.typography.labelSmall)
             when (downloadState) {
                 is DownloadState.Downloading -> { LinearProgressIndicator(progress = { downloadState.percent / 100f }, modifier = Modifier.fillMaxWidth()); Text(stringResource(R.string.set_downloading, downloadState.percent), style = MaterialTheme.typography.labelSmall) }
                 is DownloadState.Unzipping -> { LinearProgressIndicator(progress = { downloadState.percent / 100f }, modifier = Modifier.fillMaxWidth()); Text(stringResource(R.string.set_unzipping, downloadState.percent), style = MaterialTheme.typography.labelSmall) }
@@ -1341,7 +1317,7 @@ private fun ModelCard(
             Spacer(Modifier.height(6.dp))
             // File tải về (Download) thường bị gắn MIME lạ (.onnx/.tar.bz2) nên picker
             // DÙNG */* để luôn thấy file — không lọc MIME chặt gây "không tìm thấy file".
-            Text(pickedHint, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
+            Text(pickedHint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!installed && downloadState !is DownloadState.Downloading && downloadState !is DownloadState.Unzipping) {
                     Button(onClick = onDownload, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_download)) }
@@ -1351,7 +1327,7 @@ private fun ModelCard(
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Text(stringResource(R.string.common_install_file), fontSize = 11.sp)
+                            Text(stringResource(R.string.common_install_file))
                         }
                     }
                 }
@@ -1381,13 +1357,13 @@ private fun PendingOnnxRow(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.voice_picked_lang, langLabel, name), style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(stringResource(R.string.voice_step2_optional), style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                Text(stringResource(R.string.voice_step2_optional), style = MaterialTheme.typography.labelSmall)
             }
             Button(onClick = onInstallWithoutJson, enabled = !busy, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
-                Text(stringResource(R.string.common_install_now), fontSize = 11.sp)
+                Text(stringResource(R.string.common_install_now))
             }
             TextButton(onClick = onClear, enabled = !busy, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                Text(stringResource(R.string.common_cancel), fontSize = 11.sp)
+                Text(stringResource(R.string.common_cancel))
             }
         }
     }
@@ -1492,17 +1468,16 @@ private fun PiperCompactRow(showAdvanced: Boolean, onToggleAdvanced: () -> Unit)
                     busy = false
                 }
             }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                Text(if (busy) "$progress%" else stringResource(R.string.voice_piper_dl), fontSize = 12.sp)
+                Text(if (busy) "$progress%" else stringResource(R.string.voice_piper_dl))
             }
             OutlinedButton(onClick = onToggleAdvanced, enabled = !busy) {
-                Text(if (showAdvanced) stringResource(R.string.common_hide_singles) else stringResource(R.string.common_install_file), fontSize = 12.sp)
+                Text(if (showAdvanced) stringResource(R.string.common_hide_singles) else stringResource(R.string.common_install_file))
             }
         }
         if (showAdvanced) {
             Text(
                 stringResource(R.string.voice_pick_tip),
                 style = MaterialTheme.typography.labelSmall,
-                fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.secondary
             )
             PendingOnnxRow(
@@ -1539,17 +1514,17 @@ private fun PiperCompactRow(showAdvanced: Boolean, onToggleAdvanced: () -> Unit)
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { enginePicker.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.voice_pick_engine), fontSize = 11.sp)
+                    Text(stringResource(R.string.voice_pick_engine))
                 }
                 OutlinedButton(onClick = { voiceViPicker.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.voice_pick_vi), fontSize = 11.sp)
+                    Text(stringResource(R.string.voice_pick_vi))
                 }
                 OutlinedButton(onClick = { voiceEnPicker.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.voice_pick_en), fontSize = 11.sp)
+                    Text(stringResource(R.string.voice_pick_en))
                 }
             }
             OutlinedButton(onClick = { espeakPicker.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.voice_pick_espeak), fontSize = 11.sp)
+                Text(stringResource(R.string.voice_pick_espeak))
             }
         }
         msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
@@ -1620,7 +1595,7 @@ private fun AdsRewardContent() {
                 busy = false
             }
         }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-            Text(if (busy) stringResource(R.string.common_opening) else stringResource(R.string.ads_watch_btn), fontSize = 12.sp)
+            Text(if (busy) stringResource(R.string.common_opening) else stringResource(R.string.ads_watch_btn))
         }
     }
 }
@@ -1738,7 +1713,7 @@ private fun VipContent() {
                 }
             }
         }, enabled = !busy && code.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-            Text(if (busy) stringResource(R.string.common_checking) else stringResource(R.string.common_redeem), fontSize = 12.sp)
+            Text(if (busy) stringResource(R.string.common_checking) else stringResource(R.string.common_redeem))
         }
     }
 }
@@ -1939,7 +1914,7 @@ private fun AnnounceHistoryContent() {
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.announce_refresh), fontSize = 12.sp)
+            Text(stringResource(R.string.announce_refresh))
         }
     }
     if (stale) {
@@ -2003,7 +1978,6 @@ private fun AnnounceHistoryContent() {
                         Text(
                             item.publishedAt,
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }

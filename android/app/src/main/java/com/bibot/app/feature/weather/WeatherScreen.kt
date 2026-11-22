@@ -460,7 +460,7 @@ fun WeatherScreen(
                     TextButton(onClick = { scope.launch { loadWeather(city, forceRefresh = true) } }) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.common_refresh), fontSize = 12.sp)
+                        Text(stringResource(R.string.common_refresh))
                     }
                 }
                 Text(
@@ -565,7 +565,7 @@ fun WeatherScreen(
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text("${f.tempMax.toInt()}° / ${f.tempMin.toInt()}°", style = MaterialTheme.typography.titleSmall)
-                                    Text(stringResource(R.string.wx_precip, f.precipProb), style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                    Text(stringResource(R.string.wx_precip, f.precipProb), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }

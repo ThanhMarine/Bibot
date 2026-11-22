@@ -511,7 +511,7 @@ fun DocBrowserScreen(
                                         "application/octet-stream", "*/*"
                                     ))
                                 }) {
-                                    Text(stringResource(R.string.doc_pick_file), fontSize = 12.sp)
+                                    Text(stringResource(R.string.doc_pick_file))
                                 }
                             }
                         }
@@ -543,14 +543,14 @@ fun DocBrowserScreen(
                                     Text(
                                         (meta?.author?.ifBlank { null } ?: "—") + " • " +
                                             LibraryQuery.libFormatOf(book) + " • " + book.displaySize,
-                                        style = MaterialTheme.typography.labelSmall, fontSize = 10.sp,
+                                        style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         (if (book.isDownloaded) stringResource(R.string.book_is_downloaded)
                                         else stringResource(R.string.book_not_downloaded)) +
                                             " • " + book.source + " • " + book.lang.uppercase(),
-                                        style = MaterialTheme.typography.labelSmall, fontSize = 10.sp
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                             }
@@ -569,14 +569,14 @@ fun DocBrowserScreen(
                                     }) {
                                         Icon(Icons.Default.RestoreFromTrash, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(stringResource(R.string.lib_act_restore), fontSize = 12.sp)
+                                        Text(stringResource(R.string.lib_act_restore))
                                     }
                                     TextButton(onClick = {
                                         scope.launch(Dispatchers.IO) { status = deleteForever(book) }
                                     }) {
                                         Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(stringResource(R.string.lib_act_delforever), fontSize = 12.sp)
+                                        Text(stringResource(R.string.lib_act_delforever))
                                     }
                                 }
                             } else {
@@ -689,14 +689,14 @@ fun DocBrowserScreen(
                         TextButton(onClick = { treePicker.launch(null) }) {
                             Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(stringResource(R.string.doc_folder_saf), fontSize = 12.sp)
+                            Text(stringResource(R.string.doc_folder_saf))
                         }
                         TextButton(onClick = {
                             val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
                                 android.content.pm.PackageManager.PERMISSION_GRANTED
                             if (granted) scope.launch { scanStorage() } else requestLegacyPermission()
                         }) {
-                            Text(stringResource(R.string.doc_scan_device), fontSize = 12.sp)
+                            Text(stringResource(R.string.doc_scan_device))
                         }
                         Spacer(Modifier.weight(1f))
                         if (isLoadingStorage) LinearProgressIndicator(modifier = Modifier.weight(0.3f))
@@ -748,10 +748,10 @@ fun DocBrowserScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(doc.name, style = MaterialTheme.typography.titleSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                    Text("${doc.sizeBytes / 1024} KB", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                    Text("${doc.sizeBytes / 1024} KB", style = MaterialTheme.typography.labelSmall)
                                 }
                                 TextButton(onClick = { scope.launch { scanTree(doc.documentFile?.uri ?: Uri.parse(doc.path)) } }) {
-                                    Text(stringResource(R.string.doc_open), fontSize = 12.sp) }
+                                    Text(stringResource(R.string.doc_open)) }
                             }
                         }
                     }
@@ -767,12 +767,12 @@ fun DocBrowserScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(doc.name, style = MaterialTheme.typography.titleSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                    Text("${doc.sizeBytes / 1024} KB • ${doc.mimeType}", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, maxLines = 1)
-                                    if (inBookstore) Text(stringResource(R.string.doc_in_books), style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.primary)
+                                    Text("${doc.sizeBytes / 1024} KB • ${doc.mimeType}", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                    if (inBookstore) Text(stringResource(R.string.doc_in_books), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     if (!inBookstore) {
-                                        TextButton(onClick = { scope.launch { status = addToBookstore(Uri.parse(doc.path)) } }) { Text(stringResource(R.string.doc_add_to_books), fontSize = 11.sp) }
+                                        TextButton(onClick = { scope.launch { status = addToBookstore(Uri.parse(doc.path)) } }) { Text(stringResource(R.string.doc_add_to_books)) }
                                     } else {
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,

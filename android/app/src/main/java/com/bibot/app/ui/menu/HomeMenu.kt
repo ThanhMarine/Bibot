@@ -106,7 +106,7 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
         shape = shape,
         // Nền CHỈM 45% → nhìn rõ hoa văn trống đồng phía sau, vẫn đọc được chữ
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -132,7 +132,6 @@ private fun HomeTile(item: HomeItem, onClick: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             Text(
                 item.mode.label(),
-                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 textAlign = TextAlign.Center
@@ -250,7 +249,7 @@ private fun AnnounceBanner() {
                     )
                     if (unseen.size > 1) {
                         Spacer(Modifier.width(6.dp))
-                        Badge { Text("+${unseen.size - 1}", fontSize = 9.sp) }
+                        Badge { Text("+${unseen.size - 1}", style = MaterialTheme.typography.labelSmall) }
                     }
                 }
                 Text(

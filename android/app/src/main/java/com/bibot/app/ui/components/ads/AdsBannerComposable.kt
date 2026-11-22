@@ -2,9 +2,13 @@ package com.bibot.app.ui.components.ads
 
 import android.content.Context
 import android.widget.FrameLayout
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -48,8 +52,13 @@ fun AdsBanner(
         val widthDp = config.screenWidthDp.coerceAtLeast(320)
         val isLandscape = config.screenWidthDp > config.screenHeightDp
         androidx.compose.runtime.key(widthDp, isLandscape) {
+            Box(
+                modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
             AndroidView(
-                modifier = modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 factory = { ctx ->
                     AdView(ctx).apply {
                         setAdSize(getAdaptiveAdSize(ctx, widthDp, isLandscape))
@@ -66,6 +75,7 @@ fun AdsBanner(
                     try { adView.destroy() } catch (_: Exception) {}
                 }
             )
+            }
         }
     } else {
         Spacer(modifier = modifier.height(0.dp))
