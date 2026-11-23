@@ -12,3 +12,4 @@
 - [ ] PDF: le trai/phai deu, zoom khong ket trang.
 - [ ] Thoi tiet: tim dia diem bat ky / nhap lat,lon.
 - [ ] AI Gemini: chi 1 key + 2 model, khong con OpenRouter/Cloud TTS.
+- [ ] Settings > Library: Pick files / Choose folder import sách SAF, không upload.

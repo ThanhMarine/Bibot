@@ -58,6 +58,8 @@ import com.bibot.app.core.tts.PiperTtsHelper
 import com.bibot.app.core.tts.SherpaEngine
 import com.bibot.app.data.books.BookMeta
 import com.bibot.app.data.books.BookRepository
+import com.bibot.app.data.library.DocFileItem
+import com.bibot.app.data.library.LibraryManager
 import com.bibot.app.data.books.DriveBookSource
 import com.bibot.app.data.files.FilePaths
 import com.bibot.app.data.offline.DownloadState
@@ -916,10 +918,56 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
     var folderId by remember { mutableStateOf("") }
     var signedInEmail by remember { mutableStateOf<String?>(null) }
     var wipeBusy by remember { mutableStateOf(false) }
+    var treeFiles by remember { mutableStateOf<List<DocFileItem>>(emptyList()) }
+    var treeSelected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showTreeDialog by remember { mutableStateOf(false) }
 
     fun setStatus(msg: String, error: Boolean = false) {
         status = msg
         statusIsError = error
+    }
+
+    val driveFolder: String? = if (driveEnabled) {
+        folderId.trim().substringAfterLast("/").substringBefore("?").takeIf { it.isNotBlank() }
+    } else null
+
+    val lib = remember { LibraryManager(context) }
+    val supportedBookExts = setOf("pdf", "epub", "txt", "md", "markdown", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "doc", "docx", "rtf")
+    fun isBookName(name: String): Boolean = name.substringAfterLast('.', "").lowercase() in supportedBookExts
+
+    val importUris: (List<Uri>) -> Unit = { uris ->
+        scope.launch {
+            var ok = 0
+            setStatus(context.getString(R.string.books_importing))
+            uris.forEach { uri ->
+                try { lib.importFile(uri); ok++ } catch (_: Exception) {}
+            }
+            repo.refreshAll(driveFolder)
+            setStatus(context.getString(R.string.books_import_done, ok), error = ok == 0)
+        }
+    }
+
+    val bookFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) importUris(uris)
+    }
+
+    val bookTreePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: Exception) {}
+        scope.launch {
+            treeFiles = lib.scanTree(uri).filter { !it.isDirectory && isBookName(it.name) }
+            treeSelected = emptySet()
+            showTreeDialog = treeFiles.isNotEmpty()
+            if (!showTreeDialog) setStatus(context.getString(R.string.books_tree_no_files))
+        }
     }
 
     val signInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -943,9 +991,6 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
     val viBooks = filtered.filter { it.lang == "vi" }
     val enBooks = filtered.filter { it.lang == "en" }
     val otherBooks = filtered.filter { it.lang != "vi" && it.lang != "en" }
-    val driveFolder: String? = if (driveEnabled) {
-        folderId.trim().substringAfterLast("/").substringBefore("?").takeIf { it.isNotBlank() }
-    } else null
 
     val handleDownload: (BookMeta) -> Unit = { book ->
         scope.launch {
@@ -1024,6 +1069,29 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(if (syncing) stringResource(R.string.books_syncing_short) else stringResource(R.string.books_sync))
+        }
+
+        Text(
+            stringResource(R.string.books_private_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    bookFilePicker.launch(arrayOf(
+                        "application/pdf", "application/epub+zip", "text/plain", "text/markdown",
+                        "application/octet-stream", "*/*"
+                    ))
+                },
+                enabled = !syncing && !urlBusy,
+                modifier = Modifier.weight(1f)
+            ) { Text(stringResource(R.string.books_pick_files)) }
+            OutlinedButton(
+                onClick = { bookTreePicker.launch(null) },
+                enabled = !syncing && !urlBusy,
+                modifier = Modifier.weight(1f)
+            ) { Text(stringResource(R.string.books_pick_folder)) }
         }
 
         OutlinedTextField(
@@ -1109,6 +1177,51 @@ private fun BookLibrarySection(onCount: (Int) -> Unit = {}) {
                     enabled = !syncing
                 ) { Text(stringResource(R.string.common_save)) }
             }
+        }
+
+        if (showTreeDialog) {
+            AlertDialog(
+                onDismissRequest = { showTreeDialog = false },
+                title = { Text(stringResource(R.string.books_tree_title)) },
+                text = {
+                    LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                        items(treeFiles, key = { it.path }) { doc ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable {
+                                    treeSelected = if (doc.path in treeSelected) treeSelected - doc.path
+                                    else treeSelected + doc.path
+                                }.padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = doc.path in treeSelected,
+                                    onCheckedChange = {
+                                        treeSelected = if (it) treeSelected + doc.path else treeSelected - doc.path
+                                    }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(doc.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${doc.sizeBytes / 1024} KB", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val chosen = treeFiles.filter { it.path in treeSelected }.mapNotNull { it.documentFile?.uri }
+                            showTreeDialog = false
+                            if (chosen.isNotEmpty()) importUris(chosen)
+                        },
+                        enabled = treeSelected.isNotEmpty()
+                    ) { Text(stringResource(R.string.common_add)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTreeDialog = false }) { Text(stringResource(R.string.common_cancel)) }
+                }
+            )
         }
 
         HorizontalDivider()

@@ -87,7 +87,7 @@
     <string name="sec_vip">Mã VIP</string>
     <string name="sec_announce">Thông báo</string>
     <string name="sec_licenses">Giấy phép &amp; ghi công</string>
-    <string name="licenses_sub">Fluent Emoji 3D • Material Icons</string>
+    <string name="licenses_sub">Material Symbols Rounded · engine STT/TTS</string>
     <string name="licenses_intro">Bibot dùng icon Material Symbols Rounded và các thành phần mã nguồn mở, bao gồm cả engine nhận dạng/giọng nói offline. Toàn văn giấy phép được đóng gói trong tệp THIRD_PARTY_NOTICES.md.</string>
     <string name="licenses_material">Material Icons — Google — Giấy phép Apache 2.0</string>
     <string name="sec_weather">Thời tiết</string>
@@ -650,4 +650,11 @@
     <string name="api_model_lite">Flash Lite (khuyên dùng - nhanh)</string>
     <string name="api_model_flash">Flash (chất lượng cao hơn)</string>
     <string name="licenses_stt_tts">STT/TTS: Vosk · sherpa-onnx · Piper · eSpeak NG — chi tiết trong THIRD_PARTY_NOTICES.md</string>
+    <string name="books_pick_files">Chọn file</string>
+    <string name="books_pick_folder">Chọn thư mục</string>
+    <string name="books_private_hint">Chỉ lưu trên máy — không tải lên đám mây</string>
+    <string name="books_importing">Đang thêm sách...</string>
+    <string name="books_import_done">Đã thêm %1$d sách</string>
+    <string name="books_tree_no_files">Không tìm thấy file sách trong thư mục đã chọn</string>
+    <string name="books_tree_title">Chọn sách từ thư mục</string>
 </resources>

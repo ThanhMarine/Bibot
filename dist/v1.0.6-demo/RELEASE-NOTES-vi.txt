@@ -5,3 +5,4 @@ Bibot v1.0.6 (Build 7) — cập nhật giao diện
 - Đọc PDF dễ hơn: lề trái/phải đều, vùng hiển thị lớn hơn, zoom không bị kẹt trang.
 - Thư viện quét được sách trong bộ nhớ máy; Thời tiết chọn vị trí theo tên hoặc toạ độ bất kỳ.
 - Chat AI dùng Gemini với 2 lựa chọn đơn giản; bổ sung ghi công licence cho engine STT/TTS.
+- Cài đặt > Thư viện thêm sách từ bộ nhớ máy qua SAF (chọn file hoặc thư mục). Không xin quyền thêm, không tải lên mây.
