@@ -55,8 +55,18 @@ enum class HandsFreeMode {
 }
 
 /** State machine của voice chat: idle / listening / thinking(streaming) / speaking. */
+/** Một lượt hội thoại đã hoàn thành — giữ lại để không phải refresh toàn màn. */
+data class ChatTurn(
+    val id: Long,
+    val user: String,
+    val assistant: String,
+    val ttfaMs: Long = -1L
+)
+
 data class VoiceChatUiState(
     val responseText: String = "Em là Bi! Em có thể giúp gì cho bạn hôm nay?",
+    val lastUserText: String = "",
+    val turns: List<ChatTurn> = emptyList(),
     val partialText: String = "",
     val isListening: Boolean = false,
     val isStreaming: Boolean = false,
@@ -197,6 +207,20 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             _uiState.value.continuousListening && continuousJob?.isActive != true
         ) {
             startContinuousListening()
+        }
+    }
+
+    /** Append 1 lượt, giữ tối đa 8 lượt gần nhất (id = thời gian, key ổn định cho LazyColumn). */
+    private fun appendTurn(user: String, assistant: String, ttfaMs: Long) {
+        if (user.isBlank()) return
+        val turn = ChatTurn(
+            id = SystemClock.elapsedRealtimeNanos(),
+            user = user,
+            assistant = assistant,
+            ttfaMs = ttfaMs
+        )
+        _uiState.update {
+            it.copy(turns = (it.turns + turn).takeLast(8), lastUserText = "", responseText = "")
         }
     }
 
@@ -462,7 +486,7 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             Log.d(TAG_VC, "barge-in: cut previous turn (speaking=${cur.isSpeaking} streaming=${cur.isStreaming})")
         }
         _uiState.update {
-            it.copy(responseText = "", partialText = "", isStreaming = true, sttError = null)
+            it.copy(responseText = "", lastUserText = sttText, partialText = "", isStreaming = true, sttError = null)
         }
         chunker.reset()
         pipelineJob?.cancel()
@@ -482,6 +506,7 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
                 speakChunks(listOf(recalled), ps)
                 try { memRepo.logTurn("assistant", recalled) } catch (_: Exception) {}
                 recordTurnStats(t0, ttfaMs = 0L)
+                appendTurn(sttText, recalled, 0L)
                 ensureContinuousResumed()
                 return@launch
             }
@@ -613,6 +638,7 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             fillerJob.cancel()
             try { memRepo.logTurn("assistant", _uiState.value.responseText) } catch (_: Exception) {}
             recordTurnStats(t0, ttfaMs)
+            appendTurn(sttText, _uiState.value.responseText, ttfaMs)
             try { System.gc() } catch (_: Exception) {}
             ensureContinuousResumed()
         }

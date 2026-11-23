@@ -116,7 +116,9 @@ class BibotPreferences(private val context: Context) {
     val prefsFlow: Flow<BibotPrefs> = context.bibotDataStore.data.map { p ->
         BibotPrefs(
             persona = p[PrefKeys.PERSONA] ?: "Em là Bi",
-            botPrompt = p[PrefKeys.BOT_PROMPT] ?: BotPromptManager.DEFAULT_TEMPLATE,
+            botPrompt = p[PrefKeys.BOT_PROMPT]
+                ?.takeIf { it != BotPromptManager.LEGACY_DEFAULT_TEMPLATE }
+                ?: BotPromptManager.DEFAULT_TEMPLATE,
             botStyle = p[PrefKeys.BOT_STYLE] ?: "friendly",
             botTone = p[PrefKeys.BOT_TONE] ?: "warm",
             botMaxWords = p[PrefKeys.BOT_MAX_WORDS] ?: 30,

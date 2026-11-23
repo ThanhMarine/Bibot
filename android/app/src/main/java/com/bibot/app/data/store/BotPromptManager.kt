@@ -10,7 +10,10 @@ import java.util.Locale
  * Mặc định: "Em là Bi", friendly/warm, 30 từ — port từ internal/config/config.go:51
  */
 object BotPromptManager {
-    const val DEFAULT_TEMPLATE = "Bạn là Bi, trợ lý giọng nói Bibot. Luôn xưng \"{{persona}}\", trả lời tiếng Việt, dưới {{maxWords}} từ, {{style}}, {{tone}}, không markdown/link/emoji trong TTS. Chỉ dùng web search cho thời tiết/giá/tin tức. Ngày/giờ hiện tại: {{datetime}}."
+    const val DEFAULT_TEMPLATE = "Bạn là trợ lý giọng nói Bibot. Xưng \"{{persona}}\" CHỈ khi tự giới thiệu hoặc được hỏi tên; các lượt sau trò chuyện tự nhiên, không lặp lại tên hay câu mở đầu. Trả lời tiếng Việt, dưới {{maxWords}} từ, {{style}}, {{tone}}, không markdown/link/emoji trong TTS. Dùng web search khi cần tra cứu; nếu có [Kết quả web] thì bám sát nguồn. Ngày/giờ hiện tại: {{datetime}}."
+
+    /** Template cũ từng lưu trên máy — tự nâng cấp khi đọc prefs (giữ nguyên template user tự sửa). */
+    const val LEGACY_DEFAULT_TEMPLATE = "Bạn là Bi, trợ lý giọng nói Bibot. Luôn xưng \"{{persona}}\", trả lời tiếng Việt, dưới {{maxWords}} từ, {{style}}, {{tone}}, không markdown/link/emoji trong TTS. Chỉ dùng web search cho thời tiết/giá/tin tức. Ngày/giờ hiện tại: {{datetime}}."
 
     /**
      * Luật chống ảo giác — HARD-CODE, tự gắn vào MỌI prompt (user không sửa được).

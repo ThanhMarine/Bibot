@@ -8,3 +8,5 @@ Bibot v1.0.6 (Build 7) — UI refresh
 - Settings > Library can add books from device storage using SAF (pick files or a folder). No extra permission, no upload.
 - Hands-free chat keeps listening across turns and resumes after barge-in.
 - Wider web lookup for informational questions; dynamic answer limit 30/50/80/120 words, concise but complete.
+- Refreshed chat UI: distinct user/assistant bubbles, keeps the last 8 turns, single mode-aware control.
+- Default prompt now chats naturally instead of repeating the bot name every turn.

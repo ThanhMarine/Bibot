@@ -25,6 +25,12 @@ class SearchRouterTest {
     }
 
     @Test
+    fun `prompt mac dinh khong bat xung ten moi luan`() {
+        assertTrue(BotPromptManager.DEFAULT_TEMPLATE.contains("CHỈ khi tự giới thiệu"))
+        assertFalse(BotPromptManager.DEFAULT_TEMPLATE.contains("Luôn xưng"))
+    }
+
+    @Test
     fun `prompt tra cuu co gioi han tu va che do ngan gon`() {
         val brief = BotPromptManager.searchAnswerInstruction(50, true)
         assertTrue(brief.contains("50"))

@@ -5,13 +5,18 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.verticalScroll
 import androidx.core.content.ContextCompat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.StopCircle
@@ -22,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -110,7 +116,7 @@ fun VoiceScreen(
     val ui by chatVm.uiState.collectAsState()
     val stats by chatVm.stats.collectAsState()
 
-    val scrollState = rememberScrollState()
+    val listState = rememberLazyListState()
     val activity = context as? androidx.activity.ComponentActivity
     val windowSize = activity?.let { calculateWindowSizeClass(activity = it) }
     val tablet = isTablet(windowSize)
@@ -145,155 +151,255 @@ fun VoiceScreen(
         }
     }
 
+    val modeLabel = when (ui.handsFreeMode) {
+        HandsFreeMode.NONE -> "Chế độ: Chạm một lần"
+        HandsFreeMode.CONTINUOUS -> "Chế độ: Hands-free (nghe liên tục)"
+        HandsFreeMode.PUSH_TO_TALK -> "Chế độ: PTT (giữ nút để nói)"
+    }
+    val nextModeLabel = when (ui.handsFreeMode) {
+        HandsFreeMode.NONE -> "Hands-free"
+        HandsFreeMode.CONTINUOUS -> "PTT"
+        HandsFreeMode.PUSH_TO_TALK -> "Chạm một lần"
+    }
+    val modeIcon = when (ui.handsFreeMode) {
+        HandsFreeMode.NONE -> Icons.Default.Mic
+        HandsFreeMode.CONTINUOUS -> Icons.Default.Repeat
+        HandsFreeMode.PUSH_TO_TALK -> Icons.Default.KeyboardVoice
+    }
+    val statusText = when {
+        ui.isListening || ui.continuousListening -> "Em đang nghe..."
+        ui.isStreaming -> "Em đang suy nghĩ..."
+        ui.isSpeaking -> "Em đang nói..."
+        else -> "Sẵn sàng"
+    }
+    val answer = if (ui.responseText.isNotBlank()) ui.responseText
+    else if (ui.isStreaming) "Em đang suy nghĩ..." else ""
+
+    val hasActiveUser = ui.lastUserText.isNotBlank()
+    val hasActiveAnswer = answer.isNotBlank()
+    val hasPartial = ui.partialText.isNotBlank()
+    LaunchedEffect(ui.turns.size, ui.responseText, hasActiveUser, hasActiveAnswer) {
+        val target = if (hasActiveUser || hasActiveAnswer || hasPartial) ui.turns.size * 2
+        else (ui.turns.size * 2 - 1).coerceAtLeast(0)
+        listState.animateScrollToItem(target)
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth().weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f))) {
-            Column(modifier = Modifier.padding(16.dp).verticalScroll(scrollState)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    // Mode toggle button
-                    IconButton(onClick = {
+        // Header: thương hiệu + chế độ mic
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Mic, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Em là Bi",
+                        style = MaterialTheme.typography.titleMedium,
+                        // QA hook (debug): long-press tiêu đề = chạy 1 lượt từ files/qa.txt
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(onLongPress = { chatVm.runQaTurn() })
+                        }
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Cached,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(modeLabel, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                IconButton(
+                    onClick = {
                         chatVm.setHandsFreeMode(when (ui.handsFreeMode) {
                             HandsFreeMode.NONE -> HandsFreeMode.CONTINUOUS
                             HandsFreeMode.CONTINUOUS -> HandsFreeMode.PUSH_TO_TALK
                             HandsFreeMode.PUSH_TO_TALK -> HandsFreeMode.NONE
                         })
-                    }) {
-                        Icon(
-                            imageVector = when (ui.handsFreeMode) {
-                                HandsFreeMode.NONE -> Icons.Default.Mic
-                                HandsFreeMode.CONTINUOUS -> Icons.Default.Repeat
-                                HandsFreeMode.PUSH_TO_TALK -> Icons.Default.KeyboardVoice
-                            },
-                            contentDescription = "Chế độ mic: ${ui.handsFreeMode.name}",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        "BiBot Voice Chat", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
-                        // QA debug (release ẩn): long-press title = giả lập 1 lượt thoại không cần mic
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(onLongPress = { chatVm.runQaTurn() })
-                        }
-                    )
-                    if (ui.isSpeaking) Icon(Icons.Default.VolumeUp, contentDescription = "Đang nói", tint = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(Modifier.height(12.dp))
-                if (ui.partialText.isNotEmpty()) {
-                    Text("Đang nghe: ${ui.partialText}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
-                    Spacer(Modifier.height(8.dp))
-                }
-                Text(text = if (ui.isStreaming && ui.responseText.isEmpty()) "Em là Bi đang suy nghĩ..." else ui.responseText, style = MaterialTheme.typography.bodyLarge, lineHeight = 24.sp)
-                ui.sttError?.let { Spacer(Modifier.height(8.dp)); Text("STT: $it", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall) }
-                ui.ttsStatus?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall) }
-                if (stats.turns > 0 && stats.lastTtfaMs >= 0) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Lượt ${stats.turns} • TTFA ${stats.lastTtfaMs}ms" +
-                            (if (stats.lastTurnMs >= 0) " • ${stats.lastTurnMs}ms" else "") +
-                            (if (stats.avgTtfaMs >= 0) " • TB ${stats.avgTtfaMs}ms" else "") +
-                            (if (stats.bargeInCount > 0) " • ngắt lời ×${stats.bargeInCount}" else ""),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(modeIcon, contentDescription = "Chế độ hiện tại: $modeLabel. Chạm để chuyển sang $nextModeLabel.",
+                        tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = if (tablet) 32.dp else 0.dp)) {
-            // Mode indicator
-            if (ui.handsFreeMode != HandsFreeMode.NONE) {
-                Text(
-                    text = when (ui.handsFreeMode) {
-                        HandsFreeMode.CONTINUOUS -> "Hands-free: Bấm để bật/tắt nghe liên tục"
-                        HandsFreeMode.PUSH_TO_TALK -> "Push-to-talk: Giữ để nói, thả để gửi"
-                        else -> ""
-                    },
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).padding(bottom = 8.dp)
-)
-            }
-            MicButton(
-                handsFreeMode = ui.handsFreeMode,
-                isListening = ui.isListening,
-                continuousListening = ui.continuousListening,
-                isSpeaking = ui.isSpeaking,
-                isStreaming = ui.isStreaming,
-                onClick = { mode ->
-                    when (mode) {
-                        HandsFreeMode.NONE -> {
-                            if (ui.isListening) chatVm.cancelListenFlag() else if (ui.isSpeaking || ui.isStreaming) chatVm.stopChat() else startStt()
-                        }
-                        HandsFreeMode.CONTINUOUS -> {
-                            if (ui.continuousListening) chatVm.stopContinuousListening() else chatVm.startContinuousListening()
-                        }
-                        HandsFreeMode.PUSH_TO_TALK -> { /* handled by wrapper */ }
-                    }
+
+        // Trạng thái ngắn: nghe / nghĩ / nói / sẵn sàng
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(
+                when {
+                    ui.isListening || ui.continuousListening -> Icons.Default.Mic
+                    ui.isSpeaking -> Icons.Default.VolumeUp
+                    else -> Icons.Default.Mic
                 },
-                onPushToTalkPress = { chatVm.onPushToTalkPress() },
-                tablet = tablet,
-                fab = fab
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
             )
-            Column(Modifier.weight(1f)) {
+            Text(statusText, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Hội thoại: mỗi lượt là item có key ổn định — không vẽ lại cả màn khi có tin mới
+        Card(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(ui.turns, key = { it.id }) { turn ->
+                    UserBubble(turn.user)
+                    Spacer(Modifier.height(4.dp))
+                    BotBubble(turn.assistant, turn.ttfaMs)
+                }
+                if (hasActiveUser) {
+                    item(key = "active_user") { UserBubble(ui.lastUserText) }
+                }
+                if (hasPartial) {
+                    item(key = "partial") {
+                        Text("Đang nghe: ${ui.partialText}", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (hasActiveAnswer) {
+                    item(key = "active_answer") {
+                        BotBubble(answer, -1L, streaming = ui.isStreaming)
+                    }
+                }
+                item(key = "status") {
+                    ui.ttsStatus?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    ui.sttError?.let {
+                        Text("STT: $it", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error)
+                    }
+                    if (stats.turns > 0 && stats.lastTtfaMs >= 0) {
+                        Text(
+                            "Lượt ${stats.turns} · TTFA ${stats.lastTtfaMs}ms" +
+                                (if (stats.lastTurnMs >= 0) " · ${stats.lastTurnMs}ms" else "") +
+                                (if (stats.avgTtfaMs >= 0) " · TB ${stats.avgTtfaMs}ms" else "") +
+                                (if (stats.bargeInCount > 0) " · ngắt lời ×${stats.bargeInCount}" else ""),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Điều khiển: MỘT nút chính, mode-aware
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (ui.isStreaming || ui.isSpeaking) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            }
+            val buttonModifier = if (ui.handsFreeMode == HandsFreeMode.PUSH_TO_TALK)
+                Modifier.fillMaxWidth().pushToTalk { chatVm.onPushToTalkPress() }
+            else Modifier.fillMaxWidth()
+            Box(modifier = buttonModifier) {
                 BigButton(
                     onClick = {
                         when (ui.handsFreeMode) {
                             HandsFreeMode.NONE -> {
-                                if (ui.isListening) chatVm.cancelListenFlag() else if (ui.isSpeaking || ui.isStreaming) chatVm.stopChat() else startStt()
+                                if (ui.isListening) chatVm.cancelListenFlag()
+                                else if (ui.isSpeaking || ui.isStreaming) chatVm.stopChat()
+                                else startStt()
                             }
                             HandsFreeMode.CONTINUOUS -> {
-                                if (ui.continuousListening) chatVm.stopContinuousListening() else chatVm.startContinuousListening()
+                                if (ui.continuousListening) chatVm.stopContinuousListening()
+                                else chatVm.startContinuousListening()
                             }
-                            HandsFreeMode.PUSH_TO_TALK -> {
-                                // Use mic icon button for push-to-talk
-                            }
+                            HandsFreeMode.PUSH_TO_TALK -> Unit // xử lý bởi pushToTalk
                         }
                     },
-                    modifier = if (ui.handsFreeMode == HandsFreeMode.PUSH_TO_TALK) Modifier.pointerInput(Unit) {
-                        detectTapGestures(
-                            onLongPress = { chatVm.onPushToTalkPress() }
-                        )
-                    }.fillMaxWidth() else Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     label = when {
-                        ui.isListening || ui.continuousListening -> "Đang nghe... chạm để dừng"
-                        ui.isSpeaking -> "Đang nói... chạm để dừng"
+                        ui.isListening || ui.continuousListening -> "Đang nghe · chạm để dừng"
+                        ui.isSpeaking -> "Đang nói · chạm để dừng"
                         ui.isStreaming -> "Em Bi đang trả lời..."
-                        else -> when (ui.handsFreeMode) {
-                            HandsFreeMode.NONE -> "Chạm để nói"
-                            HandsFreeMode.CONTINUOUS -> "Chạm để bật nghe liên tục"
-                            HandsFreeMode.PUSH_TO_TALK -> "Giữ để nói, thả để gửi"
-                        }
+                        else -> modeLabel
                     },
-                    subLabel = when {
-                        tablet && ui.isSpeaking -> "Đang phát ${prefsState.voiceSpeed}x"
-                        tablet -> "Nút lớn 72dp — dễ bấm khi cầm tablet"
-                        else -> null
-                    },
+                    subLabel = if (tablet && ui.isSpeaking) "Đang phát ${prefsState.voiceSpeed}x" else null,
                     icon = {
                         Icon(
-                            imageVector = when {
-                                ui.isListening || ui.continuousListening -> Icons.Default.StopCircle
-                                ui.isSpeaking -> Icons.Default.VolumeUp
-                                else -> Icons.Default.Mic
-                            },
+                            if (ui.isListening || ui.continuousListening) Icons.Default.StopCircle
+                            else if (ui.isSpeaking) Icons.Default.VolumeUp else Icons.Default.Mic,
                             contentDescription = null,
                             modifier = Modifier.size(24.dp)
                         )
                     },
                     height = if (tablet) 72.dp else 64.dp
                 )
-                if (ui.isStreaming || ui.isSpeaking) { Spacer(Modifier.height(8.dp)); LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
             }
         }
-        if (ui.isStreaming || ui.isSpeaking) {
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
-                Text(if (ui.isSpeaking) "Em là Bi đang nói..." else "Em là Bi đang trả lời...", style = MaterialTheme.typography.bodySmall)
-            }
+    }
+}
+
+@Composable
+private fun UserBubble(text: String) {
+    Box(
+        Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Box(
+            Modifier.background(
+                MaterialTheme.colorScheme.primaryContainer,
+                RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+            ).padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Text(text, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
-Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun BotBubble(text: String, ttfaMs: Long, streaming: Boolean = false) {
+    Column {
+        Box(
+            Modifier.fillMaxWidth().background(
+                MaterialTheme.colorScheme.surface,
+                RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
+            ).padding(14.dp)
+        ) {
+            Text(text, style = MaterialTheme.typography.bodyLarge)
+        }
+        if (ttfaMs >= 0 || streaming) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                if (streaming) "Đang trả lời..." else "TTFA ${ttfaMs}ms",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
     }
 }
