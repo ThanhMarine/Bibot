@@ -1754,6 +1754,11 @@ private fun CreditsContent() {
             style = MaterialTheme.typography.bodyMedium,
             lineHeight = 22.sp
         )
+        Text(
+            stringResource(R.string.licenses_stt_tts),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         entries.forEach { (label, url) ->
             Text(
                 label,

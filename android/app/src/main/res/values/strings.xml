@@ -88,7 +88,7 @@
     <string name="sec_announce">Announcements</string>
     <string name="sec_licenses">Licenses &amp; credits</string>
     <string name="licenses_sub">Fluent Emoji 3D • Material Icons</string>
-    <string name="licenses_intro">Bibot uses Material Symbols Rounded icons and the open-source components below. Full license texts are bundled in THIRD_PARTY_NOTICES.md.</string>
+    <string name="licenses_intro">Bibot uses Material Symbols Rounded icons and open-source components, including offline speech engines. Full license texts are bundled in THIRD_PARTY_NOTICES.md.</string>
     <string name="licenses_material">Material Icons — Google — Apache License 2.0</string>
     <string name="sec_weather">Thời tiết</string>
     <string name="weather_sub">Chọn thành phố dự báo</string>
@@ -659,4 +659,5 @@
     <string name="api_model_label">AI model</string>
     <string name="api_model_lite">Flash Lite (recommended - fast)</string>
     <string name="api_model_flash">Flash (higher quality)</string>
+    <string name="licenses_stt_tts">STT/TTS: Vosk · sherpa-onnx · Piper · eSpeak NG — details in THIRD_PARTY_NOTICES.md</string>
 </resources>
