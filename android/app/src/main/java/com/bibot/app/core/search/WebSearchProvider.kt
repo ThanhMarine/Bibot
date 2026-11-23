@@ -26,18 +26,25 @@ object DefaultWebSearchProvider : WebSearchProvider {
 
     private const val UA = "Mozilla/5.0 (X11; Linux x86_64) Bibot/1.0"
     private const val MAX_ANSWER_CHARS = 280
+    private const val MAX_DIGEST_CHARS = 460
 
-    override fun searchSummary(query: String): String {
+    override fun searchSummary(query: String): String = searchDigest(query, MAX_ANSWER_CHARS)
+
+    /**
+     * Digest phục vụ voice chat: gom nhiều nguồn hơn, 3-4 câu, đủ ý để bot đọc lại.
+     * Vẫn block (IO) — chỉ gọi từ Dispatchers.IO.
+     */
+    fun searchDigest(query: String, maxChars: Int = MAX_DIGEST_CHARS): String {
         val q = query.trim()
         if (q.isEmpty()) return ""
         try {
             weatherReport(q)?.let { if (it.isNotBlank()) return it }
         } catch (_: Exception) { }
         val results = try {
-            search(q)
+            search(q, maxResults = 6)
         } catch (_: Exception) { emptyList() }
         val answer = try {
-            summarizeResults(q, results)
+            summarizeResults(q, results, maxSentences = 4, maxChars = maxChars)
         } catch (_: Exception) { "" }
         if (answer.isNotBlank()) return answer
         val topic = extractTopic(q)
@@ -210,7 +217,7 @@ object DefaultWebSearchProvider : WebSearchProvider {
         if (summary.optString("type") == "disambiguation") return ""
         val extract = cleanExtract(summary.optString("extract", ""))
         if (extract.isBlank()) return ""
-        return firstSentences(extract, 2)
+        return firstSentences(extract, 2, MAX_DIGEST_CHARS)
     }
 
     // ------------------------------------------------------------ Web sources
@@ -312,7 +319,7 @@ object DefaultWebSearchProvider : WebSearchProvider {
         return host.removePrefix("www.").split(":")[0]
     }
 
-    fun summarizeResults(query: String, results: List<SearchSnippet>, maxSentences: Int = 2): String {
+    fun summarizeResults(query: String, results: List<SearchSnippet>, maxSentences: Int = 2, maxChars: Int = MAX_ANSWER_CHARS): String {
         if (results.isEmpty()) return ""
         val qTokens = tokens(query)
         val qFolded = qTokens.map { fold(it) }.toSet()
@@ -358,7 +365,7 @@ object DefaultWebSearchProvider : WebSearchProvider {
         }
         val final = chosen.joinToString(" ").trim()
         if (hasNonLatin(final, 0.3) || final.length < 12) return ""
-        return final
+        return if (final.length > maxChars) final.substring(0, maxChars).substringBeforeLast(" ").trimEnd(',', ';', ':', '.') + "." else final
     }
 
     // ---------------------------------------------------------------- helpers

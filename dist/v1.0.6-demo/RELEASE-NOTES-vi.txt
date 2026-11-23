@@ -6,3 +6,5 @@ Bibot v1.0.6 (Build 7) — cập nhật giao diện
 - Thư viện quét được sách trong bộ nhớ máy; Thời tiết chọn vị trí theo tên hoặc toạ độ bất kỳ.
 - Chat AI dùng Gemini với 2 lựa chọn đơn giản; bổ sung ghi công licence cho engine STT/TTS.
 - Cài đặt > Thư viện thêm sách từ bộ nhớ máy qua SAF (chọn file hoặc thư mục). Không xin quyền thêm, không tải lên mây.
+- Chat hands-free tự giữ vòng nghe liên tục và nối lại sau khi ngắt lời.
+- Tra cứu internet mở rộng cho câu hỏi thông tin; prompt động giới hạn 30/50/80/120 từ, ngắn gọn và đủ ý.

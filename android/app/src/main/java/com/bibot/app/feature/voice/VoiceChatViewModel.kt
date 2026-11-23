@@ -182,7 +182,22 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun setHandsFreeMode(mode: HandsFreeMode) {
+        val prev = _uiState.value.handsFreeMode
         _uiState.update { it.copy(handsFreeMode = mode) }
+        if (prev == HandsFreeMode.CONTINUOUS && mode != HandsFreeMode.CONTINUOUS) {
+            stopContinuousListening()
+        } else if (mode == HandsFreeMode.CONTINUOUS && prev != HandsFreeMode.CONTINUOUS) {
+            startContinuousListening()
+        }
+    }
+
+    /** Nối lại vòng nghe liên tục sau 1 lượt nếu vòng cũ đã dừng (barge-in/lỗi mic). */
+    private fun ensureContinuousResumed() {
+        if (_uiState.value.handsFreeMode == HandsFreeMode.CONTINUOUS &&
+            _uiState.value.continuousListening && continuousJob?.isActive != true
+        ) {
+            startContinuousListening()
+        }
     }
 
     fun setSttError(msg: String?) {
@@ -365,8 +380,14 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             // A3.2: cắt ExoPlayer + engine TTS + job pipeline bằng 1 lệnh dừng duy nhất.
             stopAudio()
             // Real talk: mở mic nghe lại ngay thay vì chờ user bấm (trừ push-to-talk đang giữ nút).
-            if (_uiState.value.handsFreeMode != HandsFreeMode.PUSH_TO_TALK) {
-                beginStt()
+            when (_uiState.value.handsFreeMode) {
+                HandsFreeMode.PUSH_TO_TALK -> Unit // đang giữ nút: không tự mở mic
+                HandsFreeMode.CONTINUOUS -> {
+                    // Nối lại vòng hands-free thay vì quay về 1 lượt push-to-talk.
+                    stopContinuousListening()
+                    startContinuousListening()
+                }
+                HandsFreeMode.NONE -> beginStt()
             }
         }
     }
@@ -461,16 +482,17 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
                 speakChunks(listOf(recalled), ps)
                 try { memRepo.logTurn("assistant", recalled) } catch (_: Exception) {}
                 recordTurnStats(t0, ttfaMs = 0L)
+                ensureContinuousResumed()
                 return@launch
             }
 
-            val needsSearch = IntentRouter.requiresLiveInfo(sttText)
+            val needsSearch = IntentRouter.requiresWebInfo(sttText)
             Log.d(TAG_VC, "router=${if (needsSearch) "search" else "direct"} q=$sttText")
             val searchDeferred = if (needsSearch) async(Dispatchers.IO) {
                 val t1 = SystemClock.elapsedRealtime()
                 val r = try {
                     withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
-                        DefaultWebSearchProvider.searchSummary(sttText)
+                        DefaultWebSearchProvider.searchDigest(sttText, maxChars = if (ps.searchBrief) 460 else 280)
                     } ?: ""
                 } catch (_: Exception) { "" }
                 Log.d(TAG_VC, "search=${r.length}ch in ${SystemClock.elapsedRealtime() - t1}ms")
@@ -533,9 +555,13 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             val sysPrompt = buildString {
                 append(BotPromptManager.buildFromPrefs(ps))
                 if (memLine.isNotBlank()) append("\n").append(memLine)
-                if (searchCtx.isNotBlank())
+                if (searchCtx.isNotBlank()) {
                     append("\n[Kết quả web — trả lời dựa trên dữ liệu dưới đây, ngắn gọn, không bịa số liệu]:\n")
                         .append(searchCtx)
+                    append("\n").append(
+                        BotPromptManager.searchAnswerInstruction(ps.searchMaxWords, ps.searchBrief)
+                    )
+                }
             }
 
             LlmBridge.generateStreamRest(
@@ -588,6 +614,7 @@ class VoiceChatViewModel(application: Application) : AndroidViewModel(applicatio
             try { memRepo.logTurn("assistant", _uiState.value.responseText) } catch (_: Exception) {}
             recordTurnStats(t0, ttfaMs)
             try { System.gc() } catch (_: Exception) {}
+            ensureContinuousResumed()
         }
     }
 

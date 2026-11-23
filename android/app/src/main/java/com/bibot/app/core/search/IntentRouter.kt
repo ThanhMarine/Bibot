@@ -30,16 +30,40 @@ object IntentRouter {
         "bây giờ", "hiện tại", "trong ngày", "cập nhật"
     )
 
+    /** Câu hỏi về chính bot/user — KHÔNG đi web (tránh search "bạn là ai"). */
+    private val PERSONAL_PATTERNS = listOf(
+        Regex("\\b(bạn|em|mày)\\s+(là|tên|nhớ|biết)\\b"),
+        Regex("\\b(tên|tuổi|nghề)\\s+(bạn|em|của bạn|của em)\\b"),
+        Regex("\\b(bạn|em)\\s+nhớ\\b")
+    )
+
+    /** Câu hỏi tra cứu thông tin nói chung (mở rộng ngoài thời tiết/giá/tin tức). */
+    private val INFO_PATTERNS = listOf(
+        Regex("\\b(ai|cái gì|gì|thế nào|là gì|là ai|ở đâu|khi nào|vì sao|tại sao|bao nhiêu|nghĩa là gì|định nghĩa|nguồn gốc|lịch sử|cách|phương pháp|so sánh|khác nhau|đúng không|có phải|hay là|kết quả|số liệu|thông tin|tra cứu|tìm hiểu|giải thích|hướng dẫn|mô tả|liệt kê|danh sách|ý nghĩa|nguyên nhân|hậu quả|quy trình|cấu tạo|tác dụng|đặc điểm|sự kiện|nhân vật|khái niệm|thuật ngữ|từ điển|what|who|when|where|why|how|define|dictionary)\\b")
+    )
+
+    private fun normalize(text: String): String = text.lowercase()
+        .replace(Regex("[^0-9a-zA-ZÀ-ỹ\\s]"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
     fun requiresLiveInfo(text: String?): Boolean {
         if (text.isNullOrBlank()) return false
-        // Python: re.sub(r"[^0-9a-zA-ZÀ-ỹ\s]", " ", text.lowercase()) + collapse
-        val normalized = text.lowercase()
-            .replace(Regex("[^0-9a-zA-ZÀ-ỹ\\s]"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
+        val normalized = normalize(text)
         if (normalized.isEmpty()) return false
         if (SHORT_TALK.any { it in normalized }) return false
         if (LIVE_KEYWORDS.any { it in normalized }) return true
         return false
+    }
+
+    /** Router dùng cho Voice Chat: live info + tra cứu thông tin nói chung. */
+    fun requiresWebInfo(text: String?): Boolean {
+        if (text.isNullOrBlank()) return false
+        val normalized = normalize(text)
+        if (normalized.isEmpty()) return false
+        if (SHORT_TALK.any { it in normalized }) return false
+        if (PERSONAL_PATTERNS.any { it.containsMatchIn(normalized) }) return false
+        if (LIVE_KEYWORDS.any { it in normalized }) return true
+        return INFO_PATTERNS.any { it.containsMatchIn(normalized) }
     }
 }

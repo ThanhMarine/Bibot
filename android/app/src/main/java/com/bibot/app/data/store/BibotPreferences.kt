@@ -23,6 +23,8 @@ object PrefKeys {
     val BOT_STYLE = stringPreferencesKey("bot_style") // friendly/formal/humorous/concise
     val BOT_TONE = stringPreferencesKey("bot_tone") // warm/professional/playful/concise
     val BOT_MAX_WORDS = intPreferencesKey("bot_max_words") // 30
+    val SEARCH_MAX_WORDS = intPreferencesKey("search_max_words") // 50 (khi tra cứu web)
+    val SEARCH_BRIEF = booleanPreferencesKey("search_brief") // ngan gon va du y
     val GEMINI_MODEL = stringPreferencesKey("gemini_model")
     val TTS_PRIORITY = stringPreferencesKey("tts_priority") // auto/offline/online
     val VOICE_SPEED = floatPreferencesKey("voice_speed") // 0.85
@@ -75,6 +77,8 @@ data class BibotPrefs(
     val botStyle: String = "friendly",
     val botTone: String = "warm",
     val botMaxWords: Int = 30,
+    val searchMaxWords: Int = 50,
+    val searchBrief: Boolean = true,
     val geminiModel: String = "gemini-3.5-flash-lite",
     val geminiApiKey: String = "",
     val openRouterKey: String = "",
@@ -116,6 +120,8 @@ class BibotPreferences(private val context: Context) {
             botStyle = p[PrefKeys.BOT_STYLE] ?: "friendly",
             botTone = p[PrefKeys.BOT_TONE] ?: "warm",
             botMaxWords = p[PrefKeys.BOT_MAX_WORDS] ?: 30,
+            searchMaxWords = p[PrefKeys.SEARCH_MAX_WORDS] ?: 50,
+            searchBrief = p[PrefKeys.SEARCH_BRIEF] ?: true,
             geminiModel = p[PrefKeys.GEMINI_MODEL] ?: "gemini-3.5-flash-lite",
             geminiApiKey = p[PrefKeys.GEMINI_API_KEY] ?: "",
             openRouterKey = p[PrefKeys.OPENROUTER_API_KEY] ?: "",
@@ -154,6 +160,8 @@ class BibotPreferences(private val context: Context) {
     suspend fun setBotStyle(v: String) { context.bibotDataStore.edit { it[PrefKeys.BOT_STYLE] = v } }
     suspend fun setBotTone(v: String) { context.bibotDataStore.edit { it[PrefKeys.BOT_TONE] = v } }
     suspend fun setBotMaxWords(v: Int) { context.bibotDataStore.edit { it[PrefKeys.BOT_MAX_WORDS] = v } }
+    suspend fun setSearchMaxWords(v: Int) { context.bibotDataStore.edit { it[PrefKeys.SEARCH_MAX_WORDS] = v } }
+    suspend fun setSearchBrief(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.SEARCH_BRIEF] = v } }
     suspend fun setVoiceSpeed(v: Float) { context.bibotDataStore.edit { it[PrefKeys.VOICE_SPEED] = v } }
     suspend fun setSttOfflineFirst(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.STT_OFFLINE_FIRST] = v } }
     suspend fun setBargeInEnabled(v: Boolean) { context.bibotDataStore.edit { it[PrefKeys.BARGE_IN_ENABLED] = v } }

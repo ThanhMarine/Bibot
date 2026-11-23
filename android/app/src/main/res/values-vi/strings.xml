@@ -657,4 +657,6 @@
     <string name="books_import_done">Đã thêm %1$d sách</string>
     <string name="books_tree_no_files">Không tìm thấy file sách trong thư mục đã chọn</string>
     <string name="books_tree_title">Chọn sách từ thư mục</string>
+    <string name="set_search_words_label">Giới hạn khi tra cứu web</string>
+    <string name="set_search_brief">Ngắn gọn và đủ ý</string>
 </resources>

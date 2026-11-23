@@ -36,6 +36,8 @@ object BotPromptManager {
         "calm" to "Điềm đạm"
     )
     val MAX_WORDS_OPTIONS = listOf(20, 30, 50, 80, 120)
+    val SEARCH_WORDS_OPTIONS = listOf(30, 50, 80, 120)
+    const val SEARCH_BRIEF_LABEL = "Ngắn gọn và đủ ý"
 
     fun styleLabel(v: String) = STYLE_OPTIONS.find { it.first == v }?.second ?: v
     fun toneLabel(v: String) = TONE_OPTIONS.find { it.first == v }?.second ?: v
@@ -68,6 +70,20 @@ object BotPromptManager {
         // Luật cứng luôn gắn cuối (kể cả template user tự sửa) — chống ảo giác
         if (HARD_RULES !in res) res = "$res\n$HARD_RULES"
         return res
+    }
+
+    /**
+     * Prompt ĐỘNG cho lượt có web search: giới hạn số từ + chế độ ngắn gọn đủ ý.
+     * Gắn thêm vào system prompt khi có [Kết quả web].
+     */
+    fun searchAnswerInstruction(maxWords: Int, brief: Boolean): String {
+        val cap = maxWords.coerceIn(20, 120)
+        return if (brief) {
+            "Khi có [Kết quả web]: hãy đọc lại thông tin đã tổng hợp trong tối đa $cap từ, " +
+                "ngắn gọn và đủ ý, bám sát dữ liệu nguồn, không thêm chi tiết ngoài nguồn."
+        } else {
+            "Khi có [Kết quả web]: trả lời dưới $cap từ, chỉ dùng dữ liệu nguồn, không bịa số liệu."
+        }
     }
 
     fun buildFromPrefs(prefs: BibotPrefs): String = build(

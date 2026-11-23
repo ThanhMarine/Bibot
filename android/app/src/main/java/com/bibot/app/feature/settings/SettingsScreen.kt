@@ -569,6 +569,8 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
     var botStyle by remember(prefsState.botStyle) { mutableStateOf(prefsState.botStyle) }
     var botTone by remember(prefsState.botTone) { mutableStateOf(prefsState.botTone) }
     var botMaxWords by remember(prefsState.botMaxWords) { mutableStateOf(prefsState.botMaxWords) }
+    var searchMaxWords by remember(prefsState.searchMaxWords) { mutableStateOf(prefsState.searchMaxWords) }
+    var searchBrief by remember(prefsState.searchBrief) { mutableStateOf(prefsState.searchBrief) }
     var msg by remember { mutableStateOf<String?>(null) }
     var styleExpanded by remember { mutableStateOf(false) }
     var toneExpanded by remember { mutableStateOf(false) }
@@ -612,11 +614,30 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
                 FilterChip(selected = botMaxWords == n, onClick = { botMaxWords = n }, label = { Text("$n") })
             }
         }
+        Text(
+            stringResource(R.string.set_search_words_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            BotPromptManager.SEARCH_WORDS_OPTIONS.forEach { n ->
+                FilterChip(selected = searchMaxWords == n, onClick = { searchMaxWords = n }, label = { Text("$n") })
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.set_search_brief),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(checked = searchBrief, onCheckedChange = { searchBrief = it })
+        }
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(Modifier.padding(10.dp)) {
                 Text(stringResource(R.string.common_preview), style = MaterialTheme.typography.labelSmall)
                 Text(
-                    BotPromptManager.build(template = botPrompt, persona = persona, style = botStyle, tone = botTone, maxWords = botMaxWords),
+                    BotPromptManager.build(template = botPrompt, persona = persona, style = botStyle, tone = botTone, maxWords = botMaxWords) +
+                        "\n" + BotPromptManager.searchAnswerInstruction(searchMaxWords, searchBrief),
                     style = MaterialTheme.typography.bodySmall, lineHeight = 16.sp
                 )
             }
@@ -629,6 +650,8 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
                     prefs.setBotStyle(botStyle)
                     prefs.setBotTone(botTone)
                     prefs.setBotMaxWords(botMaxWords)
+                    prefs.setSearchMaxWords(searchMaxWords)
+                    prefs.setSearchBrief(searchBrief)
                     msg = promptSavedMsg
                 }
             }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_save)) }
@@ -638,6 +661,8 @@ private fun AiPromptContent(prefsState: BibotPrefs, prefs: BibotPreferences) {
                 botStyle = "friendly"
                 botTone = "warm"
                 botMaxWords = 30
+                searchMaxWords = 50
+                searchBrief = true
                 msg = restoredMsg
             }) { Text(stringResource(R.string.common_default)) }
         }

@@ -667,4 +667,6 @@
     <string name="books_import_done">Added %1$d books</string>
     <string name="books_tree_no_files">No book files found in the selected folder</string>
     <string name="books_tree_title">Select books from folder</string>
+    <string name="set_search_words_label">Web search answer limit</string>
+    <string name="set_search_brief">Concise but complete</string>
 </resources>

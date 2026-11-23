@@ -6,3 +6,5 @@ Bibot v1.0.6 (Build 7) — UI refresh
 - Library scans books from device storage; Weather accepts any location by name or coordinates.
 - Gemini chat simplified to two model choices; added STT/TTS engine license credits.
 - Settings > Library can add books from device storage using SAF (pick files or a folder). No extra permission, no upload.
+- Hands-free chat keeps listening across turns and resumes after barge-in.
+- Wider web lookup for informational questions; dynamic answer limit 30/50/80/120 words, concise but complete.
