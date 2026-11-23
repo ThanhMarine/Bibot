@@ -1,20 +1,20 @@
 {
-  "updatedAt": "2026-11-18",
-  "note": "File tin chinh thuc cua BiBot. Sua file nay -> commit -> push nhanh main. App doc cache 24h (Settings > Thong bao co nut Lam moi). type: info | upgrade | bookstore | promo.",
+  "updatedAt": "2026-11-23",
+  "note": "File tin chinh thuc cua Bibot. Sua file nay -> commit -> push master. App doc cache 24h (Cai dat > Thong bao co nut Lam moi). type: info | upgrade | bookstore | promo.",
   "announcements": [
     {
-      "id": "v1.0.4-stt-offline-fix",
-      "title": "Bản 1.0.4 — sửa lỗi nhận giọng nói offline",
-      "body": "Bản phát hành trước bị lỗi: bật \"STT offline\" nhưng app không nhận được giọng nói, dù đã tải đủ mô hình. Nguyên nhân là bước tối ưu mã khi đóng gói làm hỏng tên các lớp cấu hình của bộ nhận dạng giọng nói (sherpa-onnx), nên phần nhận dạng không khởi tạo được. Bản 1.0.4 đã sửa triệt để. Nếu bạn đã cài bản cũ, hãy cập nhật lên 1.0.4 rồi thử lại: Cài đặt > Giọng đọc > bật \"STT offline\", dòng trạng thái ngay dưới công tắc sẽ cho biết thiếu mô hình hay thiếu engine.",
+      "id": "v1.0.6-ui-refresh",
+      "title": "Bibot v1.0.6 — làm mới giao diện",
+      "body": "Bản 1.0.6 (build 7): giao diện thống nhất với icon Material Symbols Rounded, chữ đậm dễ đọc; trang chủ gọn hơn, hỗ trợ màn hình ngang. PDF lề trái/phải đều và zoom không bị kẹt trang; thư viện quét được sách trong bộ nhớ máy; Thời tiết chọn vị trí theo tên hoặc toạ độ bất kỳ. Chat AI dùng Gemini với 2 lựa chọn đơn giản. Chi tiết trong Cài đặt > Giấy phép & ghi công.",
       "type": "info",
       "minVersion": "",
       "url": "",
-      "publishedAt": "2026-11-18"
+      "publishedAt": "2026-11-23"
     },
     {
       "id": "v1.0.4-announce-channel",
       "title": "Kênh tin mới từ nhà phát triển",
-      "body": "Từ bản 1.0.4, các thông tin quan trọng (bản cập nhật, sách mới, ưu đãi) sẽ hiện ở banner ngay trên màn hình chính và được lưu lại trong Cài đặt > Thông báo. Bấm vào banner để đọc đầy đủ nội dung; xem lại bất cứ lúc nào, kể cả khi không có mạng (app giữ bản đã tải trong 24 giờ).",
+      "body": "Các thông tin quan trọng (bản cập nhật, sách mới, ưu đãi) sẽ hiện ở banner ngay trên màn hình chính và được lưu trong Cài đặt > Thông báo. Bấm vào banner để đọc đầy đủ; xem lại bất cứ lúc nào, kể cả khi không có mạng (app giữ bản đã tải trong 24 giờ).",
       "type": "info",
       "minVersion": "",
       "url": "",
