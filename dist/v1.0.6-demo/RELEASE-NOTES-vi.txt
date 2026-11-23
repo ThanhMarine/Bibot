@@ -1,10 +1,7 @@
-Bibot v1.0.6 - ban cap nhat giao dien
-Cap nhat: 22/11/2026 | versionName 1.0.6 | versionCode 7
+Bibot v1.0.6 (Build 7) — cập nhật giao diện
 
-- Giao dien nhat quan: mot ngon ngữ icon vector hand-draw tu ve, mau nhan #1976D2.
-- Loai bo hoan toan icon Fluent Emoji 3D (va cac ô Home cu).
-- Toan bo icon chức nang dung chung bo vector tu ve, hien thi ro, dong bo sang/den.
-- Chu duoc chuan hoa theo typography Bibot; cac nhan nho toi thieu 12sp.
-- PDF: dàn trang thong minh, le trai/phai deu, zoom khong bi ket trang.
-- Thoi tiet: chon vi tri tuy y theo ten hoac toa do tai Cài đặt > Thời tiết.
-- Sua loi va cai thien on dinh.
+- Giao diện thống nhất: icon Material Symbols Rounded, chữ đậm dễ đọc, accent xanh Bibot; ổn định ở chế độ sáng/tối.
+- Trang chủ gọn hơn: thanh công cụ rõ ràng, ô chức năng lớn, banner thu nhỏ; hiển thị tốt cả màn hình ngang.
+- Đọc PDF dễ hơn: lề trái/phải đều, vùng hiển thị lớn hơn, zoom không bị kẹt trang.
+- Thư viện quét được sách trong bộ nhớ máy; Thời tiết chọn vị trí theo tên hoặc toạ độ bất kỳ.
+- Chat AI dùng Gemini với 2 lựa chọn đơn giản; bổ sung ghi công licence cho engine STT/TTS.

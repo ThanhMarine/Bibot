@@ -1,10 +1,7 @@
-Bibot v1.0.6 - UI refresh
-Updated: 2026-11-22 | versionName 1.0.6 | versionCode 7
+Bibot v1.0.6 (Build 7) — UI refresh
 
-- One visual language: Material Symbols Rounded icons, single accent #1976D2.
-- Removed all Fluent Emoji 3D graphics (including the old Home tiles).
-- Consistent icon set across Home, Settings and top bar; stable light/dark palette.
-- Unified Bibot typography scale; smallest labels at least 12sp.
-- PDF: smarter layout, even side margins, zoom no longer sticks on a page.
-- Weather: choose any location by name or coordinates in Settings > Weather.
-- Bug fixes and stability improvements.
+- Consistent interface: Material Symbols Rounded icons, bold legible text, Bibot blue accent; stable in light and dark mode.
+- Cleaner Home: clearer top bar, larger feature tiles, compact banner; layout adapts to landscape.
+- Better PDF reading: even side margins, larger reading area, zoom no longer sticks on a page.
+- Library scans books from device storage; Weather accepts any location by name or coordinates.
+- Gemini chat simplified to two model choices; added STT/TTS engine license credits.
