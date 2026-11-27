@@ -20,7 +20,7 @@ Ngoài ra Bibot dùng các thành phần mã nguồn mở/công cộng sau. Mỗ
 - **Nguồn:** https://github.com/alphacep/vosk-api
 - **Tác giả:** AlphaCephei / Vosk contributors
 - **Giấy phép:** Apache License 2.0
-- **Sử dụng trong Bibot:** nhận dạng giọng nói offline (STT) làm đường dự phòng; dependency `com.alphacephei:vosk-android:0.3.45`.
+- **Sử dụng trong Bibot:** nhận dạng giọng nói offline (STT) làm đường dự phòng; dependency `com.alphacephei:vosk-android:0.3.75`.
 - **Trạng thái:** **đóng gói trong APK**.
 
 ## sherpa-onnx (k2-fsa)
@@ -60,6 +60,13 @@ Ngoài ra Bibot dùng các thành phần mã nguồn mở/công cộng sau. Mỗ
 - `android/app/src/main/assets/licenses/APACHE-2.0.txt` —toàn văn Apache License 2.0 (Material Icons, Vosk, sherpa-onnx).
 - `android/app/src/main/assets/licenses/MIT.txt` —toàn văn MIT License (Piper, ONNX Runtime).
 - eSpeak NG: chỉ attribution ở trên vì Bibot không phân phối dữ liệu GPL.
+
+## 16 KB page size
+
+- Bibot nhắm API 36 nên phải hỗ trợ 16 KB page size trên thiết bị 64-bit.
+- Nâng Vosk từ 0.3.45 lên 0.3.75 vì `libvosk.so` bản cũ chỉ căn chỉnh ELF `2**12` (4 KB);
+  bản 0.3.75 dùng `2**14` (16 KB) — kiểm chứng bằng `llvm-objdump -p ... | LOAD`.
+- Nguồn: https://developer.android.com/guide/practices/page-sizes?hl=vi#build
 
 ## Ghi chú
 

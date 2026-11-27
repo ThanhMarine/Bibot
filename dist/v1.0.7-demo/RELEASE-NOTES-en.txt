@@ -1,0 +1,5 @@
+Bibot v1.0.7 (Build 8) - 16 KB page size support
+
+- Updated the Vosk speech engine to 0.3.75 with 16 KB aligned native libraries.
+- Compatible with Android devices that use 16 KB memory pages, with more reliable startup.
+- All existing features remain: PDF reader, book library, weather, hands-free AI chat, and web lookup.

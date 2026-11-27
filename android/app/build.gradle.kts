@@ -75,8 +75,8 @@ android {
         applicationId = "com.bibot.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.0.6"
+        versionCode = 8
+        versionName = "1.0.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -112,7 +112,9 @@ android {
 
         resConfigs("vi", "en")
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            // 16 KB page size: chi gi lai 64-bit. libvosk.so 32-bit van align 2**12,
+            // thiet bi 16 KB chi chay 64-bit nen bo ABI 32-bit de tranh Play quet .so lech.
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 

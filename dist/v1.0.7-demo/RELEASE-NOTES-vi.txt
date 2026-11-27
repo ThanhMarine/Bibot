@@ -1,0 +1,5 @@
+Bibot v1.0.7 (Build 8) - ho tro 16 KB page size
+
+- Cap nhat engine nhan dang giong noi Vosk len 0.3.75, can chinh thu vien native theo chuan 16 KB.
+- Tuong thich thiet bi Android dung bo nho trang 16 KB, khoi chay on dinh hon.
+- Giu nguyen toan bo tinh nang: doc PDF, thu vien sach, thoi tiet, chat AI hands-free va tra cuu web.
